@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trello Stats Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <style>
+        /* ------------------------------------------------ */
+        /* --- DIGITAL-7 FONT LOAD (FIXED MONO FONT) --- */
+        /* ------------------------------------------------ */
+        @import url('https://fonts.cdnfonts.com/css/digital-7-mono');
+
+        /* ------------------------------------------------ */
+        /* --- Dark Mode Variables and Global Styles --- */
+        /* ------------------------------------------------ */
+        :root {
+            --bg-primary: #f4f5f7;
+            --bg-secondary: #ffffff;
+            --text-color: #172b4d;
+            --section-bg: #ffffff;
+            --card-border: #dcdcdc;
+            --form-bg: white;
+            --form-input-bg: white;
+            --input-border: #ccc;
+            --btn-text: white;
+            --title-clock-color: #0079bf; /* Light Mode Title/Clock */
+            --settings-item-bg: var(--bg-primary); /* Light Mode Item Background */
+            --footer-bg: #ffffff; /* Footer background */
+            --footer-border: #dfe1e6;
+            --action-button-bg: #0079bf;
+            --action-button-hover-bg: #026aa7;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1d2125;
+            --bg-secondary: #282c31;
+            --text-color: #f1f2f4;
+            --section-bg: #282c31;
+            --card-border: #42464b;
+            --form-bg: #282c31;
+            --form-input-bg: #3c4045;
+            --input-border: #42464b;
+            --btn-text: #1d2125;
+            --title-clock-color: #f1f2f4; /* FIX: High Contrast Light Grey */
+            --settings-item-bg: #1d2125; /* Dark Mode Item Background */
+            --footer-bg: #1d2125; /* Dark Footer background */
+            --footer-border: #42464b;
+            --action-button-bg: #42526e; /* Dark Grey for buttons */
+            --action-button-hover-bg: #5e6c84;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0 0 65px 0; /* Add padding to the bottom for the fixed footer */
+            background-color: var(--bg-primary);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* --- Header/Navigation --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #dfe1e6;
+            flex-wrap: wrap; /* Allow wrapping for long titles */
+        }
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            max-width: 70%; 
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.7em; /* Title size */
+            color: var(--title-clock-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-top: 2px; 
+        }
+        /* NEW: Clock Styling */
+        .large-clock {
+            font-family: 'Digital-7 Mono', monospace; /* APPLIED DIGITAL FONT FIX */
+            font-size: 2.5em; /* Adjusted size for vertical alignment */
+            font-weight: 900; 
+            color: var(--title-clock-color);
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+            line-height: 1;
+            margin-right: 20px;
+            flex-shrink: 0;
+            /* FIX: Set predictable width to prevent title shifting */
+            min-width: 155px; 
+            text-align: right;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .countdown {
+            margin-right: 15px;
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+        /* FIX: Ensure standard buttons keep color regardless of mode */
+        .settings-button, .logout-button {
+            padding: 8px 12px;
+            background-color: var(--action-button-bg); 
+            color: white;
+            transition: background-color 0.2s;
+            margin-left: 10px;
+        }
+        .settings-button:hover, .logout-button:hover {
+            background-color: var(--action-button-hover-bg);
+        }
+        
+        /* NEW: Time Filter Dropdown */
+        .time-filter-select {
+            padding: 7px 10px;
+            margin-right: 15px;
+            border: 1px solid var(--input-border);
+            border-radius: 3px;
+            background-color: var(--form-input-bg);
+            color: var(--text-color);
+        }
+        
+        /* NEW: Theme Toggle Button */
+        .theme-toggle-button {
+            background: none;
+            border: 1px solid var(--input-border);
+            color: var(--text-color);
+            padding: 7px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-right: 10px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+
+        /* NEW: Fixed Footer Action Bar */
+        .footer-action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: var(--footer-bg);
+            border-top: 1px solid var(--footer-border);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            z-index: 9000;
+        }
+        .footer-action-bar .version { /* NEW: Version Text Styling */
+            margin-right: auto; 
+            font-size: 0.8em;
+            color: #6b778c;
+        }
+        .refresh-button {
+            background-color: var(--action-button-bg); 
+            color: white;
+            margin-left: 10px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .refresh-button:hover {
+            background-color: var(--action-button-hover-bg);
+        }
+
+
+        /* --- Dashboard Grid Layout --- */
+        .dashboard-section {
+            margin-bottom: 40px;
+            padding: 15px;
+            background-color: var(--section-bg);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: background-color 0.3s;
+        }
+        [data-theme="dark"] .dashboard-section {
+            box-shadow: 0 1px 3px rgba(255,255,255,0.05);
+        }
+        .section-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .section-header {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: var(--title-clock-color); /* Applied consistent color */
+        }
+        /* Collapse Icon */
+        .collapse-toggle {
+            cursor: pointer;
+            font-size: 1.2em;
+            color: var(--text-color);
+            padding: 5px;
+            background: none;
+            border: none;
+        }
+        .collapse-toggle:hover {
+            color: #0079bf;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            justify-content: center;
+        }
+
+        /* --- Tile Styles --- */
+        .dashboard-tile {
+            min-height: 150px;
+            border-radius: 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: 1px solid var(--card-border);
+        }
+        .dashboard-tile:hover {
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        .card-count {
+            font-size: 5em;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+        .list-name {
+            font-size: 1.2em;
+            font-weight: 500;
+        }
+        .card-description {
+            font-size: 0.85em;
+            font-weight: 400;
+            opacity: 0.8;
+            max-width: 90%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            margin-top: 3px;
+        }
+
+
+        /* --- Forms & Settings (Alignment Fix) --- */
+        .form-card {
+            background-color: var(--form-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+            max-width: 500px;
+            margin: 50px auto;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s;
+        }
+        .form-card label {
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: block;
+        }
+        .form-card input[type="text"],
+        .form-card select {
+            width: calc(100% - 20px);
+            padding: 8px 10px;
+            margin-top: 5px;
+            border: 1px solid var(--input-border);
+            border-radius: 3px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .form-card.settings {
+            max-width: 95%;
+            margin: 20px auto;
+        }
+        .list-config-item {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            padding: 8px;
+            background: var(--settings-item-bg); 
+            border-radius: 3px;
+            justify-content: flex-start; 
+        }
+        
+        /* Define column structure for alignment */
+        .list-config-item > span:first-child { /* Tile Name (FIX: 50% width) */
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            min-width: 100px;
+            width: 50%; /* Guaranteed space for list name */
+            padding-right: 10px;
+            flex-shrink: 1;
+        }
+        /* Control Group Container (All buttons and select) */
+        .list-config-item > div:last-child {
+             display: flex;
+             align-items: center;
+             flex-shrink: 0;
+             max-width: 50%; /* Constrain control group width */
+        }
+        
+        .list-config-item input[type="color"] { /* Color Picker */
+            flex-shrink: 0;
+            margin-left: 5px;
+        }
+        .order-buttons, 
+        .list-config-item select { /* Utility elements */
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        /* FIX: Force the Move dropdown to be reasonably compact */
+        .list-config-item select {
+            width: 85px; 
+        }
+        
+        /* Order and Move Buttons in Settings */
+        .order-buttons button, .section-order-buttons button {
+            background: #6b778c;
+            color: white;
+        }
+        .order-buttons button:hover:not(:disabled), .section-order-buttons button:hover:not(:disabled) {
+            background: #42526e;
+        }
+
+
+        /* --- Layout Configuration (Section Stacking) --- */
+        .layout-config-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .layout-section-box {
+            background: var(--bg-primary);
+            padding: 10px;
+            border-radius: 4px;
+            min-width: 250px;
+            flex-basis: auto;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
+        }
+        /* Style the Unassigned Lists pool */
+        .layout-section-box:first-child {
+             background: var(--bg-secondary);
+             padding: 15px;
+             transition: background-color 0.3s;
+        }
+        .layout-list-item {
+            background: var(--form-bg);
+            border: 1px solid var(--input-border);
+            transition: background-color 0.3s, border-color 0.3s;
+            padding: 10px; /* Added padding for better separation */
+            margin-bottom: 10px;
+            display: flex; /* Ensure inner elements align */
+            align-items: center;
+            justify-content: space-between; /* Space out name and buttons */
+        }
+        .layout-list-item span:first-child { 
+            flex-grow: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            padding-right: 15px; /* Add space between name and buttons */
+        }
+        .layout-list-item .move-button-pool {
+            margin-left: 5px;
+            /* Ensure pool buttons are compact */
+            padding: 3px 6px;
+            font-size: 0.7em;
+        }
+
+        /* --- Utility Buttons (Save, Remove, etc.) --- */
+        .save-layout-button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #5aac44;
+            color: white;
+            transition: background-color 0.2s;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .save-layout-button:hover {
+            background-color: #519839;
+        }
+        
+        /* Section Setting Styling */
+        .section-options {
+            margin-top: 10px;
+            padding: 5px 0;
+            border-top: 1px solid var(--input-border);
+        }
+        .section-options label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            font-size: 0.9em;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        
+        /* Modal Display (FINAL FIX) */
+        .modal-overlay {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            width: 100%; 
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .modal-content {
+            background: var(--form-bg);
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh; 
+            overflow-y: auto;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            border-bottom: 2px solid #0079bf;
+            padding-bottom: 10px;
+        }
+        [data-theme="dark"] .modal-content h3 {
+            border-bottom-color: #4c9aff;
+        }
+        /* Card Labels in Modal */
+        .card-label {
+            font-size: 0.7em;
+            font-weight: 600;
+            color: var(--btn-text);
+            padding: 2px 4px;
+            border-radius: 3px;
+            margin-right: 5px;
+            filter: contrast(1.1) brightness(0.9); 
+            line-height: 1;
+            vertical-align: middle;
+        }
+        .card-list-item {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 5px;
+            padding: 5px 0;
+            border-bottom: 1px dotted var(--input-border);
+            text-overflow: ellipsis;
+        }
+        .card-list-item a {
+            color: #0079bf;
+            text-decoration: none;
+            flex-grow: 1; 
+        }
+        [data-theme="dark"] .card-list-item a {
+            color: #4c9aff;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef, useContext, createContext } = React;
+        const ReactDOM = window.ReactDOM;
+
+        const TRELLO_API_BASE = "https://api.trello.com/1";
+        const REFRESH_INTERVAL_SECONDS = 30;
+
+        // --- Public Sound Files (REMOVED) ---
+        const NOTIFICATION_SOUNDS = {
+            'none': { label: 'None', url: '' }
+        };
+
+
+        // --- Local Storage Keys ---
+        const STORAGE_KEYS = {
+            API_KEY: 'trelloApiKey',
+            TOKEN: 'trelloToken',
+            SETTINGS: 'dashboardSettings',
+            LIST_COLORS: 'trelloListColors',
+            LIST_SELECTIONS: 'trelloListSelections',
+            DASHBOARD_LAYOUT: 'trelloDashboardLayout',
+            RANDOM_COLORS_CACHE: 'trelloRandomColors',
+            CLOCK_SETTING: 'trelloClockSetting',
+            THEME: 'trelloTheme',
+            ALERT_SOUND: 'trelloAlertSound',
+            LIST_ALERTS: 'trelloListAlerts'
+        };
+        
+        // --- Filter Options Mapping ---
+        const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const now = new Date();
+        
+        const calcCalendarFilter = (key) => {
+            let start, end;
+            if (key === 'last_month') {
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0);
+                const monthName = MONTH_NAMES[start.getMonth()];
+                return { start, end, label: `Last month (${monthName} ${start.getFullYear()})`, titleSuffix: `${monthName} ${start.getFullYear()}` };
+            } else if (key === 'this_month') {
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = now;
+                const monthName = MONTH_NAMES[now.getMonth()];
+                return { start, end, label: `This month (${monthName} ${now.getFullYear()})`, titleSuffix: `${monthName} ${now.getFullYear()}` };
+            } else if (key === 'this_week') {
+                const dayOfWeek = now.getDay(); 
+                const daysToSubtract = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+                
+                start = new Date(now);
+                start.setDate(now.getDate() - daysToSubtract);
+                start.setHours(0, 0, 0, 0); 
+                
+                end = now; 
+                return { start, end, label: `This week (Mon-Sun)`, titleSuffix: `This Week` };
+            } else if (key === 'last_week') {
+                const dayOfWeek = now.getDay();
+                const daysToSubtract = (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + 7;
+                
+                start = new Date(now);
+                start.setDate(now.getDate() - daysToSubtract);
+                start.setHours(0, 0, 0, 0); 
+                
+                end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+                return { start, end, label: `Last week (Mon-Sun)`, titleSuffix: `Last Week` };
+            }
+        };
+
+        const TIME_FILTERS = {
+            'all': { label: 'All Time', minutes: 0, titleSuffix: 'All Time', type: 'absolute' },
+            '24h': { label: 'Last 24h', minutes: 60 * 24, titleSuffix: 'Last 24h', type: 'relative' },
+            '48h': { label: 'Last 48h', minutes: 60 * 48, titleSuffix: 'Last 48h', type: 'relative' },
+            '72h': { label: 'Last 72h', minutes: 60 * 72, titleSuffix: 'Last 72h', type: 'relative' },
+            '7d': { label: 'Last 7 days', minutes: 60 * 24 * 7, titleSuffix: 'Last 7 Days', type: 'relative' },
+            
+            'this_week': { ...calcCalendarFilter('this_week'), type: 'calendar' },
+            'last_week': { ...calcCalendarFilter('last_week'), type: 'calendar' },
+            
+            'last_30d': { label: 'Last 30 days', minutes: 60 * 24 * 30, titleSuffix: 'Last 30 Days', type: 'relative' },
+            'this_month': { ...calcCalendarFilter('this_month'), type: 'calendar' },
+            'last_month': { ...calcCalendarFilter('last_month'), type: 'calendar' },
+        };
+
+        // --- Dark Mode Context ---
+        const DarkModeContext = createContext();
+
+        const useDarkMode = () => {
+            const [theme, setTheme] = useState(() => localStorage.getItem(STORAGE_KEYS.THEME) || 'system');
+
+            useEffect(() => {
+                const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                
+                const applyTheme = (currentTheme) => {
+                    const resolvedTheme = 
+                        currentTheme === 'system' 
+                            ? (mediaQuery.matches ? 'dark' : 'light')
+                            : currentTheme;
+                    document.documentElement.setAttribute('data-theme', resolvedTheme);
+                };
+                
+                applyTheme(theme);
+                
+                const handleChange = () => applyTheme(theme);
+                mediaQuery.addEventListener('change', handleChange);
+                
+                return () => mediaQuery.removeEventListener('change', handleChange);
+            }, [theme]);
+            
+            const toggleTheme = (newTheme) => {
+                const resolvedTheme = newTheme || (theme === 'light' ? 'dark' : 'light');
+                setTheme(resolvedTheme);
+                localStorage.setItem(STORAGE_KEYS.THEME, resolvedTheme);
+            };
+
+            return { theme, toggleTheme };
+        };
+
+        const DarkModeProvider = ({ children }) => {
+            const darkMode = useDarkMode();
+            return (
+                <DarkModeContext.Provider value={darkMode}>
+                    {children}
+                </DarkModeContext.Provider>
+            );
+        };
+        // ------------------------------------------------
+
+
+        // --- Utility Functions (continued) ---
+        
+        // FIX: Hoisted to global scope to resolve ReferenceError
+        const calculateDateFilter = (filterKey) => {
+            const filter = TIME_FILTERS[filterKey];
+            let params = '';
+
+            if (filter.type === 'relative' && filterKey !== 'all') {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - filter.minutes);
+                params = `&since=${now.toISOString()}`;
+            } else if (filter.type === 'calendar') {
+                const { start, end } = filter;
+                
+                if (start) {
+                    params += `&since=${start.toISOString()}`;
+                }
+                if (end && filterKey !== 'this_month' && filterKey !== 'this_week') {
+                    params += `&before=${end.toISOString()}`;
+                }
+            }
+
+            return params;
+        };
+        
+        // Helper to convert units to seconds for validation
+        const convertIntervalToSeconds = (value, unit) => {
+            const numValue = parseInt(value) || 0;
+            if (unit === 'seconds') return numValue;
+            if (unit === 'minutes') return numValue * 60;
+            if (unit === 'hours') return numValue * 3600;
+            return 30; // Default if invalid
+        };
+        
+        // Helper to convert units to milliseconds for setInterval
+        const convertIntervalToMilliseconds = (value, unit) => {
+            return convertIntervalToSeconds(value, unit) * 1000;
+        };
+        // ------------------------------------------------
+
+
+        const getOrGenerateRandomColor = (listId, existingColors) => {
+            let cache = JSON.parse(localStorage.getItem(STORAGE_KEYS.RANDOM_COLORS_CACHE)) || {};
+            let color = cache[listId];
+            
+            const DEFAULT_FALLBACK_COLOR = '#dcdcdc'; 
+
+            if (!color) {
+                let r, g, b;
+                do {
+                    r = Math.floor(Math.random() * 101);
+                    g = Math.floor(Math.random() * 101);
+                    b = Math.floor(Math.random() * 101);
+                    color = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
+                } while (existingColors.has(color)); 
+                
+                cache[listId] = color;
+                localStorage.setItem(STORAGE_KEYS.RANDOM_COLORS_CACHE, JSON.stringify(cache));
+            }
+            return color || DEFAULT_FALLBACK_COLOR; 
+        };
+        
+        const trelloFetch = async (path, apiKey, token) => {
+            if (!apiKey || !token) {
+                throw new Error("Trello credentials not provided.");
+            }
+            const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${apiKey}&token=${token}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                const error = await response.json();
+                // Check specifically for Rate Limit error (429)
+                if (response.status === 429) {
+                     throw new Error(`Rate limit exceeded (429): Trello API requests too fast/frequent.`);
+                }
+                throw new Error(error.message || `Trello API error: ${response.status}`);
+            }
+            return response.json();
+        };
+
+        // --- Persistent Storage Management ---
+        const getPersistentColors = () => {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_COLORS)) || {};
+            } catch (e) { return {}; }
+        };
+        const setPersistentColor = (boardId, listId, color) => {
+            const colors = getPersistentColors();
+            if (!colors[boardId]) { colors[boardId] = {}; }
+            colors[boardId][listId] = color;
+            localStorage.setItem(STORAGE_KEYS.LIST_COLORS, JSON.stringify(colors));
+        };
+        
+        // Alert Persistence (REMOVED)
+        const getPersistentAlerts = () => { return {}; }; 
+        const setPersistentAlert = (listId, enabled) => { /* No Op */ };
+
+
+        const getPersistentSelections = (boardId) => {
+            try {
+                const allSelections = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_SELECTIONS)) || {};
+                return new Set(allSelections[boardId] || []);
+            } catch (e) { return new Set(); }
+        };
+        const setPersistentSelections = (boardId, listIds) => {
+            try {
+                const allSelections = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_SELECTIONS)) || {};
+                allSelections[boardId] = Array.from(listIds);
+                localStorage.setItem(STORAGE_KEYS.LIST_SELECTIONS, JSON.stringify(allSelections));
+            } catch (e) { console.error("Error saving list selections to cache:", e); }
+        };
+
+        // Dashboard Layout Management
+        const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, isCollapsed: false }];
+
+        const getPersistentLayout = (boardId) => {
+            try {
+                const layout = JSON.parse(localStorage.getItem(STORAGE_KEYS.DASHBOARD_LAYOUT)) || {};
+                const savedLayout = layout[boardId] || DEFAULT_LAYOUT;
+                return savedLayout.map(s => ({
+                    ...s,
+                    isCollapsed: s.isCollapsed || false,
+                    ignoreFirstCard: s.ignoreFirstCard || false
+                }));
+            } catch (e) {
+                console.error("Error parsing dashboard layout:", e);
+                return DEFAULT_LAYOUT;
+            }
+        };
+
+        const setPersistentLayout = (boardId, layout) => {
+            try {
+                const allLayouts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DASHBOARD_LAYOUT)) || {};
+                allLayouts[boardId] = layout;
+                localStorage.setItem(STORAGE_KEYS.DASHBOARD_LAYOUT, JSON.stringify(allLayouts));
+            } catch (e) {
+                console.error("Error saving dashboard layout:", e);
+            }
+        };
+        // ------------------------------------------------
+
+        // --- Component: Clock ---
+        const DigitalClock = ({ boardId }) => {
+            const [time, setTime] = useState('');
+            const [showClock, setShowClock] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false');
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    const now = new Date();
+                    setTime(now.toLocaleTimeString(undefined, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                }, 1000);
+                return () => clearInterval(timer);
+            }, []);
+            
+            useEffect(() => {
+                const savedSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId);
+                if (savedSetting === null) {
+                    localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + boardId, 'true');
+                }
+                setShowClock(savedSetting !== 'false');
+            }, [boardId]);
+
+            if (!showClock) return null;
+
+            return (
+                <div className="large-clock">
+                    {time || '--:--:--'}
+                </div>
+            );
+        };
+
+        // --- Component: Card Details Modal ---
+        const CardDetailsModal = ({ listId, listName, color, apiKey, token, onClose, sectionsLayout }) => {
+            const [cards, setCards] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            
+            // Determine if the first card should be ignored based on section settings
+            const section = sectionsLayout.find(s => s.listIds.includes(listId));
+            const shouldIgnoreFirst = section?.ignoreFirstCard || false;
+
+
+            useEffect(() => {
+                setLoading(true);
+                setError('');
+                trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels`, apiKey, token) 
+                    .then(data => {
+                        // Conditionally filter the first card based on setting
+                        const filteredCards = shouldIgnoreFirst ? data.slice(1) : data;
+                        setCards(filteredCards);
+                    })
+                    .catch(e => {
+                        console.error("Card fetch error:", e);
+                        setError(`Failed to load cards for this list: ${e.message}`);
+                    })
+                    .finally(() => setLoading(false));
+            }, [listId, apiKey, token, shouldIgnoreFirst]);
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <span className="modal-close" onClick={onClose}>&times;</span>
+                        <h3 style={{color: color, borderColor: color}}>Cards in: {listName} ({cards.length})</h3>
+
+                        {loading && <p>Loading cards...</p>}
+                        {error && <p className="error">{error}</p>}
+
+                        {!loading && cards.length === 0 && <p>No cards found in this list.</p>}
+
+                        {!loading && cards.length > 0 && (
+                            <div>
+                                {cards.map(card => (
+                                    <div key={card.id} className="card-list-item">
+                                        {/* Display Trello Labels */}
+                                        {/* FIX: Use optional chaining to prevent crash if labels is null/undefined */}
+                                        {card.labels?.map(label => (
+                                            <span 
+                                                key={label.id} 
+                                                className="card-label"
+                                                style={{
+                                                    backgroundColor: label.color === 'null' ? '#999' : label.color,
+                                                    color: (label.color === 'yellow' || label.color === 'lime' || label.color === 'white') ? '#000' : 'white',
+                                                    filter: 'contrast(1.1) brightness(0.9)'
+                                                }}
+                                            >
+                                                {label.name || label.color}
+                                            </span>
+                                        ))}
+
+                                        <a href={card.shortUrl} target="_blank" rel="noopener noreferrer" title={card.name}>
+                                            {card.name}
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // 1. Authentication Screen
+        const AuthScreen = ({ onLogin, onLogout }) => {
+            const [apiKey, setApiKey] = useState('');
+            const [token, setToken] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleLogin = async () => {
+                setError('');
+                setLoading(true);
+                
+                // --- MANUAL AUTH LOGIC ---
+                if (!apiKey || !token) {
+                    setError("Please enter both API Key and Token.");
+                    setLoading(false);
+                    return;
+                }
+
+                try {
+                    // Test credentials
+                    await trelloFetch('/members/me', apiKey, token);
+
+                    localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
+                    localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+                    
+                    onLogin(apiKey, token); 
+                } catch (e) {
+                    console.error(e);
+                    setError("Login failed. Check your API Key and Token.");
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const hasCredentials = localStorage.getItem(STORAGE_KEYS.API_KEY);
+
+            return (
+                <div className="form-card">
+                    {hasCredentials && (
+                         <div style={{position: 'absolute', top: '10px', right: '10px'}}>
+                            <button className="logout-button" onClick={onLogout} style={{margin: 0}}>Log Out</button>
+                        </div>
+                    )}
+                    <h2>Trello Dashboard Login</h2>
+                    {/* Updated Auth Text */}
+                    <p style={{fontSize: '0.9em', lineHeight: '1.4', marginBottom: '20px'}}>
+                        To access your Trello board, you will need your **Personal API Key** and generate an app **Token** from Trello developer console. These credentials will be stored in your local browser cache and are not stored on our server. This application is only reading information from existing boards, and not updating any data.
+                        <br/>
+                        <a href="https://trello.com/app-key" target="_blank" rel="noopener noreferrer">Navigate to https://trello.com/app-key to grab your API details.</a>
+                    </p>
+                    {error && <div className="error">{error}</div>}
+                    <label>
+                        API Key:
+                        <input type="text" value={apiKey} onChange={e => setApiKey(e.target.value)} />
+                    </label>
+                    <label>
+                        Token:
+                        <input type="text" value={token} onChange={e => setToken(e.target.value)} />
+                    </label>
+                    {/* FIX: Use save-layout-button style for consistency */}
+                    <button className="save-layout-button" onClick={handleLogin} disabled={loading}>
+                        {loading ? 'Logging In...' : 'Log In & Save'}
+                    </button>
+                    {/* Disclaimer */}
+                    <p style={{fontSize: '0.75em', color: '#6b778c', marginTop: '30px', textAlign: 'center'}}>
+                        Disclaimer: This application is not in production. All copyrights belong to Matthias Manzone.
+                    </p>
+                </div>
+            );
+        };
+
+        // 2. Settings Screen
+        const SettingsScreen = ({ apiKey, token, onSave, onBack, onLogout }) => {
+            const initialSettings = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)) || {};
+            const [boards, setBoards] = useState([]);
+            const [selectedBoardId, setSelectedBoardId] = useState(initialSettings.boardId || '');
+            const [allBoardLists, setAllBoardLists] = useState([]);
+            
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            // --- Section Management State ---
+            const [sections, setSections] = useState(() => getPersistentLayout(initialSettings.boardId));
+            const [listColors, setListColors] = useState(() => getPersistentColors()[initialSettings.boardId] || {});
+            const [listAlerts, setListAlerts] = useState(() => getPersistentAlerts());
+            const [newSectionName, setNewSectionName] = useState('');
+            
+            // Clock setting state for settings screen
+            const [showClockSetting, setShowClockSetting] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + initialSettings.boardId) !== 'false');
+            
+            // Theme setting from Context
+            const { theme, toggleTheme } = useContext(DarkModeContext);
+            
+            // Alert Sound State (Cleaned up, default to 'none')
+            const [alertSound, setAlertSound] = useState(() => localStorage.getItem(STORAGE_KEYS.ALERT_SOUND) || 'none');
+
+            // NEW: Refresh Interval State
+            const defaultRefreshSetting = { value: 1, unit: 'minutes' };
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + initialSettings.boardId);
+            const [refreshValue, setRefreshValue] = useState(savedRefresh ? JSON.parse(savedRefresh).value : 1);
+            const [refreshUnit, setRefreshUnit] = useState(savedRefresh ? JSON.parse(savedRefresh).unit : 'minutes');
+
+
+            // --- Export/Import Handlers ---
+            const handleExportConfig = () => {
+                if (!selectedBoardId) {
+                    setError("Please select a board before exporting.");
+                    return;
+                }
+
+                const configData = {
+                    theme: localStorage.getItem(STORAGE_KEYS.THEME),
+                    clockSetting: localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId),
+                    refreshInterval: localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId),
+                    layout: getPersistentLayout(selectedBoardId),
+                    colors: getPersistentColors()[selectedBoardId],
+                    // NOTE: API Key and Token are EXCLUDED for security
+                    boardName: allBoardLists.find(b => b.id === selectedBoardId)?.name || 'UnknownBoard'
+                };
+
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(configData, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", `trello_dashboard_config_${configData.boardName.replace(/\s/g, '_')}.json`);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            };
+
+            const handleImportConfig = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedConfig = JSON.parse(e.target.result);
+                        if (!selectedBoardId) {
+                            setError("Please select the target Trello board first.");
+                            return;
+                        }
+                        
+                        // 1. Update Theme
+                        if (importedConfig.theme) {
+                            toggleTheme(importedConfig.theme);
+                        }
+                        // 2. Update Refresh Rate
+                        if (importedConfig.refreshInterval) {
+                            localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, importedConfig.refreshInterval);
+                            const { value: rValue, unit: rUnit } = JSON.parse(importedConfig.refreshInterval);
+                            setRefreshValue(rValue);
+                            setRefreshUnit(rUnit);
+                        }
+                        // 3. Update Clock Setting
+                        if (importedConfig.clockSetting !== undefined) {
+                            localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, importedConfig.clockSetting);
+                            setShowClockSetting(importedConfig.clockSetting !== 'false');
+                        }
+                        // 4. Update Layout (Sections)
+                        if (importedConfig.layout) {
+                            setPersistentLayout(selectedBoardId, importedConfig.layout);
+                            setSections(getPersistentLayout(selectedBoardId));
+                        }
+                        // 5. Update Colors
+                        if (importedConfig.colors) {
+                            const allColors = getPersistentColors();
+                            allColors[selectedBoardId] = importedConfig.colors;
+                            localStorage.setItem(STORAGE_KEYS.LIST_COLORS, JSON.stringify(allColors));
+                            setListColors(importedConfig.colors);
+                        }
+
+                        alert(`Configuration successfully imported for board ${selectedBoardId}.`);
+                        // Force full settings refresh to apply changes
+                        onSave({ boardId: selectedBoardId, boardName: importedConfig.boardName || 'Imported Board', selectedLists: [] });
+
+                    } catch (err) {
+                        setError("Invalid configuration file format.");
+                        console.error("Import error:", err);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+
+            // Fetch Boards on load
+            useEffect(() => {
+                setLoading(true);
+                trelloFetch('/members/me/boards', apiKey, token)
+                    .then(data => {
+                        setBoards(data);
+                        if (data.length > 0 && !selectedBoardId) {
+                            setSelectedBoardId(data[0].id);
+                        }
+                    })
+                    .catch(e => setError(e.message))
+                    .finally(() => setLoading(false));
+            }, [apiKey, token]);
+
+            // Fetch Lists and initialize states when selectedBoardId changes
+            useEffect(() => {
+                if (!selectedBoardId) return;
+                setLoading(true);
+                setError('');
+
+                const boardPersistentColors = getPersistentColors()[selectedBoardId] || {};
+                const boardLayout = getPersistentLayout(selectedBoardId);
+                const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId) !== 'false';
+                const currentAlerts = getPersistentAlerts();
+                
+                // Read refresh setting
+                const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
+                const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+
+
+                trelloFetch(`/boards/${selectedBoardId}/lists?cards=none&fields=id,name`, apiKey, token)
+                    .then(data => {
+                        setAllBoardLists(data);
+                        setListColors(boardPersistentColors);
+                        setSections(boardLayout);
+                        setShowClockSetting(clockSetting);
+                        setListAlerts(currentAlerts);
+                        setRefreshValue(rValue);
+                        setRefreshUnit(rUnit);
+                    })
+                    .catch(e => setError(e.message))
+                    .finally(() => setLoading(false));
+            }, [selectedBoardId, apiKey, token]);
+
+            // --- HANDLERS ---
+
+            const handleBoardChange = (e) => {
+                const newId = e.target.value;
+                setSelectedBoardId(newId);
+                // Reset sections/colors/clock, will be reloaded by useEffect
+                setSections(getPersistentLayout(newId));
+                setListColors(getPersistentColors()[newId] || {});
+                setAllBoardLists([]);
+                setShowClockSetting(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + newId) !== 'false');
+
+                const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + newId);
+                const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+                setRefreshValue(rValue);
+                setRefreshUnit(rUnit);
+            };
+
+            const handleAddSection = () => {
+                if (!newSectionName.trim()) return;
+                const newSection = {
+                    id: Date.now().toString(),
+                    name: newSectionName.trim(),
+                    listIds: [],
+                    ignoreFirstCard: false,
+                    isCollapsed: false
+                };
+                const newLayout = [...sections, newSection];
+                setSections(newLayout);
+                setNewSectionName('');
+                setPersistentLayout(selectedBoardId, newLayout);
+            };
+
+            const handleRemoveSection = (sectionId) => {
+                const sectionToRemove = sections.find(s => s.id === sectionId);
+                if (!sectionToRemove) return;
+
+                const listIdsToMoveBack = sectionToRemove.listIds;
+
+                // Add lists from the removed section back to the 'All' section
+                const newSections = sections
+                    .filter(s => s.id !== sectionId)
+                    .map(s => {
+                        if (s.id === 'all') {
+                             return { ...s, listIds: [...s.listIds, ...listIdsToMoveBack] };
+                        }
+                        return s;
+                    });
+
+                // Ensure 'All' section exists if it was somehow deleted
+                if (!newSections.some(s => s.id === 'all')) {
+                    newSections.unshift({ id: 'all', name: 'All', listIds: listIdsToMoveBack, ignoreFirstCard: false, isCollapsed: false });
+                }
+
+                setSections(newSections);
+                setPersistentLayout(selectedBoardId, newSections);
+            };
+            
+            // Handler for re-ordering sections
+            const handleReorderSection = (sectionId, direction) => {
+                const currentSections = [...sections];
+                const index = currentSections.findIndex(s => s.id === sectionId);
+                if (index === -1) return;
+
+                const newIndex = direction === 'up' ? index - 1 : index + 1;
+                
+                // Only allow swap if the new index is valid and not swapping 'all' (index 0) with any other element
+                if (newIndex > 0 && newIndex < currentSections.length && currentSections[newIndex].id !== 'all') 
+                {
+                    [currentSections[index], currentSections[newIndex]] = [currentSections[newIndex], currentSections[index]];
+
+                    setSections(currentSections);
+                    setPersistentLayout(selectedBoardId, currentSections);
+                }
+            };
+
+
+            // Allows renaming of all sections, including 'all'
+            const handleRenameSection = (sectionId, newName) => {
+                if (!newName.trim()) return;
+                const newSections = sections.map(s => s.id === sectionId ? { ...s, name: newName } : s);
+                setSections(newSections);
+                setPersistentLayout(selectedBoardId, newSections);
+            };
+
+            // Handler for the 'Use first card as description' checkbox
+            const handleToggleIgnoreCard = (sectionId, isChecked) => {
+                const newSections = sections.map(s => 
+                    s.id === sectionId ? { ...s, ignoreFirstCard: isChecked } : s
+                );
+                setSections(newSections);
+                setPersistentLayout(selectedBoardId, newSections);
+            };
+            
+            // Handler for the Clock checkbox
+            const handleToggleClock = (isChecked) => {
+                setShowClockSetting(isChecked);
+                localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, isChecked ? 'true' : 'false');
+            };
+            
+            // Alert Handler (REMOVED)
+            const handleToggleAlert = (listId) => { /* No Op */ };
+            const handleSoundChange = (e) => { /* No Op */ };
+            const testSound = () => { /* No Op */ };
+
+
+            // Handler for re-ordering tiles
+            const handleReorderList = (sectionId, listId, direction) => {
+                const newSections = sections.map(section => {
+                    if (section.id !== sectionId) return section;
+
+                    const listIds = [...section.listIds];
+                    const index = listIds.indexOf(listId);
+
+                    if (index === -1) return section;
+
+                    const newIndex = direction === 'up' ? index - 1 : index + 1;
+
+                    if (newIndex >= 0 && newIndex < listIds.length) {
+                        // Swap elements
+                        [listIds[index], listIds[newIndex]] = [listIds[newIndex], listIds[index]];
+                        return { ...section, listIds };
+                    }
+                    return section;
+                });
+
+                setSections(newSections);
+                setPersistentLayout(selectedBoardId, newSections);
+            };
+
+
+            const handleMoveList = (listId, fromSectionId, toSectionId) => {
+                const newSections = sections.map(section => {
+                    if (section.id === fromSectionId) {
+                        return { ...section, listIds: section.listIds.filter(id => id !== listId) };
+                    }
+                    if (section.id === toSectionId) {
+                        return { ...section, listIds: [...section.listIds, listId] };
+                    }
+                    return section;
+                });
+                
+                // Handle move to pool ("Unassigned Lists")
+                if (toSectionId === 'pool') {
+                    const updatedSections = newSections.map(s => 
+                       ({ ...s, listIds: s.listIds.filter(id => id !== listId) })
+                    );
+                    
+                    const allSelectedIds = updatedSections.flatMap(s => s.listIds);
+                    setPersistentSelections(selectedBoardId, allSelectedIds);
+                    setSections(updatedSections);
+                    setPersistentLayout(selectedBoardId, updatedSections);
+                    return;
+                }
+                
+                setSections(newSections);
+                setPersistentLayout(selectedBoardId, newSections);
+
+                // Update persistent selections cache (add listId)
+                const allSelectedIds = newSections.flatMap(s => s.listIds);
+                setPersistentSelections(selectedBoardId, allSelectedIds);
+            };
+
+            const handleColorChange = (listId, color) => {
+                const newColors = { ...listColors, [listId]: color };
+                setListColors(newColors);
+                setPersistentColor(selectedBoardId, listId, color);
+            };
+            
+            // Handle Refresh Rate Change
+            const handleRefreshChange = (value, unit) => {
+                const newValue = parseInt(value) || 0;
+                setRefreshValue(newValue);
+                if (unit) setRefreshUnit(unit);
+                
+                // Save immediately
+                localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({
+                    value: newValue,
+                    unit: unit || refreshUnit
+                }));
+            };
+
+
+            const handleSave = () => {
+                const selectedBoard = boards.find(b => b.id === selectedBoardId);
+                if (!selectedBoard) {
+                    setError('Please select a board.');
+                    return;
+                }
+                
+                // Final validation before saving settings/returning
+                const intervalInSeconds = convertIntervalToSeconds(refreshValue, refreshUnit);
+                if (intervalInSeconds < 10) {
+                    setError('Minimum refresh rate is 10 seconds.');
+                    return;
+                }
+                if (intervalInSeconds > 7200) { // 2 hours = 7200 seconds
+                    setError('Maximum refresh rate is 2 hours.');
+                    return;
+                }
+                // Save final refresh setting
+                localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({
+                    value: refreshValue,
+                    unit: refreshUnit
+                }));
+
+
+                // Gather all lists that are currently assigned to ANY section
+                const selectedListsMap = new Map();
+                sections.flatMap(s => s.listIds).forEach(listId => {
+                    const listData = allBoardLists.find(l => l.id === listId);
+                    if (listData) {
+                        selectedListsMap.set(listId, {
+                            id: listId,
+                            name: listData.name,
+                            color: listColors[listId] || ''
+                        });
+                    }
+                });
+
+                // Update the main SETTINGS cache for dashboard initialization
+                const finalSettings = {
+                    boardId: selectedBoardId,
+                    boardName: selectedBoard.name,
+                    selectedLists: Array.from(selectedListsMap.values())
+                };
+
+                localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(finalSettings));
+                onSave(finalSettings);
+            };
+
+            // Derive list pool: Trello lists not currently assigned to any section
+            const assignedListIds = new Set(sections.flatMap(s => s.listIds));
+            const listPool = allBoardLists
+                .filter(list => !assignedListIds.has(list.id))
+                .map(list => ({ id: list.id, name: list.name }));
+            
+            // Get the ID of the first section for the default move action
+            const firstSectionId = sections[0].id;
+
+            if (loading) return <div className="form-card settings">Loading Boards...</div>;
+
+            return (
+                <div className="form-card settings">
+                     <div style={{position: 'absolute', top: '10px', right: '10px'}}>
+                        <button className="logout-button" onClick={onLogout} style={{margin: 0}}>Log Out</button>
+                    </div>
+                    <h2>Dashboard Setup</h2>
+                    {error && <div className="error">{error}</div>}
+
+                    <h3>1. Select Trello Board</h3>
+                    <label>
+                        Board:
+                        <select value={selectedBoardId} onChange={handleBoardChange}>
+                            <option value="">-- Select a Board --</option>
+                            {boards.map(board => (
+                                <option key={board.id} value={board.id}>{board.name}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    {selectedBoardId && (
+                         <div className="section-management">
+                            <h4 style={{marginTop: '30px'}}>Display Options (Saved Per Board)</h4>
+                            
+                            {/* NEW: Refresh Rate Setting */}
+                            <div style={{marginBottom: '15px', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
+                                <label style={{marginBottom: 0, fontWeight: 600, minWidth: '150px'}}>
+                                    Auto-Refresh Interval:
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={refreshValue}
+                                    onChange={e => handleRefreshChange(e.target.value)}
+                                    style={{width: '60px', marginRight: '5px', marginTop: '0', flexShrink: 0}}
+                                />
+                                <select 
+                                    value={refreshUnit} 
+                                    onChange={e => handleRefreshChange(refreshValue, e.target.value)}
+                                    style={{width: 'auto', flexShrink: 0, marginTop: '0'}}
+                                >
+                                    <option value="seconds">Seconds</option>
+                                    <option value="minutes">Minutes</option>
+                                    <option value="hours">Hours</option>
+                                </select>
+                                <p style={{fontSize: '0.75em', color: '#6b778c', margin: '5px 0 0 10px'}}>
+                                    (Min: 10s, Max: 2h)
+                                </p>
+                            </div>
+
+
+                            <label style={{marginBottom: 0}}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={showClockSetting}
+                                    onChange={e => handleToggleClock(e.target.checked)}
+                                />
+                                Show Large Digital Clock on Dashboard
+                            </label>
+                            
+                            {/* Dark/Light Theme Toggle Option */}
+                            <div style={{marginTop: '10px', display: 'flex', alignItems: 'center'}}>
+                                <label style={{marginBottom: 0, fontWeight: 600}}>
+                                    Theme Preference: 
+                                </label>
+                                <select 
+                                    value={theme} 
+                                    onChange={(e) => toggleTheme(e.target.value)} 
+                                    style={{width: 'auto', marginLeft: '10px'}}
+                                >
+                                    <option value="system">System Default</option>
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+
+                    {selectedBoardId && (
+                        <>
+                            <h3 style={{marginTop: '30px'}}>2. Configure Dashboard Sections & Lists</h3>
+
+                            <div className="section-management">
+                                <h4 style={{marginTop: 0}}>Manage Sections</h4>
+                                <input
+                                    type="text"
+                                    placeholder="New Section Name"
+                                    value={newSectionName}
+                                    onChange={e => setNewSectionName(e.target.value)}
+                                    className="section-title-input"
+                                    style={{width: '200px', marginRight: '10px'}}
+                                />
+                                <button className="settings-button" onClick={handleAddSection} disabled={!newSectionName.trim()}>
+                                    Add Section
+                                </button>
+                            </div>
+
+                            <div className="layout-config-container">
+                                {/* LIST POOL (Unassigned Lists) - Fixed at top, full width */}
+                                <div className="layout-section-box" style={{flexBasis: '100%', maxWidth: '100%', flexShrink: 0}}>
+                                    <h4 style={{marginBottom: '10px', color: '#6b778c'}}>Unassigned Lists ({listPool.length})</h4>
+                                    <div className="list-pool" style={{minHeight: '100px', display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
+                                        {listPool.map(list => (
+                                            <div key={list.id} className="layout-list-item" style={{justifyContent: 'flex-start', flexWrap: 'wrap', gap: '10px', flexBasis: 'auto', flexGrow: 0}}>
+                                                <span style={{flexGrow: 1}}>{list.name}</span>
+                                                {/* Render move button for ALL sections */}
+                                                {sections.map(section => (
+                                                    <button 
+                                                        key={section.id}
+                                                        className="move-button-pool" 
+                                                        onClick={() => handleMoveList(list.id, 'pool', section.id)}
+                                                        title={`Move to ${section.name}`}
+                                                    >
+                                                        {section.name.substring(0, 5)} &raquo;
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ))}
+                                        {listPool.length === 0 && <p style={{fontSize: '0.9em', color: '#6b778c'}}>All lists assigned.</p>}
+                                    </div>
+                                </div>
+
+                                {/* CONFIGURED SECTIONS (Stacked Vertically) */}
+                                {sections.map((section, sectionIndex) => (
+                                    <div key={section.id} className="layout-section-box" style={{flexGrow: 1, maxWidth: '100%'}}>
+                                        
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                                            <div style={{display: 'flex', alignItems: 'center', flexGrow: 1}}>
+                                                {/* Section Reorder Buttons */}
+                                                <div className="section-order-buttons" style={{marginRight: '15px'}}>
+                                                    <button 
+                                                        onClick={() => handleReorderSection(section.id, 'up')}
+                                                        disabled={sectionIndex === 0} 
+                                                        title="Move Section Up"
+                                                    >
+                                                        ▲
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleReorderSection(section.id, 'down')}
+                                                        disabled={sectionIndex === sections.length - 1}
+                                                        title="Move Section Down"
+                                                    >
+                                                        ▼
+                                                    </button>
+                                                </div>
+                                                
+                                                {/* Allows renaming of all sections (including "All") */}
+                                                <input
+                                                    type="text"
+                                                    value={section.name}
+                                                    onChange={e => handleRenameSection(section.id, e.target.value)}
+                                                    className="section-title-input"
+                                                    style={{width: 'calc(100% - 15px)'}}
+                                                />
+                                            </div>
+
+                                            {section.id !== 'all' && (
+                                                <button
+                                                    className="remove-section-button"
+                                                    onClick={() => handleRemoveSection(section.id)}
+                                                    title="Delete section and move lists to 'All'"
+                                                >
+                                                    &times;
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {section.listIds.length > 0 ? (
+                                            section.listIds.map((listId, index) => {
+                                                const listData = allBoardLists.find(l => l.id === listId);
+                                                if (!listData) return null;
+
+                                                const isAlertEnabled = false; // Alert removed
+
+                                                return (
+                                                    <div key={listId} className="list-config-item" style={{background: 'white', cursor: 'default'}}>
+                                                        
+                                                        {/* List Name - FIXED WIDTH/TRUNCATION */}
+                                                        <span style={{
+                                                            overflow: 'hidden', 
+                                                            whiteSpace: 'nowrap', 
+                                                            textOverflow: 'ellipsis', 
+                                                            width: '50%' 
+                                                        }}>
+                                                            {listData.name}
+                                                        </span>
+
+                                                        {/* Color Picker, Tile Order, Move Dropdown Group */}
+                                                        <div style={{display: 'flex', alignItems: 'center'}}>
+                                                            
+                                                            {/* Color Picker */}
+                                                            <input
+                                                                type="color"
+                                                                value={listColors[listId] || '#cccccc'}
+                                                                onChange={e => handleColorChange(listId, e.target.value)}
+                                                                title="Choose Tile Color"
+                                                                style={{marginLeft: '10px'}}
+                                                            />
+
+                                                            {/* Tile Order Buttons */}
+                                                            <div className="order-buttons">
+                                                                <button 
+                                                                    onClick={() => handleReorderList(section.id, listId, 'up')}
+                                                                    disabled={index === 0}
+                                                                    title="Move Up"
+                                                                >
+                                                                    ▲
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleReorderList(section.id, listId, 'down')}
+                                                                    disabled={index === section.listIds.length - 1}
+                                                                    title="Move Down"
+                                                                >
+                                                                    ▼
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Move/Remove Dropdown */}
+                                                            <select
+                                                                onChange={e => handleMoveList(listId, section.id, e.target.value)}
+                                                                style={{marginLeft: '10px', padding: '5px', fontSize: '0.8em', width: '85px'}}
+                                                                value={section.id}
+                                                            >
+                                                                <option value={section.id}>Move...</option>
+                                                                <optgroup label="Sections">
+                                                                    {sections.map(s => (
+                                                                        s.id !== section.id && <option key={s.id} value={s.id}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                            <optgroup label="Unassigned">
+                                                                <option value="pool">Move to Pool</option>
+                                                            </optgroup>
+                                                        </select>
+                                                            </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <p style={{fontSize: '0.9em', color: '#6b778c'}}>Move lists here.</p>
+                                        )}
+                                        
+                                        {/* Section Options (Use first card as description) */}
+                                        <div className="section-options">
+                                            <label>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={section.ignoreFirstCard}
+                                                    onChange={e => handleToggleIgnoreCard(section.id, e.target.checked)}
+                                                />
+                                                Use first card as description
+                                            </label>
+                                        </div>
+
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                    
+                    {/* Global Notification Settings (REMOVED) */}
+
+                    {/* NEW: Export/Import Configuration Section */}
+                    <h3 style={{marginTop: '30px'}}>3. Configuration Management</h3>
+                    <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
+                        <button 
+                            className="settings-button" 
+                            onClick={handleExportConfig}
+                            style={{backgroundColor: '#0079bf', flexGrow: 1}}
+                            disabled={!selectedBoardId}
+                        >
+                            ⬇️ Export Dashboard Configuration
+                        </button>
+
+                        <label htmlFor="import-file-input" className="settings-button" 
+                               style={{backgroundColor: '#6b778c', flexGrow: 1, textAlign: 'center'}}>
+                            ⬆️ Import Configuration File
+                            <input 
+                                type="file" 
+                                id="import-file-input" 
+                                accept=".json" 
+                                onChange={handleImportConfig} 
+                                style={{display: 'none'}}
+                            />
+                        </label>
+                    </div>
+
+
+                    {/* Apply Save Layout Button CSS */}
+                    <button className="save-layout-button" onClick={handleSave}> 
+                        Save Layout & View Dashboard
+                    </button>
+                    <button className="settings-button" onClick={onBack} style={{marginTop: '10px', backgroundColor: '#6b778c'}}>
+                        Cancel
+                    </button>
+                </div>
+            );
+        };
+
+        // 3. Dashboard View
+        const Dashboard = ({ apiKey, token, settings, onShowSettings, onLogout }) => {
+            const [counts, setCounts] = useState(new Map());
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const [countdown, setCountdown] = useState(30);
+            const [timeFilter, setTimeFilter] = useState('all'); 
+            const timerRef = useRef(null);
+
+            const [modalList, setModalList] = useState(null);
+
+            const boardId = settings?.boardId;
+            const boardName = settings?.boardName;
+            const listsFromSettings = settings?.selectedLists || [];
+
+            const sectionsLayout = boardId ? getPersistentLayout(boardId) : DEFAULT_LAYOUT;
+            
+            const allListsMap = new Map(listsFromSettings.map(list => [list.id, list]));
+            const persistentColors = getPersistentColors();
+            // Removed listAlerts reading
+
+            // Removed alertSoundKey/Url
+
+            // Removed usePrevious hook
+
+            // Define sectionsMap for rendering/lookup
+            const sectionsMap = new Map(sectionsLayout.map(s => [s.id, s]));
+
+            // Toggle section collapse state
+            const handleToggleCollapse = (sectionId) => {
+                const newLayout = sectionsLayout.map(s => 
+                    s.id === sectionId ? { ...s, isCollapsed: !s.isCollapsed } : s
+                );
+                setPersistentLayout(boardId, newLayout);
+                fetchListCounts(true);
+            };
+            
+            // Get theme context for toggle button
+            const { theme, toggleTheme } = useContext(DarkModeContext);
+            
+            // NEW: Get refresh interval setting
+            const defaultRefreshSetting = { value: 1, unit: 'minutes' };
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
+            const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+            const refreshIntervalMs = convertIntervalToMilliseconds(refreshSetting.value, refreshSetting.unit);
+
+
+            const fetchListCounts = useCallback(async (manual = false) => {
+                if (manual || loading) {
+                    setLoading(true);
+                }
+                setError('');
+
+                const persistentColorsCopy = getPersistentColors(); 
+                const currentLayout = getPersistentLayout(boardId);
+                const currentSectionsMap = new Map(currentLayout.map(s => [s.id, s]));
+                const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
+
+                const dateFilterParam = calculateDateFilter(timeFilter);
+                
+                const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
+
+                if (uniqueListIds.size === 0) {
+                    setCounts(new Map());
+                    setLoading(false);
+                    return;
+                }
+                
+                try {
+                    // --- API OPTIMIZATION: Single Call for Board Data ---
+                    // Fetch all cards from the board with necessary fields
+                    const allCards = await trelloFetch(
+                        `/boards/${boardId}/cards?fields=id,idList,name${dateFilterParam}`, 
+                        apiKey, 
+                        token
+                    );
+
+                    const listResults = {};
+                    
+                    // 2. Process results
+                    allCards.forEach(card => {
+                        // Ignore cards not in a selected list
+                        if (!uniqueListIds.has(card.idList)) return;
+                        
+                        if (!listResults[card.idList]) {
+                            listResults[card.idList] = {
+                                count: 0,
+                                firstCardName: ''
+                            };
+                        }
+                        
+                        // Count total cards
+                        listResults[card.idList].count++;
+
+                        // Capture the name of the first card we encounter in the single batch fetch.
+                        if (listResults[card.idList].firstCardName === '') {
+                            listResults[card.idList].firstCardName = card.name;
+                        }
+                    });
+
+                    // 3. Final calculation and mapping
+                    const countsMap = new Map();
+                    
+                    Array.from(uniqueListIds).forEach(listId => {
+                        const listData = allListsMap.get(listId);
+                        const section = currentLayout.find(s => s.listIds.includes(listId));
+                        
+                        const isIgnored = section?.ignoreFirstCard;
+                        const result = listResults[listId] || { count: 0, firstCardName: '' };
+                        
+                        let finalCount = result.count;
+                        if (isIgnored && finalCount > 0) {
+                            finalCount -= 1;
+                        }
+
+                        let color = persistentColors[boardId]?.[listId] || listData?.color;
+                        if (!color || color === '#cccccc') {
+                            color = getOrGenerateRandomColor(listId, usedColors);
+                        }
+
+                        countsMap.set(listId, {
+                            listId: listId,
+                            count: finalCount,
+                            name: listData?.name,
+                            displayColor: color,
+                            firstCardName: isIgnored ? result.firstCardName : '' 
+                        });
+                    });
+                    
+                    setCounts(countsMap);
+
+                } catch (e) {
+                    console.error("Dashboard fetch error:", e);
+                    setError(e.message);
+                } finally {
+                    setLoading(false);
+                }
+            }, [apiKey, token, listsFromSettings.length, boardId, sectionsLayout.length, timeFilter]);
+
+            // Interval setup
+            useEffect(() => {
+                if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                }
+
+                const interval = setInterval(() => {
+                    setCountdown(prev => {
+                        if (prev <= 1) {
+                            fetchListCounts();
+                            return convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+
+                timerRef.current = interval;
+                
+                // Set initial countdown value and fetch
+                setCountdown(convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit));
+                fetchListCounts();
+
+                return () => clearInterval(interval);
+            }, [fetchListCounts, refreshIntervalMs]);
+
+
+            const handleTileClick = (listId, listName, color) => {
+                setModalList({ listId, listName, color, sectionsLayout }); // Pass layout to modal
+            };
+
+            const handleCloseModal = () => {
+                setModalList(null);
+            };
+            
+            const filterLabel = TIME_FILTERS[timeFilter].titleSuffix;
+            const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId);
+            const showClock = clockSetting !== 'false';
+
+
+            if (loading && listsFromSettings.length === 0) return <div className="container" style={{textAlign: 'center', marginTop: '50px'}}>Loading dashboard data...</div>;
+
+            if (error) return <div className="container"><div className="error">{error}</div></div>;
+
+            if (!boardName || listsFromSettings.length === 0) {
+                 return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>📊 Trello Dashboard</h1>
+                            <button className="logout-button" onClick={onLogout}>Log Out</button>
+                        </div>
+                        <p style={{textAlign: 'center', marginTop: '50px'}}>
+                            No board or lists configured. Please go to settings to set up your dashboard.
+                        </p>
+                        <div style={{textAlign: 'center', marginTop: '20px'}}>
+                            <button className="settings-button" onClick={onShowSettings}>Go to Settings</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <div className="header-title-area">
+                            {/* Large Clock */}
+                            {showClock && <DigitalClock boardId={boardId} />}
+                            {/* Title with time filter */}
+                            <h1>{boardName} dashboard - {filterLabel}</h1>
+                        </div>
+                        
+                        <div className="header-actions-top">
+                            {/* Time Filter Dropdown */}
+                            <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
+                                {Object.keys(TIME_FILTERS).map(key => (
+                                    <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                ))}
+                            </select>
+                            
+                            {/* Theme Toggle Button */}
+                            <button className="theme-toggle-button" onClick={() => toggleTheme()}>
+                                {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* RENDER SECTIONS */}
+                    {sectionsLayout.map(section => {
+                        const sectionTiles = section.listIds
+                            .map(listId => {
+                                const tileData = counts.get(listId);
+                                
+                                // Placeholder Logic
+                                if (!tileData) {
+                                    const list = allListsMap.get(listId);
+                                    if (list) {
+                                        const color = list.color || getOrGenerateRandomColor(list.id, new Set());
+                                        
+                                        return { listId: list.id, name: list.name, count: '...', displayColor: color, firstCardName: '' };
+                                    }
+                                    return undefined;
+                                }
+                                return tileData;
+                            })
+                            .filter(item => item !== undefined);
+
+                        // Determine collapse state
+                        const isCollapsed = sectionsMap.get(section.id)?.isCollapsed || false;
+
+                        if (sectionTiles.length === 0 && !isCollapsed) return null;
+
+                        return (
+                            <div key={section.id} className="dashboard-section">
+                                <div className="section-header-row">
+                                    <div className="section-header">{section.name}</div>
+                                    <button 
+                                        className="collapse-toggle" 
+                                        onClick={() => handleToggleCollapse(section.id)}
+                                        title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}
+                                    >
+                                        {/* Use appropriate icon for screen visibility (eye open/closed) */}
+                                        {isCollapsed ? '👁️' : '🙈'}
+                                    </button>
+                                </div>
+                                
+                                {/* Conditionally render the grid */}
+                                {!isCollapsed && (
+                                    <div className="dashboard-grid">
+                                        {sectionTiles.map((item) => (
+                                            <div
+                                                key={item.listId}
+                                                className="dashboard-tile"
+                                                style={{
+                                                    backgroundColor: item.displayColor,
+                                                    color: 'white'
+                                                }}
+                                                onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}
+                                            >
+                                                <div className="card-count">{item.count}</div>
+                                                <div className="list-name">{item.name}</div>
+                                                {/* Display first card name if available */}
+                                                {item.firstCardName && (
+                                                    <div className="card-description" title={item.firstCardName}>
+                                                        {item.firstCardName}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+
+                    {modalList && (
+                        <CardDetailsModal
+                            listId={modalList.listId}
+                            listName={modalList.listName}
+                            color={modalList.color}
+                            apiKey={apiKey}
+                            token={token}
+                            onClose={handleCloseModal}
+                            sectionsLayout={sectionsLayout} 
+                        />
+                    )}
+
+                    {/* NEW: Fixed Footer Action Bar */}
+                    <div className="footer-action-bar">
+                        <span className="version">v40</span>
+                        <span className="countdown">Next refresh in {countdown}s</span>
+                        <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Data</button>
+                        <button className="settings-button" onClick={onShowSettings}>Settings</button>
+                        <button className="logout-button" onClick={onLogout}>Log Out</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // 4. Main Application Component
+        const App = () => {
+            const { theme, toggleTheme } = useContext(DarkModeContext); 
+            
+            const getInitialState = (key) => {
+                try {
+                    const value = localStorage.getItem(key);
+                    return key === STORAGE_KEYS.SETTINGS ? (value ? JSON.parse(value) : null) : value;
+                } catch (e) {
+                    console.error(`Error reading ${key} from storage:`, e);
+                    return null;
+                }
+            };
+
+            const [apiKey, setApiKey] = useState(getInitialState(STORAGE_KEYS.API_KEY));
+            const [token, setToken] = useState(getInitialState(STORAGE_KEYS.TOKEN));
+            const [settings, setSettings] = useState(getInitialState(STORAGE_KEYS.SETTINGS));
+            const [view, setView] = useState('dashboard');
+
+            useEffect(() => {
+                if (!apiKey || !token) {
+                    setView('auth');
+                } else if (!settings || !settings.boardId) {
+                    setView('settings');
+                } else {
+                    setView('dashboard');
+                }
+            }, [apiKey, token, settings]);
+
+            const handleLogin = (newApiKey, newToken) => {
+                setApiKey(newApiKey);
+                setToken(newToken);
+                setView('settings');
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem(STORAGE_KEYS.API_KEY);
+                localStorage.removeItem(STORAGE_KEYS.TOKEN);
+                localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+
+                setApiKey(null);
+                setToken(null);
+                setSettings(null);
+                setView('auth');
+            };
+
+            const handleSaveSettings = (newSettings) => {
+                setSettings(newSettings);
+                setView('dashboard');
+            };
+
+            const renderView = () => {
+                if (!apiKey || !token || view === 'auth') {
+                    return <AuthScreen onLogin={handleLogin} onLogout={handleLogout} />;
+                }
+
+                if (view === 'settings') {
+                    return <SettingsScreen
+                                apiKey={apiKey}
+                                token={token}
+                                onSave={handleSaveSettings}
+                                onBack={() => setView('dashboard')}
+                                onLogout={handleLogout}
+                            />;
+                }
+
+                return (
+                    <Dashboard
+                        apiKey={apiKey}
+                        token={token}
+                        settings={settings}
+                        onShowSettings={() => setView('settings')}
+                        onLogout={handleLogout}
+                    />
+                );
+            };
+
+            return renderView();
+        };
+
+        // Render the App wrapped in the DarkModeProvider
+        const RootComponent = () => (
+            <DarkModeProvider>
+                <App />
+            </DarkModeProvider>
+        );
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<RootComponent />);
+    </script>
+</body>
+</html>
