@@ -971,7 +971,6 @@
             // --- Section Management State ---
             const [sections, setSections] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
             const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
-            const [listAlerts, setListAlerts] = useState(() => getPersistentAlerts());
             const [newSectionName, setNewSectionName] = useState('');
             
             // Clock setting state for settings screen
@@ -1131,7 +1130,6 @@
                 const boardPersistentColors = getPersistentColors(user.id)[selectedBoardId] || {};
                 const boardLayout = getPersistentLayout(user.id, selectedBoardId);
                 const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId) !== 'false';
-                const currentAlerts = getPersistentAlerts();
                 
                 // Read refresh setting
                 const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
@@ -1144,7 +1142,6 @@
                         setListColors(boardPersistentColors);
                         setSections(boardLayout);
                         setShowClockSetting(clockSetting);
-                        setListAlerts(currentAlerts);
                         setRefreshValue(rValue);
                         setRefreshUnit(rUnit);
                     })
