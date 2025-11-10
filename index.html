@@ -500,6 +500,35 @@
         const { useState, useEffect, useCallback, useRef, useContext, createContext } = React;
         const ReactDOM = window.ReactDOM;
 
+        // IMPORTANT: Replace with your Trello API Key
+        const TRELLO_API_KEY = "44382b25e75ceb100edaa4d308acf019"; 
+
+        // --- Trello OAuth Integration ---
+        const trelloAuth = {
+            login: () => {
+                const appName = "Trello Stats Dashboard";
+                const returnUrl = window.location.href.split('#')[0]; // Remove any existing hash
+                const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=read&response_type=token&key=${TRELLO_API_KEY}&return_url=${encodeURIComponent(returnUrl)}`;
+                window.location.href = authUrl;
+            },
+            getTokenFromUrl: () => {
+                const hash = window.location.hash.substring(1);
+                if (hash.startsWith('token=')) {
+                    const token = hash.substring(6);
+                    // Clean the URL
+                    history.pushState("", document.title, window.location.pathname + window.location.search);
+                    return token;
+                }
+                return null;
+            },
+            logout: (setCurrentUser) => {
+                // For OAuth, logout is primarily a client-side action
+                setCurrentUser(null); 
+                // No specific token to clear globally, it's per user
+            }
+        };
+
+
         const TRELLO_API_BASE = "https://api.trello.com/1";
         const REFRESH_INTERVAL_SECONDS = 30;
 
@@ -511,17 +540,39 @@
 
         // --- Local Storage Keys ---
         const STORAGE_KEYS = {
-            API_KEY: 'trelloApiKey',
-            TOKEN: 'trelloToken',
-            SETTINGS: 'dashboardSettings',
-            LIST_COLORS: 'trelloListColors',
-            LIST_SELECTIONS: 'trelloListSelections',
-            DASHBOARD_LAYOUT: 'trelloDashboardLayout',
-            RANDOM_COLORS_CACHE: 'trelloRandomColors',
-            CLOCK_SETTING: 'trelloClockSetting',
-            THEME: 'trelloTheme',
-            ALERT_SOUND: 'trelloAlertSound',
-            LIST_ALERTS: 'trelloListAlerts'
+            // REMOVED: API_KEY and TOKEN are no longer stored globally
+            CURRENT_USER: 'trelloCurrentUser', // Stores the ID of the logged-in user
+            USER_DATA: 'trelloUserData' // A single key to hold an object of all users' data
+        };
+        
+        // --- User-Specific Storage Helpers ---
+        const getCurrentUser = () => {
+            return localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+        };
+
+        const setCurrentUser = (userId) => {
+            if (userId) {
+                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, userId);
+            } else {
+                localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            }
+        };
+
+        const getUserData = (userId, key) => {
+            if (!userId) return null;
+            const allUserData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA)) || {};
+            const userData = allUserData[userId] || {};
+            return userData[key];
+        };
+
+        const setUserData = (userId, key, value) => {
+            if (!userId) return;
+            const allUserData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA)) || {};
+            if (!allUserData[userId]) {
+                allUserData[userId] = {};
+            }
+            allUserData[userId][key] = value;
+            localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(allUserData));
         };
         
         // --- Filter Options Mapping ---
@@ -687,61 +738,71 @@
             return color || DEFAULT_FALLBACK_COLOR; 
         };
         
-        const trelloFetch = async (path, apiKey, token) => {
-            if (!apiKey || !token) {
-                throw new Error("Trello credentials not provided.");
+        const trelloFetch = async (path, token) => {
+            if (!token) {
+                throw new Error("Trello authentication token not provided.");
             }
-            const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${apiKey}&token=${token}`;
+            const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${TRELLO_API_KEY}&token=${token}`;
             const response = await fetch(url);
             if (!response.ok) {
-                const error = await response.json();
+                const errorText = await response.text();
+                let errorMessage = errorText;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson && errorJson.message) {
+                        errorMessage = errorJson.message;
+                    }
+                } catch (e) {
+                    // Not a JSON response, just use the raw text.
+                }
+
                 // Check specifically for Rate Limit error (429)
                 if (response.status === 429) {
                      throw new Error(`Rate limit exceeded (429): Trello API requests too fast/frequent.`);
                 }
-                throw new Error(error.message || `Trello API error: ${response.status}`);
+                // Handle invalid token error (401)
+                if (response.status === 401) {
+                    throw new Error(`Invalid or expired token. Please log in again. (Details: ${errorMessage})`);
+                }
+                throw new Error(errorMessage || `Trello API error: ${response.status}`);
             }
             return response.json();
         };
 
         // --- Persistent Storage Management ---
-        const getPersistentColors = () => {
+        const getPersistentColors = (userId) => {
             try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_COLORS)) || {};
+                return getUserData(userId, 'listColors') || {};
             } catch (e) { return {}; }
         };
-        const setPersistentColor = (boardId, listId, color) => {
-            const colors = getPersistentColors();
+        const setPersistentColor = (userId, boardId, listId, color) => {
+            const colors = getPersistentColors(userId);
             if (!colors[boardId]) { colors[boardId] = {}; }
             colors[boardId][listId] = color;
-            localStorage.setItem(STORAGE_KEYS.LIST_COLORS, JSON.stringify(colors));
+            setUserData(userId, 'listColors', colors);
         };
         
         // Alert Persistence (REMOVED)
-        const getPersistentAlerts = () => { return {}; }; 
-        const setPersistentAlert = (listId, enabled) => { /* No Op */ };
-
-
-        const getPersistentSelections = (boardId) => {
+        const getPersistentSelections = (userId, boardId) => {
             try {
-                const allSelections = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_SELECTIONS)) || {};
+                const allSelections = getUserData(userId, 'listSelections') || {};
                 return new Set(allSelections[boardId] || []);
             } catch (e) { return new Set(); }
         };
-        const setPersistentSelections = (boardId, listIds) => {
+        const setPersistentSelections = (userId, boardId, listIds) => {
             try {
-                const allSelections = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_SELECTIONS)) || {};
+                const allSelections = getUserData(userId, 'listSelections') || {};
                 allSelections[boardId] = Array.from(listIds);
-                localStorage.setItem(STORAGE_KEYS.LIST_SELECTIONS, JSON.stringify(allSelections));
+                setUserData(userId, 'listSelections', allSelections);
             } catch (e) { console.error("Error saving list selections to cache:", e); }
         };
 
         // Dashboard Layout Management
         const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, isCollapsed: false }];
 
-        const getPersistentLayout = (boardId) => {
+        const getPersistentLayout = (userId, boardId) => {
             try {
-                const layout = JSON.parse(localStorage.getItem(STORAGE_KEYS.DASHBOARD_LAYOUT)) || {};
+                const layout = getUserData(userId, 'dashboardLayout') || {};
                 const savedLayout = layout[boardId] || DEFAULT_LAYOUT;
                 return savedLayout.map(s => ({
                     ...s,
@@ -754,11 +815,11 @@
             }
         };
 
-        const setPersistentLayout = (boardId, layout) => {
+        const setPersistentLayout = (userId, boardId, layout) => {
             try {
-                const allLayouts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DASHBOARD_LAYOUT)) || {};
+                const allLayouts = getUserData(userId, 'dashboardLayout') || {};
                 allLayouts[boardId] = layout;
-                localStorage.setItem(STORAGE_KEYS.DASHBOARD_LAYOUT, JSON.stringify(allLayouts));
+                setUserData(userId, 'dashboardLayout', allLayouts);
             } catch (e) {
                 console.error("Error saving dashboard layout:", e);
             }
@@ -796,7 +857,7 @@
         };
 
         // --- Component: Card Details Modal ---
-        const CardDetailsModal = ({ listId, listName, color, apiKey, token, onClose, sectionsLayout }) => {
+        const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLayout }) => {
             const [cards, setCards] = useState([]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
@@ -809,7 +870,7 @@
             useEffect(() => {
                 setLoading(true);
                 setError('');
-                trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels`, apiKey, token) 
+                trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels`, token) 
                     .then(data => {
                         // Conditionally filter the first card based on setting
                         const filteredCards = shouldIgnoreFirst ? data.slice(1) : data;
@@ -820,7 +881,7 @@
                         setError(`Failed to load cards for this list: ${e.message}`);
                     })
                     .finally(() => setLoading(false));
-            }, [listId, apiKey, token, shouldIgnoreFirst]);
+            }, [listId, token, shouldIgnoreFirst]);
 
             return (
                 <div className="modal-overlay" onClick={onClose}>
@@ -866,69 +927,30 @@
         };
 
         // 1. Authentication Screen
-        const AuthScreen = ({ onLogin, onLogout }) => {
-            const [apiKey, setApiKey] = useState('');
-            const [token, setToken] = useState('');
+        const AuthScreen = ({ onLoginSuccess }) => {
             const [error, setError] = useState('');
             const [loading, setLoading] = useState(false);
 
-            const handleLogin = async () => {
-                setError('');
+            const handleLoginClick = () => {
                 setLoading(true);
-                
-                // --- MANUAL AUTH LOGIC ---
-                if (!apiKey || !token) {
-                    setError("Please enter both API Key and Token.");
-                    setLoading(false);
-                    return;
-                }
-
-                try {
-                    // Test credentials
-                    await trelloFetch('/members/me', apiKey, token);
-
-                    localStorage.setItem(STORAGE_KEYS.API_KEY, apiKey);
-                    localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-                    
-                    onLogin(apiKey, token); 
-                } catch (e) {
-                    console.error(e);
-                    setError("Login failed. Check your API Key and Token.");
-                } finally {
-                    setLoading(false);
-                }
+                trelloAuth.login();
             };
-
-            const hasCredentials = localStorage.getItem(STORAGE_KEYS.API_KEY);
+            
+            // This component doesn't need to handle the token itself,
+            // the main App component will do that on load.
 
             return (
                 <div className="form-card">
-                    {hasCredentials && (
-                         <div style={{position: 'absolute', top: '10px', right: '10px'}}>
-                            <button className="logout-button" onClick={onLogout} style={{margin: 0}}>Log Out</button>
-                        </div>
-                    )}
                     <h2>Trello Dashboard Login</h2>
-                    {/* Updated Auth Text */}
                     <p style={{fontSize: '0.9em', lineHeight: '1.4', marginBottom: '20px'}}>
-                        To access your Trello board, you will need your **Personal API Key** and generate an app **Token** from Trello developer console. These credentials will be stored in your local browser cache and are not stored on our server. This application is only reading information from existing boards, and not updating any data.
-                        <br/>
-                        <a href="https://trello.com/app-key" target="_blank" rel="noopener noreferrer">Navigate to https://trello.com/app-key to grab your API details.</a>
+                        To access your Trello dashboard, please log in using your Trello account. This application will request read-only access to your boards and lists. Your credentials are not stored on our server.
                     </p>
                     {error && <div className="error">{error}</div>}
-                    <label>
-                        API Key:
-                        <input type="text" value={apiKey} onChange={e => setApiKey(e.target.value)} />
-                    </label>
-                    <label>
-                        Token:
-                        <input type="text" value={token} onChange={e => setToken(e.target.value)} />
-                    </label>
-                    {/* FIX: Use save-layout-button style for consistency */}
-                    <button className="save-layout-button" onClick={handleLogin} disabled={loading}>
-                        {loading ? 'Logging In...' : 'Log In & Save'}
+                    
+                    <button className="save-layout-button" onClick={handleLoginClick} disabled={loading}>
+                        {loading ? 'Redirecting...' : 'Log In with Trello'}
                     </button>
-                    {/* Disclaimer */}
+
                     <p style={{fontSize: '0.75em', color: '#6b778c', marginTop: '30px', textAlign: 'center'}}>
                         Disclaimer: This application is not in production. All copyrights belong to Matthias Manzone.
                     </p>
@@ -937,8 +959,8 @@
         };
 
         // 2. Settings Screen
-        const SettingsScreen = ({ apiKey, token, onSave, onBack, onLogout }) => {
-            const initialSettings = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)) || {};
+        const SettingsScreen = ({ user, onSave, onBack, onLogout }) => {
+            const initialSettings = getUserData(user.id, 'settings') || {};
             const [boards, setBoards] = useState([]);
             const [selectedBoardId, setSelectedBoardId] = useState(initialSettings.boardId || '');
             const [allBoardLists, setAllBoardLists] = useState([]);
@@ -947,9 +969,8 @@
             const [loading, setLoading] = useState(false);
 
             // --- Section Management State ---
-            const [sections, setSections] = useState(() => getPersistentLayout(initialSettings.boardId));
-            const [listColors, setListColors] = useState(() => getPersistentColors()[initialSettings.boardId] || {});
-            const [listAlerts, setListAlerts] = useState(() => getPersistentAlerts());
+            const [sections, setSections] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
+            const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
             const [newSectionName, setNewSectionName] = useState('');
             
             // Clock setting state for settings screen
@@ -979,8 +1000,8 @@
                     theme: localStorage.getItem(STORAGE_KEYS.THEME),
                     clockSetting: localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId),
                     refreshInterval: localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId),
-                    layout: getPersistentLayout(selectedBoardId),
-                    colors: getPersistentColors()[selectedBoardId],
+                    layout: getPersistentLayout(user.id, selectedBoardId),
+                    colors: getPersistentColors(user.id)[selectedBoardId],
                     // NOTE: API Key and Token are EXCLUDED for security
                     boardName: allBoardLists.find(b => b.id === selectedBoardId)?.name || 'UnknownBoard'
                 };
@@ -1025,14 +1046,14 @@
                         }
                         // 4. Update Layout (Sections)
                         if (importedConfig.layout) {
-                            setPersistentLayout(selectedBoardId, importedConfig.layout);
-                            setSections(getPersistentLayout(selectedBoardId));
+                            setPersistentLayout(user.id, selectedBoardId, importedConfig.layout);
+                            setSections(getPersistentLayout(user.id, selectedBoardId));
                         }
                         // 5. Update Colors
                         if (importedConfig.colors) {
-                            const allColors = getPersistentColors();
+                            const allColors = getPersistentColors(user.id);
                             allColors[selectedBoardId] = importedConfig.colors;
-                            localStorage.setItem(STORAGE_KEYS.LIST_COLORS, JSON.stringify(allColors));
+                            setUserData(user.id, 'listColors', allColors);
                             setListColors(importedConfig.colors);
                         }
 
@@ -1089,7 +1110,7 @@
             // Fetch Boards on load
             useEffect(() => {
                 setLoading(true);
-                trelloFetch('/members/me/boards', apiKey, token)
+                trelloFetch('/members/me/boards', user.token)
                     .then(data => {
                         setBoards(data);
                         if (data.length > 0 && !selectedBoardId) {
@@ -1098,7 +1119,7 @@
                     })
                     .catch(e => setError(e.message))
                     .finally(() => setLoading(false));
-            }, [apiKey, token]);
+            }, [user.token]);
 
             // Fetch Lists and initialize states when selectedBoardId changes
             useEffect(() => {
@@ -1106,29 +1127,27 @@
                 setLoading(true);
                 setError('');
 
-                const boardPersistentColors = getPersistentColors()[selectedBoardId] || {};
-                const boardLayout = getPersistentLayout(selectedBoardId);
+                const boardPersistentColors = getPersistentColors(user.id)[selectedBoardId] || {};
+                const boardLayout = getPersistentLayout(user.id, selectedBoardId);
                 const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId) !== 'false';
-                const currentAlerts = getPersistentAlerts();
                 
                 // Read refresh setting
                 const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
                 const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
 
 
-                trelloFetch(`/boards/${selectedBoardId}/lists?cards=none&fields=id,name`, apiKey, token)
+                trelloFetch(`/boards/${selectedBoardId}/lists?cards=none&fields=id,name`, user.token)
                     .then(data => {
                         setAllBoardLists(data);
                         setListColors(boardPersistentColors);
                         setSections(boardLayout);
                         setShowClockSetting(clockSetting);
-                        setListAlerts(currentAlerts);
                         setRefreshValue(rValue);
                         setRefreshUnit(rUnit);
                     })
                     .catch(e => setError(e.message))
                     .finally(() => setLoading(false));
-            }, [selectedBoardId, apiKey, token]);
+            }, [selectedBoardId, user.token]);
 
             // --- HANDLERS ---
 
@@ -1136,8 +1155,8 @@
                 const newId = e.target.value;
                 setSelectedBoardId(newId);
                 // Reset sections/colors/clock, will be reloaded by useEffect
-                setSections(getPersistentLayout(newId));
-                setListColors(getPersistentColors()[newId] || {});
+                setSections(getPersistentLayout(user.id, newId));
+                setListColors(getPersistentColors(user.id)[newId] || {});
                 setAllBoardLists([]);
                 setShowClockSetting(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + newId) !== 'false');
 
@@ -1159,7 +1178,7 @@
                 const newLayout = [...sections, newSection];
                 setSections(newLayout);
                 setNewSectionName('');
-                setPersistentLayout(selectedBoardId, newLayout);
+                setPersistentLayout(user.id, selectedBoardId, newLayout);
             };
 
             const handleRemoveSection = (sectionId) => {
@@ -1184,7 +1203,7 @@
                 }
 
                 setSections(newSections);
-                setPersistentLayout(selectedBoardId, newSections);
+                setPersistentLayout(user.id, selectedBoardId, newSections);
             };
             
             // Handler for re-ordering sections
@@ -1201,7 +1220,7 @@
                     [currentSections[index], currentSections[newIndex]] = [currentSections[newIndex], currentSections[index]];
 
                     setSections(currentSections);
-                    setPersistentLayout(selectedBoardId, currentSections);
+                    setPersistentLayout(user.id, selectedBoardId, currentSections);
                 }
             };
 
@@ -1211,7 +1230,7 @@
                 if (!newName.trim()) return;
                 const newSections = sections.map(s => s.id === sectionId ? { ...s, name: newName } : s);
                 setSections(newSections);
-                setPersistentLayout(selectedBoardId, newSections);
+                setPersistentLayout(user.id, selectedBoardId, newSections);
             };
 
             // Handler for the 'Use first card as description' checkbox
@@ -1220,7 +1239,7 @@
                     s.id === sectionId ? { ...s, ignoreFirstCard: isChecked } : s
                 );
                 setSections(newSections);
-                setPersistentLayout(selectedBoardId, newSections);
+                setPersistentLayout(user.id, selectedBoardId, newSections);
             };
             
             // Handler for the Clock checkbox
@@ -1256,7 +1275,7 @@
                 });
 
                 setSections(newSections);
-                setPersistentLayout(selectedBoardId, newSections);
+                setPersistentLayout(user.id, selectedBoardId, newSections);
             };
 
 
@@ -1278,24 +1297,24 @@
                     );
                     
                     const allSelectedIds = updatedSections.flatMap(s => s.listIds);
-                    setPersistentSelections(selectedBoardId, allSelectedIds);
+                    setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
                     setSections(updatedSections);
-                    setPersistentLayout(selectedBoardId, updatedSections);
+                    setPersistentLayout(user.id, selectedBoardId, updatedSections);
                     return;
                 }
                 
                 setSections(newSections);
-                setPersistentLayout(selectedBoardId, newSections);
+                setPersistentLayout(user.id, selectedBoardId, newSections);
 
                 // Update persistent selections cache (add listId)
                 const allSelectedIds = newSections.flatMap(s => s.listIds);
-                setPersistentSelections(selectedBoardId, allSelectedIds);
+                setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
             };
 
             const handleColorChange = (listId, color) => {
                 const newColors = { ...listColors, [listId]: color };
                 setListColors(newColors);
-                setPersistentColor(selectedBoardId, listId, color);
+                setPersistentColor(user.id, selectedBoardId, listId, color);
             };
             
             // Handle Refresh Rate Change
@@ -1356,7 +1375,7 @@
                     selectedLists: Array.from(selectedListsMap.values())
                 };
 
-                localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(finalSettings));
+                setUserData(user.id, 'settings', finalSettings);
                 onSave(finalSettings);
             };
 
@@ -1550,8 +1569,8 @@
                                                         
                                                         {/* List Name - FIXED WIDTH/TRUNCATION */}
                                                         <span style={{
-                                                            overflow: 'hidden', 
-                                                            whiteSpace: 'nowrap', 
+                                                            overflow: 'hidden',
+                                                           
                                                             textOverflow: 'ellipsis', 
                                                             width: '50%' 
                                                         }}>
@@ -1680,7 +1699,7 @@
         };
 
         // 3. Dashboard View
-        const Dashboard = ({ apiKey, token, settings, onShowSettings, onLogout }) => {
+        const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
             const [counts, setCounts] = useState(new Map());
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
@@ -1694,10 +1713,10 @@
             const boardName = settings?.boardName;
             const listsFromSettings = settings?.selectedLists || [];
 
-            const sectionsLayout = boardId ? getPersistentLayout(boardId) : DEFAULT_LAYOUT;
+            const sectionsLayout = boardId ? getPersistentLayout(user.id, boardId) : DEFAULT_LAYOUT;
             
             const allListsMap = new Map(listsFromSettings.map(list => [list.id, list]));
-            const persistentColors = getPersistentColors();
+            const persistentColors = getPersistentColors(user.id);
             // Removed listAlerts reading
 
             // Removed alertSoundKey/Url
@@ -1712,7 +1731,7 @@
                 const newLayout = sectionsLayout.map(s => 
                     s.id === sectionId ? { ...s, isCollapsed: !s.isCollapsed } : s
                 );
-                setPersistentLayout(boardId, newLayout);
+                setPersistentLayout(user.id, boardId, newLayout);
                 fetchListCounts(true);
             };
             
@@ -1732,8 +1751,8 @@
                 }
                 setError('');
 
-                const persistentColorsCopy = getPersistentColors(); 
-                const currentLayout = getPersistentLayout(boardId);
+                const persistentColorsCopy = getPersistentColors(user.id); 
+                const currentLayout = getPersistentLayout(user.id, boardId);
                 const currentSectionsMap = new Map(currentLayout.map(s => [s.id, s]));
                 const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
 
@@ -1752,8 +1771,7 @@
                     // Fetch all cards from the board with necessary fields
                     const allCards = await trelloFetch(
                         `/boards/${boardId}/cards?fields=id,idList,name${dateFilterParam}`, 
-                        apiKey, 
-                        token
+                        user.token
                     );
 
                     const listResults = {};
@@ -1816,7 +1834,7 @@
                 } finally {
                     setLoading(false);
                 }
-            }, [apiKey, token, listsFromSettings.length, boardId, sectionsLayout.length, timeFilter]);
+            }, [user.token, listsFromSettings.length, boardId, sectionsLayout.length, timeFilter]);
 
             // Interval setup
             useEffect(() => {
@@ -1895,6 +1913,7 @@
                                     <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
                                 ))}
                             </select>
+                            
                             
                             {/* Theme Toggle Button */}
                             <button className="theme-toggle-button" onClick={() => toggleTheme()}>
@@ -1977,8 +1996,7 @@
                             listId={modalList.listId}
                             listName={modalList.listName}
                             color={modalList.color}
-                            apiKey={apiKey}
-                            token={token}
+                            token={user.token}
                             onClose={handleCloseModal}
                             sectionsLayout={sectionsLayout} 
                         />
@@ -1998,46 +2016,75 @@
 
         // 4. Main Application Component
         const App = () => {
-            const { theme, toggleTheme } = useContext(DarkModeContext); 
-            
-            const getInitialState = (key) => {
-                try {
-                    const value = localStorage.getItem(key);
-                    return key === STORAGE_KEYS.SETTINGS ? (value ? JSON.parse(value) : null) : value;
-                } catch (e) {
-                    console.error(`Error reading ${key} from storage:`, e);
-                    return null;
-                }
-            };
+            const [user, setUser] = useState(null);
+            const [settings, setSettings] = useState(null);
+            const [view, setView] = useState('auth'); // 'auth', 'settings', 'dashboard'
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
 
-            const [apiKey, setApiKey] = useState(getInitialState(STORAGE_KEYS.API_KEY));
-            const [token, setToken] = useState(getInitialState(STORAGE_KEYS.TOKEN));
-            const [settings, setSettings] = useState(getInitialState(STORAGE_KEYS.SETTINGS));
-            const [view, setView] = useState('dashboard');
-
+            // Check for token in URL on initial load
             useEffect(() => {
-                if (!apiKey || !token) {
-                    setView('auth');
-                } else if (!settings || !settings.boardId) {
-                    setView('settings');
+                const tokenFromUrl = trelloAuth.getTokenFromUrl();
+                if (tokenFromUrl) {
+                    handleLoginSuccess(tokenFromUrl);
                 } else {
-                    setView('dashboard');
+                    // If no token in URL, check if a user is already logged in
+                    const loggedInUserId = getCurrentUser();
+                    if (loggedInUserId) {
+                        // This is a simplified example. In a real app, you'd re-validate the token.
+                        // For this version, we assume the token is still valid.
+                        const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA)) || {};
+                        const userSession = userData[loggedInUserId];
+                        if (userSession && userSession.token) {
+                             handleLoginSuccess(userSession.token);
+                        } else {
+                            setLoading(false); // No valid session found
+                        }
+                    } else {
+                        setLoading(false);
+                    }
                 }
-            }, [apiKey, token, settings]);
+            }, []);
 
-            const handleLogin = (newApiKey, newToken) => {
-                setApiKey(newApiKey);
-                setToken(newToken);
-                setView('settings');
+            const handleLoginSuccess = async (token) => {
+                setLoading(true);
+                setError('');
+                try {
+                    const member = await trelloFetch('/members/me', token);
+                    const userData = { id: member.id, username: member.username, token: token };
+                    
+                    // Store user session data
+                    setUserData(member.id, 'token', token);
+                    setUserData(member.id, 'username', member.username);
+                    setCurrentUser(member.id);
+
+                    setUser(userData);
+                    
+                    const savedSettings = getUserData(member.id, 'settings');
+                    if (savedSettings && savedSettings.boardId) {
+                        setSettings(savedSettings);
+                        setView('dashboard');
+                    } else {
+                        setView('settings');
+                    }
+                } catch (e) {
+                    console.error("Login validation failed:", e);
+                    setError("Failed to validate Trello session. Please log in again.");
+                    setCurrentUser(null); // Clear invalid user session
+                    setView('auth');
+                } finally {
+                    setLoading(false);
+                }
             };
 
             const handleLogout = () => {
-                localStorage.removeItem(STORAGE_KEYS.API_KEY);
-                localStorage.removeItem(STORAGE_KEYS.TOKEN);
-                localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-
-                setApiKey(null);
-                setToken(null);
+                if (user) {
+                    // In a real app, you might want to revoke the token via Trello's API
+                    // trelloFetch(`/tokens/${user.token}`, 'DELETE');
+                    setUserData(user.id, 'token', null); // Invalidate the stored token
+                }
+                setCurrentUser(null);
+                setUser(null);
                 setSettings(null);
                 setView('auth');
             };
@@ -2047,45 +2094,38 @@
                 setView('dashboard');
             };
 
-            const renderView = () => {
-                if (!apiKey || !token || view === 'auth') {
-                    return <AuthScreen onLogin={handleLogin} onLogout={handleLogout} />;
-                }
-
-                if (view === 'settings') {
-                    return <SettingsScreen
-                                apiKey={apiKey}
-                                token={token}
-                                onSave={handleSaveSettings}
-                                onBack={() => setView('dashboard')}
-                                onLogout={handleLogout}
-                            />;
-                }
-
-                return (
-                    <Dashboard
-                        apiKey={apiKey}
-                        token={token}
-                        settings={settings}
-                        onShowSettings={() => setView('settings')}
-                        onLogout={handleLogout}
-                    />
+            if (loading) {
+                return <div className="container" style={{textAlign: 'center', marginTop: '50px'}}>Initializing...</div>;
+            }
+            
+            if (error) {
+                 return (
+                    <div className="container">
+                        <div className="error" style={{textAlign: 'center', marginTop: '50px'}}>{error}</div>
+                        <div style={{textAlign: 'center', marginTop: '20px'}}>
+                            <button className="settings-button" onClick={() => { setError(''); setView('auth'); }}>Go to Login</button>
+                        </div>
+                    </div>
                 );
-            };
+            }
 
-            return renderView();
+            if (view === 'dashboard') {
+                return <Dashboard user={user} settings={settings} onShowSettings={() => setView('settings')} onLogout={handleLogout} />;
+            }
+
+            if (view === 'settings') {
+                return <SettingsScreen user={user} onSave={handleSaveSettings} onBack={() => setView('dashboard')} onLogout={handleLogout} />;
+            }
+
+            return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
         };
 
-        // Render the App wrapped in the DarkModeProvider
-        const RootComponent = () => (
+        ReactDOM.render(
             <DarkModeProvider>
                 <App />
-            </DarkModeProvider>
+            </DarkModeProvider>,
+            document.getElementById('root')
         );
-
-        const container = document.getElementById('root');
-        const root = ReactDOM.createRoot(container);
-        root.render(<RootComponent />);
     </script>
 </body>
 </html>
