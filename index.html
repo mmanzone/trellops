@@ -500,14 +500,15 @@
         const { useState, useEffect, useCallback, useRef, useContext, createContext } = React;
         const ReactDOM = window.ReactDOM;
 
+        // IMPORTANT: Replace with your Trello API Key
+        const TRELLO_API_KEY = "44382b25e75ceb100edaa4d308acf019"; 
+
         // --- Trello OAuth Integration ---
         const trelloAuth = {
             login: () => {
-                // IMPORTANT: Replace with your Trello API Key
-                const apiKey = "44382b25e75ceb100edaa4d308acf019"; 
                 const appName = "Trello Stats Dashboard";
                 const returnUrl = window.location.href.split('#')[0]; // Remove any existing hash
-                const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=read&response_type=token&key=${apiKey}&return_url=${encodeURIComponent(returnUrl)}`;
+                const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=read&response_type=token&key=${TRELLO_API_KEY}&return_url=${encodeURIComponent(returnUrl)}`;
                 window.location.href = authUrl;
             },
             getTokenFromUrl: () => {
@@ -741,7 +742,7 @@
             if (!token) {
                 throw new Error("Trello authentication token not provided.");
             }
-            const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}token=${token}`;
+            const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${TRELLO_API_KEY}&token=${token}`;
             const response = await fetch(url);
             if (!response.ok) {
                 const errorText = await response.text();
