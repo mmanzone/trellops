@@ -744,16 +744,23 @@
             const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}token=${token}`;
             const response = await fetch(url);
             if (!response.ok) {
-                const error = await response.json();
+                let errorMessage;
+                try {
+                    const error = await response.json();
+                    errorMessage = error.message;
+                } catch (e) {
+                    errorMessage = await response.text();
+                }
+
                 // Check specifically for Rate Limit error (429)
                 if (response.status === 429) {
                      throw new Error(`Rate limit exceeded (429): Trello API requests too fast/frequent.`);
                 }
                 // Handle invalid token error (401)
                 if (response.status === 401) {
-                    throw new Error("Invalid or expired token. Please log in again.");
+                    throw new Error(`Invalid or expired token. Please log in again. (Details: ${errorMessage})`);
                 }
-                throw new Error(error.message || `Trello API error: ${response.status}`);
+                throw new Error(errorMessage || `Trello API error: ${response.status}`);
             }
             return response.json();
         };
