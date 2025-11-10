@@ -744,12 +744,15 @@
             const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}token=${token}`;
             const response = await fetch(url);
             if (!response.ok) {
-                let errorMessage;
+                const errorText = await response.text();
+                let errorMessage = errorText;
                 try {
-                    const error = await response.json();
-                    errorMessage = error.message;
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson && errorJson.message) {
+                        errorMessage = errorJson.message;
+                    }
                 } catch (e) {
-                    errorMessage = await response.text();
+                    // Not a JSON response, just use the raw text.
                 }
 
                 // Check specifically for Rate Limit error (429)
