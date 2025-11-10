@@ -169,7 +169,7 @@
         .footer-action-bar .version { /* NEW: Version Text Styling */
             margin-right: auto; 
             font-size: 0.8em;
-            color: #6b778c;
+            color: var(--text-color);
         }
         .refresh-button {
             background-color: var(--action-button-bg); 
@@ -306,7 +306,8 @@
             padding: 8px;
             background: var(--settings-item-bg); 
             border-radius: 3px;
-            justify-content: flex-start; 
+            justify-content: space-between; 
+            flex-wrap: nowrap;
         }
         
         /* Define column structure for alignment */
@@ -1047,6 +1048,43 @@
                 reader.readAsText(file);
             };
 
+            // NEW: Handle Clearing Board Configuration
+            const handleClearBoardConfig = () => {
+                if (!selectedBoardId) {
+                    setError("Please select a board to clear configuration.");
+                    return;
+                }
+                
+                const boardName = boards.find(b => b.id === selectedBoardId)?.name || 'this board';
+
+                if (window.confirm(`Are you sure you want to clear ALL configuration data for the board: "${boardName}"? This includes layout, colors, clock, and refresh settings and cannot be undone.`)) {
+                    // 1. Clear Layout
+                    let allLayouts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DASHBOARD_LAYOUT) || '{}');
+                    delete allLayouts[selectedBoardId];
+                    localStorage.setItem(STORAGE_KEYS.DASHBOARD_LAYOUT, JSON.stringify(allLayouts));
+
+                    // 2. Clear Colors
+                    let allColors = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_COLORS) || '{}');
+                    delete allColors[selectedBoardId];
+                    localStorage.setItem(STORAGE_KEYS.LIST_COLORS, JSON.stringify(allColors));
+
+                    // 3. Clear other per-board settings
+                    localStorage.removeItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId);
+                    localStorage.removeItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
+
+                    // 4. Reset component state to default values
+                    setSections(DEFAULT_LAYOUT);
+                    setListColors({});
+                    setRefreshValue(defaultRefreshSetting.value);
+                    setRefreshUnit(defaultRefreshSetting.unit);
+                    
+                    alert(`Configuration cleared for "${boardName}". The dashboard will now reset.`);
+                    
+                    // Force a re-save and switch to dashboard (which will prompt re-setup)
+                    onSave({ boardId: selectedBoardId, boardName: boardName, selectedLists: [] });
+                }
+            };
+
 
             // Fetch Boards on load
             useEffect(() => {
@@ -1596,7 +1634,7 @@
 
                     {/* NEW: Export/Import Configuration Section */}
                     <h3 style={{marginTop: '30px'}}>3. Configuration Management</h3>
-                    <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap'}}>
+                    <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '15px'}}>
                         <button 
                             className="settings-button" 
                             onClick={handleExportConfig}
@@ -1618,6 +1656,16 @@
                             />
                         </label>
                     </div>
+
+                    {/* NEW: Clear Configuration Button */}
+                    <button 
+                        className="settings-button" 
+                        onClick={handleClearBoardConfig}
+                        style={{backgroundColor: '#eb5a46', color: 'white', marginTop: '0'}}
+                        disabled={!selectedBoardId}
+                    >
+                        🗑️ Clear ALL Saved Configuration for Selected Board
+                    </button>
 
 
                     {/* Apply Save Layout Button CSS */}
