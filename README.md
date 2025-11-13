@@ -1,3 +1,5 @@
+URL: https://trello-dashboard-drab.vercel.app/
+
 # Purpose
 Trello allows a lot of customisation and organisation set up their lists specifically for their business need. Some of them use Trello for operaational activities and need to have a simple customisable interface to see specifics metrics per list. Some power-ups allow to display a card counter in Trello for the board or a list, but the interface still show the lists, cards and may not be easy to read.
 This dashboard intents to be displayed on a wall screen that the organisation can monitor, like in a service centre, to have a constant close-to-realtime visibility on the workload in each list.
