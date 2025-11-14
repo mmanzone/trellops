@@ -13,56 +13,102 @@
         @import url('https://fonts.cdnfonts.com/css/digital-7-mono');
 
         /* ------------------------------------------------ */
-        /* --- Dark Mode Variables and Global Styles --- */
+        /* --- Modern & Minimalist Theme --- */
         /* ------------------------------------------------ */
         :root {
-            --bg-primary: #f4f5f7;
+            --bg-primary: #f7f8fa;
             --bg-secondary: #ffffff;
-            --text-color: #172b4d;
-            --section-bg: #ffffff;
-            --card-border: #dcdcdc;
-            --form-bg: white;
-            --form-input-bg: white;
-            --input-border: #ccc;
-            --btn-text: white;
-            --title-clock-color: #0079bf; /* Light Mode Title/Clock */
-            --settings-item-bg: var(--bg-primary); /* Light Mode Item Background */
-            --footer-bg: #ffffff; /* Footer background */
-            --footer-border: #dfe1e6;
-            --action-button-bg: #0079bf;
-            --action-button-hover-bg: #026aa7;
+            --text-color: #222222;
+            --text-secondary: #555555;
+            --border-color: #e0e0e0;
+            --primary-color: #ced7de;
+            --primary-hover-color: #b0b9c0;
+            --danger-color: #dc3545;
+            --danger-hover-color: #c82333;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --label-border-color: #555555;
         }
 
         [data-theme="dark"] {
-            --bg-primary: #1d2125;
-            --bg-secondary: #282c31;
-            --text-color: #f1f2f4;
-            --section-bg: #282c31;
-            --card-border: #42464b;
-            --form-bg: #282c31;
-            --form-input-bg: #3c4045;
-            --input-border: #42464b;
-            --btn-text: #1d2125;
-            --title-clock-color: #f1f2f4; /* FIX: High Contrast Light Grey */
-            --settings-item-bg: #1d2125; /* Dark Mode Item Background */
-            --footer-bg: #1d2125; /* Dark Footer background */
-            --footer-border: #42464b;
-            --action-button-bg: #42526e; /* Dark Grey for buttons */
-            --action-button-hover-bg: #5e6c84;
+            --bg-primary: #1c1c1e;
+            --bg-secondary: #2c2c2e;
+            --text-color: #e0e0e0;
+            --text-secondary: #aaaaaa;
+            --border-color: #444;
+            --primary-color: #9aa8b3;
+            --primary-hover-color: #82919c;
+            --danger-color: #dc3545;
+            --danger-hover-color: #e06c75;
+            --shadow-color: rgba(0, 0, 0, 0.2);
+            --label-border-color: #ffffff;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 0 0 65px 0; /* Add padding to the bottom for the fixed footer */
+            padding: 0 0 80px 0;
             background-color: var(--bg-primary);
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
         }
         .container {
-            padding: 20px;
+            padding: 40px;
             max-width: 1400px;
             margin: 0 auto;
+        }
+
+        /* --- Typography --- */
+        h1, h2, h3, h4 {
+            font-weight: 600;
+            color: var(--text-color);
+            margin-top: 0;
+        }
+
+        /* --- Buttons --- */
+        button, .settings-button, .logout-button, .save-layout-button, .refresh-button, label.settings-button {
+            background-color: var(--primary-color);
+            color: #222;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 34px; /* Consistent height */
+            box-sizing: border-box;
+        }
+
+        button:hover, .settings-button:hover, .logout-button:hover, .save-layout-button:hover, .refresh-button:hover, label.settings-button:hover {
+            background-color: var(--primary-hover-color);
+            transform: translateY(-1px);
+        }
+
+        button:disabled, .settings-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        .button-danger:hover {
+            background-color: var(--danger-hover-color);
+        }
+        
+        .button-secondary {
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .button-secondary:hover {
+            background-color: var(--bg-primary);
         }
 
         /* --- Header/Navigation --- */
@@ -70,10 +116,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #dfe1e6;
-            flex-wrap: wrap; /* Allow wrapping for long titles */
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
         }
         .header-title-area {
             display: flex;
@@ -83,25 +128,19 @@
         }
         .header h1 {
             margin: 0;
-            font-size: 1.7em; /* Title size */
-            color: var(--title-clock-color);
+            font-size: 2em;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            padding-top: 2px; 
         }
-        /* NEW: Clock Styling */
         .large-clock {
-            font-family: 'Digital-7 Mono', monospace; /* APPLIED DIGITAL FONT FIX */
-            font-size: 2.5em; /* Adjusted size for vertical alignment */
+            font-family: 'Digital-7 Mono', monospace;
+            font-size: 2.5em;
             font-weight: 900; 
-            color: var(--title-clock-color);
+            color: var(--text-color);
             letter-spacing: 2px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-            line-height: 1;
             margin-right: 20px;
             flex-shrink: 0;
-            /* FIX: Set predictable width to prevent title shifting */
             min-width: 155px; 
             text-align: right;
         }
@@ -113,43 +152,22 @@
         .countdown {
             margin-right: 15px;
             font-size: 0.9em;
-            color: var(--text-color);
+            color: var(--text-secondary);
         }
-        /* FIX: Ensure standard buttons keep color regardless of mode */
-        .settings-button, .logout-button {
+        
+        /* NEW: Time Filter & Theme Toggle */
+        .time-filter-select, .theme-toggle-button {
             padding: 8px 12px;
-            background-color: var(--action-button-bg); 
-            color: white;
-            transition: background-color 0.2s;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            font-size: 0.9em;
             margin-left: 10px;
         }
-        .settings-button:hover, .logout-button:hover {
-            background-color: var(--action-button-hover-bg);
-        }
-        
-        /* NEW: Time Filter Dropdown */
-        .time-filter-select {
-            padding: 7px 10px;
-            margin-right: 15px;
-            border: 1px solid var(--input-border);
-            border-radius: 3px;
-            background-color: var(--form-input-bg);
-            color: var(--text-color);
-        }
-        
-        /* NEW: Theme Toggle Button */
         .theme-toggle-button {
-            background: none;
-            border: 1px solid var(--input-border);
-            color: var(--text-color);
-            padding: 7px 10px;
-            border-radius: 3px;
             cursor: pointer;
-            font-size: 1em;
-            margin-right: 10px;
-            transition: background-color 0.3s, color 0.3s;
         }
-
 
         /* NEW: Fixed Footer Action Bar */
         .footer-action-bar {
@@ -160,276 +178,185 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            padding: 10px 20px;
-            background-color: var(--footer-bg);
-            border-top: 1px solid var(--footer-border);
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            padding: 15px 40px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 10px var(--shadow-color);
             z-index: 9000;
         }
-        .footer-action-bar .version { /* NEW: Version Text Styling */
+        .footer-action-bar .version {
             margin-right: auto; 
             font-size: 0.8em;
-            color: var(--text-color);
+            color: var(--text-secondary);
         }
-        .refresh-button {
-            background-color: var(--action-button-bg); 
-            color: white;
+        .footer-action-bar > * {
             margin-left: 10px;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 3px;
-            font-weight: 600;
         }
-        .refresh-button:hover {
-            background-color: var(--action-button-hover-bg);
-        }
-
 
         /* --- Dashboard Grid Layout --- */
         .dashboard-section {
-            margin-bottom: 40px;
-            padding: 15px;
-            background-color: var(--section-bg);
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: background-color 0.3s;
-        }
-        [data-theme="dark"] .dashboard-section {
-            box-shadow: 0 1px 3px rgba(255,255,255,0.05);
+            padding: 20px;
+            background-color: transparent;
         }
         .section-header-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .section-header {
-            font-size: 1.4em;
+            font-size: 1.8em;
             font-weight: 700;
-            color: var(--title-clock-color); /* Applied consistent color */
         }
-        /* Collapse Icon */
         .collapse-toggle {
             cursor: pointer;
-            font-size: 1.2em;
-            color: var(--text-color);
+            font-size: 1.5em;
+            color: var(--text-secondary);
             padding: 5px;
             background: none;
             border: none;
+            transition: color 0.2s;
         }
         .collapse-toggle:hover {
-            color: #0079bf;
+            color: var(--primary-color);
         }
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
-            justify-content: center;
         }
 
         /* --- Tile Styles --- */
         .dashboard-tile {
-            min-height: 150px;
-            border-radius: 8px;
+            min-height: 160px;
+            border-radius: 12px;
             text-align: center;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 15px var(--shadow-color);
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
-            border: 1px solid var(--card-border);
+            border: none;
+            color: white;
         }
         .dashboard-tile:hover {
-            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
         }
         .card-count {
             font-size: 5em;
-            font-weight: 900;
+            font-weight: 700;
             line-height: 1;
-            margin-bottom: 5px;
         }
         .list-name {
             font-size: 1.2em;
             font-weight: 500;
+            margin-top: 10px;
         }
         .card-description {
-            font-size: 0.85em;
+            font-size: 0.9em;
             font-weight: 400;
-            opacity: 0.8;
+            opacity: 0.9;
             max-width: 90%;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-            margin-top: 3px;
-        }
-
-
-        /* --- Forms & Settings (Alignment Fix) --- */
-        .form-card {
-            background-color: var(--form-bg);
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-            max-width: 500px;
-            margin: 50px auto;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            transition: background-color 0.3s;
-        }
-        .form-card label {
-            margin-bottom: 15px;
-            font-weight: 600;
-            display: block;
-        }
-        .form-card input[type="text"],
-        .form-card select {
-            width: calc(100% - 20px);
-            padding: 8px 10px;
             margin-top: 5px;
-            border: 1px solid var(--input-border);
-            border-radius: 3px;
-            font-size: 1em;
-            box-sizing: border-box;
         }
-        .form-card.settings {
+
+        /* --- Forms & Settings --- */
+        .form-card {
+            background-color: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
             max-width: 95%;
             margin: 20px auto;
+            position: relative;
+        }
+        .form-card label {
+            margin-bottom: 10px;
+            font-weight: 500;
+            display: block;
+            color: var(--text-secondary);
+        }
+        .form-card input[type="text"],
+        .form-card input[type="number"],
+        .form-card select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+            background-color: var(--bg-primary);
+            color: var(--text-color);
         }
         .list-config-item {
             display: flex;
             align-items: center;
             margin-top: 10px;
-            padding: 8px;
-            background: var(--settings-item-bg); 
-            border-radius: 3px;
+            padding: 12px;
+            background: var(--bg-primary); 
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             justify-content: space-between; 
-            flex-wrap: nowrap;
         }
         
-        /* Define column structure for alignment */
-        .list-config-item > span:first-child { /* Tile Name (FIX: 50% width) */
+        .list-config-item > span:first-child {
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-            min-width: 100px;
-            width: 50%; /* Guaranteed space for list name */
+            width: 50%;
             padding-right: 10px;
-            flex-shrink: 1;
         }
-        /* Control Group Container (All buttons and select) */
         .list-config-item > div:last-child {
              display: flex;
              align-items: center;
-             flex-shrink: 0;
-             max-width: 50%; /* Constrain control group width */
         }
         
-        .list-config-item input[type="color"] { /* Color Picker */
-            flex-shrink: 0;
-            margin-left: 5px;
-        }
-        .order-buttons, 
-        .list-config-item select { /* Utility elements */
-            flex-shrink: 0;
-            margin-left: 10px;
-        }
-        /* FIX: Force the Move dropdown to be reasonably compact */
-        .list-config-item select {
-            width: 85px; 
-        }
-        
-        /* Order and Move Buttons in Settings */
         .order-buttons button, .section-order-buttons button {
-            background: #6b778c;
+            background: var(--bg-secondary);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            margin: 0 2px;
+        }
+        .order-buttons button:hover, .section-order-buttons button:hover {
+            background: var(--primary-color);
             color: white;
-        }
-        .order-buttons button:hover:not(:disabled), .section-order-buttons button:hover:not(:disabled) {
-            background: #42526e;
+            border-color: var(--primary-color);
         }
 
-
-        /* --- Layout Configuration (Section Stacking) --- */
+        /* --- Layout Configuration --- */
         .layout-config-container {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 20px;
         }
         .layout-section-box {
-            background: var(--bg-primary);
-            padding: 10px;
-            border-radius: 4px;
-            min-width: 250px;
-            flex-basis: auto;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
-            transition: background-color 0.3s;
-        }
-        /* Style the Unassigned Lists pool */
-        .layout-section-box:first-child {
-             background: var(--bg-secondary);
-             padding: 15px;
-             transition: background-color 0.3s;
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
         .layout-list-item {
-            background: var(--form-bg);
-            border: 1px solid var(--input-border);
-            transition: background-color 0.3s, border-color 0.3s;
-            padding: 10px; /* Added padding for better separation */
-            margin-bottom: 10px;
-            display: flex; /* Ensure inner elements align */
-            align-items: center;
-            justify-content: space-between; /* Space out name and buttons */
-        }
-        .layout-list-item span:first-child { 
-            flex-grow: 1;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            padding-right: 15px; /* Add space between name and buttons */
-        }
-        .layout-list-item .move-button-pool {
-            margin-left: 5px;
-            /* Ensure pool buttons are compact */
-            padding: 3px 6px;
-            font-size: 0.7em;
-        }
-
-        /* --- Utility Buttons (Save, Remove, etc.) --- */
-        .save-layout-button {
-            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
             padding: 10px;
-            margin-top: 20px;
-            background-color: #5aac44;
-            color: white;
-            transition: background-color 0.2s;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .save-layout-button:hover {
-            background-color: #519839;
-        }
-        
-        /* Section Setting Styling */
-        .section-options {
-            margin-top: 10px;
-            padding: 5px 0;
-            border-top: 1px solid var(--input-border);
-        }
-        .section-options label {
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            font-weight: normal;
-            font-size: 0.9em;
-            margin: 5px 0;
-            cursor: pointer;
+            justify-content: space-between;
+            border-radius: 8px;
         }
         
-        /* Modal Display (FINAL FIX) */
+        /* --- Modal Display --- */
         .modal-overlay {
             position: fixed; 
             top: 0;
@@ -443,52 +370,141 @@
             z-index: 10000;
         }
         .modal-content {
-            background: var(--form-bg);
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 800px;
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
             width: 90%;
             max-height: 90vh; 
             overflow-y: auto;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
         .modal-content h3 {
             margin-top: 0;
-            border-bottom: 2px solid #0079bf;
-            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            font-size: 1.5em;
         }
-        [data-theme="dark"] .modal-content h3 {
-            border-bottom-color: #4c9aff;
-        }
-        /* Card Labels in Modal */
         .card-label {
-            font-size: 0.7em;
-            font-weight: 600;
-            color: var(--btn-text);
-            padding: 2px 4px;
-            border-radius: 3px;
+            font-size: 0.75em;
+            font-weight: 500;
+            padding: 3px 6px;
+            border-radius: 4px;
             margin-right: 5px;
-            filter: contrast(1.1) brightness(0.9); 
-            line-height: 1;
-            vertical-align: middle;
+            border: 1px solid var(--label-border-color);
         }
         .card-list-item {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            margin-bottom: 5px;
-            padding: 5px 0;
-            border-bottom: 1px dotted var(--input-border);
-            text-overflow: ellipsis;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
         }
         .card-list-item a {
-            color: #0079bf;
+            color: var(--text-color);
             text-decoration: none;
             flex-grow: 1; 
         }
-        [data-theme="dark"] .card-list-item a {
-            color: #4c9aff;
+
+        .admin-section {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            background-color: var(--bg-secondary);
+        }
+
+        .admin-section h3 {
+            margin-top: 0;
+        }
+
+        .actions-container {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .section-options {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .section-options label {
+            font-weight: normal;
+            font-size: 0.9em;
+            margin: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .sub-option {
+            margin-left: 0;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .modal-actions button, .modal-actions label {
+            width: 100%;
+        }
+        .modal-actions label.settings-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .section-options {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .section-options label {
+            font-weight: normal;
+            font-size: 0.9em;
+            margin: 5px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .sub-option {
+            margin-left: 25px;
+        }
+        
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .settings-row label {
+            margin-bottom: 0;
+            flex-shrink: 0;
+        }
+        .settings-row select, .settings-row input {
+            margin-top: 0;
+            width: auto;
+            flex-grow: 1;
+        }
+        .options-row > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
     </style>
@@ -540,9 +556,12 @@
 
         // --- Local Storage Keys ---
         const STORAGE_KEYS = {
-            // REMOVED: API_KEY and TOKEN are no longer stored globally
-            CURRENT_USER: 'trelloCurrentUser', // Stores the ID of the logged-in user
-            USER_DATA: 'trelloUserData' // A single key to hold an object of all users' data
+            CURRENT_USER: 'trelloCurrentUser',
+            USER_DATA: 'trelloUserData',
+            THEME: 'dashboardTheme',
+            CLOCK_SETTING: 'dashboardClockSetting_',
+            REFRESH_INTERVAL: 'dashboardRefreshInterval_',
+            RANDOM_COLORS_CACHE: 'dashboardRandomColors'
         };
         
         // --- User-Specific Storage Helpers ---
@@ -798,7 +817,7 @@
         };
 
         // Dashboard Layout Management
-        const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, isCollapsed: false }];
+        const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];
 
         const getPersistentLayout = (userId, boardId) => {
             try {
@@ -807,7 +826,8 @@
                 return savedLayout.map(s => ({
                     ...s,
                     isCollapsed: s.isCollapsed || false,
-                    ignoreFirstCard: s.ignoreFirstCard || false
+                    ignoreFirstCard: s.ignoreFirstCard || false,
+                    displayFirstCardDescription: s.displayFirstCardDescription !== false // Default to true
                 }));
             } catch (e) {
                 console.error("Error parsing dashboard layout:", e);
@@ -861,6 +881,7 @@
             const [cards, setCards] = useState([]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
+            const { theme } = useContext(DarkModeContext);
             
             // Determine if the first card should be ignored based on section settings
             const section = sectionsLayout.find(s => s.listIds.includes(listId));
@@ -905,9 +926,8 @@
                                                 key={label.id} 
                                                 className="card-label"
                                                 style={{
-                                                    backgroundColor: label.color === 'null' ? '#999' : label.color,
-                                                    color: (label.color === 'yellow' || label.color === 'lime' || label.color === 'white') ? '#000' : 'white',
-                                                    filter: 'contrast(1.1) brightness(0.9)'
+                                                    backgroundColor: label.color || '#999',
+                                                    color: getLabelTextColor(theme)
                                                 }}
                                             >
                                                 {label.name || label.color}
@@ -924,6 +944,14 @@
                     </div>
                 </div>
             );
+        };
+        
+        const getLabelTextColor = (theme) => {
+            const resolvedTheme = 
+                theme === 'system' 
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : theme;
+            return resolvedTheme === 'dark' ? '#ffffff' : '#222222';
         };
 
         // 1. Authentication Screen
@@ -972,15 +1000,13 @@
             const [sections, setSections] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
             const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
             const [newSectionName, setNewSectionName] = useState('');
+            const [showMoreOptions, setShowMoreOptions] = useState(false);
             
             // Clock setting state for settings screen
             const [showClockSetting, setShowClockSetting] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + initialSettings.boardId) !== 'false');
             
             // Theme setting from Context
             const { theme, toggleTheme } = useContext(DarkModeContext);
-            
-            // Alert Sound State (Cleaned up, default to 'none')
-            const [alertSound, setAlertSound] = useState(() => localStorage.getItem(STORAGE_KEYS.ALERT_SOUND) || 'none');
 
             // NEW: Refresh Interval State
             const defaultRefreshSetting = { value: 1, unit: 'minutes' };
@@ -1078,28 +1104,16 @@
                 
                 const boardName = boards.find(b => b.id === selectedBoardId)?.name || 'this board';
 
-                if (window.confirm(`Are you sure you want to clear ALL configuration data for the board: "${boardName}"? This includes layout, colors, clock, and refresh settings and cannot be undone.`)) {
+                if (window.confirm(`Are you sure you want to reset the layout for the board: "${boardName}"? This cannot be undone.`)) {
                     // 1. Clear Layout
-                    let allLayouts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DASHBOARD_LAYOUT) || '{}');
+                    const allLayouts = getUserData(user.id, 'dashboardLayout') || {};
                     delete allLayouts[selectedBoardId];
-                    localStorage.setItem(STORAGE_KEYS.DASHBOARD_LAYOUT, JSON.stringify(allLayouts));
+                    setUserData(user.id, 'dashboardLayout', allLayouts);
 
-                    // 2. Clear Colors
-                    let allColors = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_COLORS) || '{}');
-                    delete allColors[selectedBoardId];
-                    localStorage.setItem(STORAGE_KEYS.LIST_COLORS, JSON.stringify(allColors));
-
-                    // 3. Clear other per-board settings
-                    localStorage.removeItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId);
-                    localStorage.removeItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
-
-                    // 4. Reset component state to default values
+                    // 2. Reset component state to default values
                     setSections(DEFAULT_LAYOUT);
-                    setListColors({});
-                    setRefreshValue(defaultRefreshSetting.value);
-                    setRefreshUnit(defaultRefreshSetting.unit);
                     
-                    alert(`Configuration cleared for "${boardName}". The dashboard will now reset.`);
+                    alert(`Layout cleared for "${boardName}". The dashboard will now reset.`);
                     
                     // Force a re-save and switch to dashboard (which will prompt re-setup)
                     onSave({ boardId: selectedBoardId, boardName: boardName, selectedLists: [] });
@@ -1173,6 +1187,7 @@
                     name: newSectionName.trim(),
                     listIds: [],
                     ignoreFirstCard: false,
+                    displayFirstCardDescription: true,
                     isCollapsed: false
                 };
                 const newLayout = [...sections, newSection];
@@ -1237,6 +1252,15 @@
             const handleToggleIgnoreCard = (sectionId, isChecked) => {
                 const newSections = sections.map(s => 
                     s.id === sectionId ? { ...s, ignoreFirstCard: isChecked } : s
+                );
+                setSections(newSections);
+                setPersistentLayout(user.id, selectedBoardId, newSections);
+            };
+
+            // Handler for the 'Display first card as description' checkbox
+            const handleToggleDisplayDescription = (sectionId, isChecked) => {
+                const newSections = sections.map(s => 
+                    s.id === sectionId ? { ...s, displayFirstCardDescription: isChecked } : s
                 );
                 setSections(newSections);
                 setPersistentLayout(user.id, selectedBoardId, newSections);
@@ -1398,79 +1422,69 @@
                     <h2>Dashboard Setup</h2>
                     {error && <div className="error">{error}</div>}
 
-                    <h3>1. Select Trello Board</h3>
-                    <label>
-                        Board:
-                        <select value={selectedBoardId} onChange={handleBoardChange}>
-                            <option value="">-- Select a Board --</option>
-                            {boards.map(board => (
-                                <option key={board.id} value={board.id}>{board.name}</option>
-                            ))}
-                        </select>
-                    </label>
-
-                    {selectedBoardId && (
-                         <div className="section-management">
-                            <h4 style={{marginTop: '30px'}}>Display Options (Saved Per Board)</h4>
-                            
-                            {/* NEW: Refresh Rate Setting */}
-                            <div style={{marginBottom: '15px', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
-                                <label style={{marginBottom: 0, fontWeight: 600, minWidth: '150px'}}>
-                                    Auto-Refresh Interval:
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={refreshValue}
-                                    onChange={e => handleRefreshChange(e.target.value)}
-                                    style={{width: '60px', marginRight: '5px', marginTop: '0', flexShrink: 0}}
-                                />
-                                <select 
-                                    value={refreshUnit} 
-                                    onChange={e => handleRefreshChange(refreshValue, e.target.value)}
-                                    style={{width: 'auto', flexShrink: 0, marginTop: '0'}}
-                                >
-                                    <option value="seconds">Seconds</option>
-                                    <option value="minutes">Minutes</option>
-                                    <option value="hours">Hours</option>
-                                </select>
-                                <p style={{fontSize: '0.75em', color: '#6b778c', margin: '5px 0 0 10px'}}>
-                                    (Min: 10s, Max: 2h)
-                                </p>
-                            </div>
-
-
-                            <label style={{marginBottom: 0}}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={showClockSetting}
-                                    onChange={e => handleToggleClock(e.target.checked)}
-                                />
-                                Show Large Digital Clock on Dashboard
-                            </label>
-                            
-                            {/* Dark/Light Theme Toggle Option */}
-                            <div style={{marginTop: '10px', display: 'flex', alignItems: 'center'}}>
-                                <label style={{marginBottom: 0, fontWeight: 600}}>
-                                    Theme Preference: 
-                                </label>
-                                <select 
-                                    value={theme} 
-                                    onChange={(e) => toggleTheme(e.target.value)} 
-                                    style={{width: 'auto', marginLeft: '10px'}}
-                                >
-                                    <option value="system">System Default</option>
-                                    <option value="light">Light</option>
-                                    <option value="dark">Dark</option>
-                                </select>
-                            </div>
+                    <div className="admin-section">
+                        <h3>General Settings</h3>
+                        <div className="settings-row">
+                            <label htmlFor="board-select">Trello board:</label>
+                            <select id="board-select" value={selectedBoardId} onChange={handleBoardChange}>
+                                <option value="">-- Select a Board --</option>
+                                {boards.map(board => (
+                                    <option key={board.id} value={board.id}>{board.name}</option>
+                                ))}
+                            </select>
                         </div>
-                    )}
+
+                        {selectedBoardId && (
+                            <div className="settings-row options-row">
+                                <div>
+                                    <label>Auto-Refresh:</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={refreshValue}
+                                        onChange={e => handleRefreshChange(e.target.value)}
+                                        style={{width: '60px'}}
+                                    />
+                                    <select 
+                                        value={refreshUnit} 
+                                        onChange={e => handleRefreshChange(refreshValue, e.target.value)}
+                                    >
+                                        <option value="seconds">Seconds</option>
+                                        <option value="minutes">Minutes</option>
+                                        <option value="hours">Hours</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <input 
+                                        type="checkbox" 
+                                        id="show-clock-check"
+                                        checked={showClockSetting}
+                                        onChange={e => handleToggleClock(e.target.checked)}
+                                    />
+                                    <label htmlFor="show-clock-check">Show Clock</label>
+                                </div>
+                                
+                                <div>
+                                    <label htmlFor="theme-select">Theme:</label>
+                                    <select 
+                                        id="theme-select"
+                                        value={theme} 
+                                        onChange={(e) => toggleTheme(e.target.value)} 
+                                    >
+                                        <option value="system">System</option>
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
 
                     {selectedBoardId && (
-                        <>
-                            <h3 style={{marginTop: '30px'}}>2. Configure Dashboard Sections & Lists</h3>
+                        <div className="admin-section">
+                            <h3>Manage sections and tiles</h3>
 
                             <div className="section-management">
                                 <h4 style={{marginTop: 0}}>Manage Sections</h4>
@@ -1565,7 +1579,7 @@
                                                 const isAlertEnabled = false; // Alert removed
 
                                                 return (
-                                                    <div key={listId} className="list-config-item" style={{background: 'white', cursor: 'default'}}>
+                                                    <div key={listId} className="list-config-item">
                                                         
                                                         {/* List Name - FIXED WIDTH/TRUNCATION */}
                                                         <span style={{
@@ -1639,61 +1653,88 @@
                                                     checked={section.ignoreFirstCard}
                                                     onChange={e => handleToggleIgnoreCard(section.id, e.target.checked)}
                                                 />
-                                                Use first card as description
+                                                Do not include the first card in the total
                                             </label>
+                                            {section.ignoreFirstCard && (
+                                                <label className="sub-option">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={section.displayFirstCardDescription}
+                                                        onChange={e => handleToggleDisplayDescription(section.id, e.target.checked)}
+                                                    />
+                                                    Display the first card as a description
+                                                </label>
+                                            )}
                                         </div>
 
                                     </div>
                                 ))}
                             </div>
-                        </>
+                        </div>
                     )}
                     
                     {/* Global Notification Settings (REMOVED) */}
 
-                    {/* NEW: Export/Import Configuration Section */}
-                    <h3 style={{marginTop: '30px'}}>3. Configuration Management</h3>
-                    <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '15px'}}>
-                        <button 
-                            className="settings-button" 
-                            onClick={handleExportConfig}
-                            style={{backgroundColor: '#0079bf', flexGrow: 1}}
-                            disabled={!selectedBoardId}
-                        >
-                            ⬇️ Export Dashboard Configuration
+                    <div className="actions-container">
+                        <button className="save-layout-button" onClick={handleSave}> 
+                            Save Layout & View Dashboard
                         </button>
-
-                        <label htmlFor="import-file-input" className="settings-button" 
-                               style={{backgroundColor: '#6b778c', flexGrow: 1, textAlign: 'center'}}>
-                            ⬆️ Import Configuration File
-                            <input 
-                                type="file" 
-                                id="import-file-input" 
-                                accept=".json" 
-                                onChange={handleImportConfig} 
-                                style={{display: 'none'}}
-                            />
-                        </label>
+                        <button className="button-secondary" onClick={onBack}>
+                            Cancel changes
+                        </button>
+                        <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>
+                            More options...
+                        </button>
                     </div>
 
-                    {/* NEW: Clear Configuration Button */}
-                    <button 
-                        className="settings-button" 
-                        onClick={handleClearBoardConfig}
-                        style={{backgroundColor: '#eb5a46', color: 'white', marginTop: '0'}}
-                        disabled={!selectedBoardId}
-                    >
-                        🗑️ Clear ALL Saved Configuration for Selected Board
-                    </button>
+                    {showMoreOptions && (
+                        <MoreOptionsModal
+                            onClose={() => setShowMoreOptions(false)}
+                            onExport={handleExportConfig}
+                            onImport={handleImportConfig}
+                            onReset={handleClearBoardConfig}
+                            boardName={boards.find(b => b.id === selectedBoardId)?.name || ''}
+                            selectedBoardId={selectedBoardId}
+                        />
+                    )}
+                </div>
+            );
+        };
 
+        const MoreOptionsModal = ({ onClose, onExport, onImport, onReset, boardName, selectedBoardId }) => {
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <span className="modal-close" onClick={onClose}>&times;</span>
+                        <h3>More Options</h3>
+                        <div className="modal-actions">
+                            <button 
+                                className="settings-button" 
+                                onClick={onExport}
+                                disabled={!selectedBoardId}
+                            >
+                                Export configuration for {boardName}
+                            </button>
 
-                    {/* Apply Save Layout Button CSS */}
-                    <button className="save-layout-button" onClick={handleSave}> 
-                        Save Layout & View Dashboard
-                    </button>
-                    <button className="settings-button" onClick={onBack} style={{marginTop: '10px', backgroundColor: '#6b778c'}}>
-                        Cancel
-                    </button>
+                            <label htmlFor="import-file-input" className="settings-button">
+                                Import a configuration file for {boardName}
+                                <input 
+                                    type="file" 
+                                    id="import-file-input" 
+                                    accept=".json" 
+                                    onChange={onImport} 
+                                    style={{display: 'none'}}
+                                />
+                            </label>
+                            <button 
+                                className="button-danger" 
+                                onClick={onReset}
+                                disabled={!selectedBoardId}
+                            >
+                                Reset the layout for the {boardName}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             );
         };
@@ -1706,6 +1747,16 @@
             const [countdown, setCountdown] = useState(30);
             const [timeFilter, setTimeFilter] = useState('all'); 
             const timerRef = useRef(null);
+
+            const buildNumber = (() => {
+                const now = new Date();
+                const year = now.getFullYear().toString().slice(-2);
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                return `3.${year}${month}${day}${hours}${minutes}`;
+            })();
 
             const [modalList, setModalList] = useState(null);
 
@@ -1805,6 +1856,7 @@
                         const section = currentLayout.find(s => s.listIds.includes(listId));
                         
                         const isIgnored = section?.ignoreFirstCard;
+                        const displayDescription = section?.displayFirstCardDescription;
                         const result = listResults[listId] || { count: 0, firstCardName: '' };
                         
                         let finalCount = result.count;
@@ -1822,7 +1874,7 @@
                             count: finalCount,
                             name: listData?.name,
                             displayColor: color,
-                            firstCardName: isIgnored ? result.firstCardName : '' 
+                            firstCardName: isIgnored && displayDescription ? result.firstCardName : '' 
                         });
                     });
                     
@@ -1956,8 +2008,18 @@
                                         onClick={() => handleToggleCollapse(section.id)}
                                         title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}
                                     >
-                                        {/* Use appropriate icon for screen visibility (eye open/closed) */}
-                                        {isCollapsed ? '👁️' : '🙈'}
+                                        {isCollapsed ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path>
+                                                <path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path>
+                                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                                            </svg>
+                                        ) : (
+                                            <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        )}
                                     </button>
                                 </div>
                                 
@@ -2004,7 +2066,7 @@
 
                     {/* NEW: Fixed Footer Action Bar */}
                     <div className="footer-action-bar">
-                        <span className="version">v40</span>
+                        <span className="version">v.3</span>
                         <span className="countdown">Next refresh in {countdown}s</span>
                         <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Data</button>
                         <button className="settings-button" onClick={onShowSettings}>Settings</button>
@@ -2021,6 +2083,8 @@
             const [view, setView] = useState('auth'); // 'auth', 'settings', 'dashboard'
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
+
+           
 
             // Check for token in URL on initial load
             useEffect(() => {
