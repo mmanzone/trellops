@@ -222,7 +222,7 @@
         }
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
         }
 
@@ -2066,7 +2066,7 @@
 
                     {/* NEW: Fixed Footer Action Bar */}
                     <div className="footer-action-bar">
-                        <span className="version">v.3 build: {buildNumber}</span>
+                        <span className="version">v.3</span>
                         <span className="countdown">Next refresh in {countdown}s</span>
                         <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Data</button>
                         <button className="settings-button" onClick={onShowSettings}>Settings</button>
