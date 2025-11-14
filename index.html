@@ -63,7 +63,7 @@
         }
 
         /* --- Buttons --- */
-        button, .settings-button, .logout-button, .save-layout-button, .refresh-button {
+        button, .settings-button, .logout-button, .save-layout-button, .refresh-button, label.settings-button {
             background-color: var(--primary-color);
             color: #222;
             border: none;
@@ -78,9 +78,10 @@
             justify-content: center;
             text-align: center;
             height: 34px; /* Consistent height */
+            box-sizing: border-box;
         }
 
-        button:hover, .settings-button:hover, .logout-button:hover, .save-layout-button:hover, .refresh-button:hover {
+        button:hover, .settings-button:hover, .logout-button:hover, .save-layout-button:hover, .refresh-button:hover, label.settings-button:hover {
             background-color: var(--primary-hover-color);
             transform: translateY(-1px);
         }
@@ -408,6 +409,10 @@
             padding: 30px;
             margin-bottom: 30px;
             background-color: var(--bg-secondary);
+        }
+
+        .admin-section h3 {
+            margin-top: 0;
         }
 
         .actions-container {
@@ -870,9 +875,8 @@
                                                 key={label.id} 
                                                 className="card-label"
                                                 style={{
-                                                    backgroundColor: label.color === 'null' ? '#999' : label.color,
-                                                    color: (label.color === 'yellow' || label.color === 'lime' || label.color === 'white') ? '#000' : 'white',
-                                                    filter: 'contrast(1.1) brightness(0.9)'
+                                                    backgroundColor: label.color || '#999',
+                                                    color: getLabelTextColor(label.color)
                                                 }}
                                             >
                                                 {label.name || label.color}
@@ -889,6 +893,16 @@
                     </div>
                 </div>
             );
+        };
+        
+        const getLabelTextColor = (backgroundColor) => {
+            if (!backgroundColor) return '#ffffff';
+            // Simple heuristic to determine if the background is light or dark
+            const color = backgroundColor.charAt(0) === '#' ? backgroundColor.substring(1, 7) : backgroundColor;
+            const r = parseInt(color.substring(0, 2), 16); // Red
+            const g = parseInt(color.substring(2, 4), 16); // Green
+            const b = parseInt(color.substring(4, 6), 16); // Blue
+            return (r * 0.299 + g * 0.587 + b * 0.114) > 186 ? '#000000' : '#ffffff';
         };
 
         // 1. Authentication Screen
