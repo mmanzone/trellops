@@ -13,56 +13,87 @@
         @import url('https://fonts.cdnfonts.com/css/digital-7-mono');
 
         /* ------------------------------------------------ */
-        /* --- Dark Mode Variables and Global Styles --- */
+        /* --- Modern & Minimalist Theme --- */
         /* ------------------------------------------------ */
         :root {
-            --bg-primary: #f4f5f7;
+            --bg-primary: #f7f8fa;
             --bg-secondary: #ffffff;
-            --text-color: #172b4d;
-            --section-bg: #ffffff;
-            --card-border: #dcdcdc;
-            --form-bg: white;
-            --form-input-bg: white;
-            --input-border: #ccc;
-            --btn-text: white;
-            --title-clock-color: #0079bf; /* Light Mode Title/Clock */
-            --settings-item-bg: var(--bg-primary); /* Light Mode Item Background */
-            --footer-bg: #ffffff; /* Footer background */
-            --footer-border: #dfe1e6;
-            --action-button-bg: #0079bf;
-            --action-button-hover-bg: #026aa7;
+            --text-color: #222222;
+            --text-secondary: #555555;
+            --border-color: #e0e0e0;
+            --primary-color: #007aff;
+            --primary-hover-color: #0056b3;
+            --danger-color: #dc3545;
+            --danger-hover-color: #c82333;
+            --shadow-color: rgba(0, 0, 0, 0.05);
         }
 
         [data-theme="dark"] {
-            --bg-primary: #1d2125;
-            --bg-secondary: #282c31;
-            --text-color: #f1f2f4;
-            --section-bg: #282c31;
-            --card-border: #42464b;
-            --form-bg: #282c31;
-            --form-input-bg: #3c4045;
-            --input-border: #42464b;
-            --btn-text: #1d2125;
-            --title-clock-color: #f1f2f4; /* FIX: High Contrast Light Grey */
-            --settings-item-bg: #1d2125; /* Dark Mode Item Background */
-            --footer-bg: #1d2125; /* Dark Footer background */
-            --footer-border: #42464b;
-            --action-button-bg: #42526e; /* Dark Grey for buttons */
-            --action-button-hover-bg: #5e6c84;
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --text-color: #e0e0e0;
+            --text-secondary: #aaaaaa;
+            --border-color: #333333;
+            --primary-color: #007aff;
+            --primary-hover-color: #2a8dff;
+            --danger-color: #dc3545;
+            --danger-hover-color: #e06c75;
+            --shadow-color: rgba(255, 255, 255, 0.05);
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 0 0 65px 0; /* Add padding to the bottom for the fixed footer */
+            padding: 0 0 80px 0; /* Add padding to the bottom for the fixed footer */
             background-color: var(--bg-primary);
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
         }
         .container {
-            padding: 20px;
+            padding: 40px;
             max-width: 1400px;
             margin: 0 auto;
+        }
+
+        /* --- Typography --- */
+        h1, h2, h3, h4 {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* --- Buttons --- */
+        button, .settings-button, .logout-button, .save-layout-button, .refresh-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        button:hover, .settings-button:hover, .logout-button:hover, .save-layout-button:hover, .refresh-button:hover {
+            background-color: var(--primary-hover-color);
+            transform: translateY(-1px);
+        }
+
+        button:disabled, .settings-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-danger {
+            background-color: var(--danger-color);
+        }
+        .button-danger:hover {
+            background-color: var(--danger-hover-color);
         }
 
         /* --- Header/Navigation --- */
@@ -70,10 +101,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #dfe1e6;
-            flex-wrap: wrap; /* Allow wrapping for long titles */
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
         }
         .header-title-area {
             display: flex;
@@ -83,25 +114,19 @@
         }
         .header h1 {
             margin: 0;
-            font-size: 1.7em; /* Title size */
-            color: var(--title-clock-color);
+            font-size: 2em;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            padding-top: 2px; 
         }
-        /* NEW: Clock Styling */
         .large-clock {
-            font-family: 'Digital-7 Mono', monospace; /* APPLIED DIGITAL FONT FIX */
-            font-size: 2.5em; /* Adjusted size for vertical alignment */
+            font-family: 'Digital-7 Mono', monospace;
+            font-size: 2.5em;
             font-weight: 900; 
-            color: var(--title-clock-color);
+            color: var(--text-color);
             letter-spacing: 2px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
-            line-height: 1;
             margin-right: 20px;
             flex-shrink: 0;
-            /* FIX: Set predictable width to prevent title shifting */
             min-width: 155px; 
             text-align: right;
         }
@@ -113,43 +138,22 @@
         .countdown {
             margin-right: 15px;
             font-size: 0.9em;
-            color: var(--text-color);
+            color: var(--text-secondary);
         }
-        /* FIX: Ensure standard buttons keep color regardless of mode */
-        .settings-button, .logout-button {
+        
+        /* NEW: Time Filter & Theme Toggle */
+        .time-filter-select, .theme-toggle-button {
             padding: 8px 12px;
-            background-color: var(--action-button-bg); 
-            color: white;
-            transition: background-color 0.2s;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            font-size: 0.9em;
             margin-left: 10px;
         }
-        .settings-button:hover, .logout-button:hover {
-            background-color: var(--action-button-hover-bg);
-        }
-        
-        /* NEW: Time Filter Dropdown */
-        .time-filter-select {
-            padding: 7px 10px;
-            margin-right: 15px;
-            border: 1px solid var(--input-border);
-            border-radius: 3px;
-            background-color: var(--form-input-bg);
-            color: var(--text-color);
-        }
-        
-        /* NEW: Theme Toggle Button */
         .theme-toggle-button {
-            background: none;
-            border: 1px solid var(--input-border);
-            color: var(--text-color);
-            padding: 7px 10px;
-            border-radius: 3px;
             cursor: pointer;
-            font-size: 1em;
-            margin-right: 10px;
-            transition: background-color 0.3s, color 0.3s;
         }
-
 
         /* NEW: Fixed Footer Action Bar */
         .footer-action-bar {
@@ -160,276 +164,186 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
-            padding: 10px 20px;
-            background-color: var(--footer-bg);
-            border-top: 1px solid var(--footer-border);
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            padding: 15px 40px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 10px var(--shadow-color);
             z-index: 9000;
         }
-        .footer-action-bar .version { /* NEW: Version Text Styling */
+        .footer-action-bar .version {
             margin-right: auto; 
             font-size: 0.8em;
-            color: var(--text-color);
+            color: var(--text-secondary);
         }
-        .refresh-button {
-            background-color: var(--action-button-bg); 
-            color: white;
+        .footer-action-bar > * {
             margin-left: 10px;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 3px;
-            font-weight: 600;
         }
-        .refresh-button:hover {
-            background-color: var(--action-button-hover-bg);
-        }
-
 
         /* --- Dashboard Grid Layout --- */
         .dashboard-section {
             margin-bottom: 40px;
-            padding: 15px;
-            background-color: var(--section-bg);
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            transition: background-color 0.3s;
-        }
-        [data-theme="dark"] .dashboard-section {
-            box-shadow: 0 1px 3px rgba(255,255,255,0.05);
+            padding: 30px;
+            background-color: transparent;
+            border-radius: 12px;
         }
         .section-header-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .section-header {
-            font-size: 1.4em;
+            font-size: 1.8em;
             font-weight: 700;
-            color: var(--title-clock-color); /* Applied consistent color */
         }
-        /* Collapse Icon */
         .collapse-toggle {
             cursor: pointer;
-            font-size: 1.2em;
-            color: var(--text-color);
+            font-size: 1.5em;
+            color: var(--text-secondary);
             padding: 5px;
             background: none;
             border: none;
+            transition: color 0.2s;
         }
         .collapse-toggle:hover {
-            color: #0079bf;
+            color: var(--primary-color);
         }
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            justify-content: center;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 30px;
         }
 
         /* --- Tile Styles --- */
         .dashboard-tile {
-            min-height: 150px;
-            border-radius: 8px;
+            min-height: 160px;
+            border-radius: 12px;
             text-align: center;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 15px var(--shadow-color);
             transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
-            border: 1px solid var(--card-border);
+            border: none;
+            color: white;
         }
         .dashboard-tile:hover {
-            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
         }
         .card-count {
             font-size: 5em;
-            font-weight: 900;
+            font-weight: 700;
             line-height: 1;
-            margin-bottom: 5px;
         }
         .list-name {
             font-size: 1.2em;
             font-weight: 500;
+            margin-top: 10px;
         }
         .card-description {
-            font-size: 0.85em;
+            font-size: 0.9em;
             font-weight: 400;
-            opacity: 0.8;
+            opacity: 0.9;
             max-width: 90%;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-            margin-top: 3px;
-        }
-
-
-        /* --- Forms & Settings (Alignment Fix) --- */
-        .form-card {
-            background-color: var(--form-bg);
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-            max-width: 500px;
-            margin: 50px auto;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            transition: background-color 0.3s;
-        }
-        .form-card label {
-            margin-bottom: 15px;
-            font-weight: 600;
-            display: block;
-        }
-        .form-card input[type="text"],
-        .form-card select {
-            width: calc(100% - 20px);
-            padding: 8px 10px;
             margin-top: 5px;
-            border: 1px solid var(--input-border);
-            border-radius: 3px;
-            font-size: 1em;
-            box-sizing: border-box;
         }
-        .form-card.settings {
+
+        /* --- Forms & Settings --- */
+        .form-card {
+            background-color: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
             max-width: 95%;
             margin: 20px auto;
+            position: relative;
+        }
+        .form-card label {
+            margin-bottom: 10px;
+            font-weight: 500;
+            display: block;
+            color: var(--text-secondary);
+        }
+        .form-card input[type="text"],
+        .form-card input[type="number"],
+        .form-card select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+            background-color: var(--bg-primary);
+            color: var(--text-color);
         }
         .list-config-item {
             display: flex;
             align-items: center;
             margin-top: 10px;
-            padding: 8px;
-            background: var(--settings-item-bg); 
-            border-radius: 3px;
+            padding: 12px;
+            background: var(--bg-primary); 
+            border-radius: 8px;
             justify-content: space-between; 
-            flex-wrap: nowrap;
         }
         
-        /* Define column structure for alignment */
-        .list-config-item > span:first-child { /* Tile Name (FIX: 50% width) */
+        .list-config-item > span:first-child {
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-            min-width: 100px;
-            width: 50%; /* Guaranteed space for list name */
+            width: 50%;
             padding-right: 10px;
-            flex-shrink: 1;
         }
-        /* Control Group Container (All buttons and select) */
         .list-config-item > div:last-child {
              display: flex;
              align-items: center;
-             flex-shrink: 0;
-             max-width: 50%; /* Constrain control group width */
         }
         
-        .list-config-item input[type="color"] { /* Color Picker */
-            flex-shrink: 0;
-            margin-left: 5px;
-        }
-        .order-buttons, 
-        .list-config-item select { /* Utility elements */
-            flex-shrink: 0;
-            margin-left: 10px;
-        }
-        /* FIX: Force the Move dropdown to be reasonably compact */
-        .list-config-item select {
-            width: 85px; 
-        }
-        
-        /* Order and Move Buttons in Settings */
         .order-buttons button, .section-order-buttons button {
-            background: #6b778c;
+            background: var(--bg-secondary);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            margin: 0 2px;
+        }
+        .order-buttons button:hover, .section-order-buttons button:hover {
+            background: var(--primary-color);
             color: white;
-        }
-        .order-buttons button:hover:not(:disabled), .section-order-buttons button:hover:not(:disabled) {
-            background: #42526e;
+            border-color: var(--primary-color);
         }
 
-
-        /* --- Layout Configuration (Section Stacking) --- */
+        /* --- Layout Configuration --- */
         .layout-config-container {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 20px;
         }
         .layout-section-box {
-            background: var(--bg-primary);
-            padding: 10px;
-            border-radius: 4px;
-            min-width: 250px;
-            flex-basis: auto;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
-            transition: background-color 0.3s;
-        }
-        /* Style the Unassigned Lists pool */
-        .layout-section-box:first-child {
-             background: var(--bg-secondary);
-             padding: 15px;
-             transition: background-color 0.3s;
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
         .layout-list-item {
-            background: var(--form-bg);
-            border: 1px solid var(--input-border);
-            transition: background-color 0.3s, border-color 0.3s;
-            padding: 10px; /* Added padding for better separation */
-            margin-bottom: 10px;
-            display: flex; /* Ensure inner elements align */
-            align-items: center;
-            justify-content: space-between; /* Space out name and buttons */
-        }
-        .layout-list-item span:first-child { 
-            flex-grow: 1;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-            padding-right: 15px; /* Add space between name and buttons */
-        }
-        .layout-list-item .move-button-pool {
-            margin-left: 5px;
-            /* Ensure pool buttons are compact */
-            padding: 3px 6px;
-            font-size: 0.7em;
-        }
-
-        /* --- Utility Buttons (Save, Remove, etc.) --- */
-        .save-layout-button {
-            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
             padding: 10px;
-            margin-top: 20px;
-            background-color: #5aac44;
-            color: white;
-            transition: background-color 0.2s;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .save-layout-button:hover {
-            background-color: #519839;
-        }
-        
-        /* Section Setting Styling */
-        .section-options {
-            margin-top: 10px;
-            padding: 5px 0;
-            border-top: 1px solid var(--input-border);
-        }
-        .section-options label {
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            font-weight: normal;
-            font-size: 0.9em;
-            margin: 5px 0;
-            cursor: pointer;
+            justify-content: space-between;
+            border-radius: 8px;
         }
         
-        /* Modal Display (FINAL FIX) */
+        /* --- Modal Display --- */
         .modal-overlay {
             position: fixed; 
             top: 0;
@@ -443,72 +357,54 @@
             z-index: 10000;
         }
         .modal-content {
-            background: var(--form-bg);
-            padding: 20px;
-            border-radius: 8px;
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 12px;
             max-width: 800px;
             width: 90%;
             max-height: 90vh; 
             overflow-y: auto;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
         .modal-content h3 {
             margin-top: 0;
-            border-bottom: 2px solid #0079bf;
-            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            font-size: 1.5em;
         }
-        [data-theme="dark"] .modal-content h3 {
-            border-bottom-color: #4c9aff;
-        }
-        /* Card Labels in Modal */
         .card-label {
-            font-size: 0.7em;
-            font-weight: 600;
-            color: var(--btn-text);
-            padding: 2px 4px;
-            border-radius: 3px;
+            font-size: 0.75em;
+            font-weight: 500;
+            padding: 3px 6px;
+            border-radius: 4px;
             margin-right: 5px;
-            filter: contrast(1.1) brightness(0.9); 
-            line-height: 1;
-            vertical-align: middle;
         }
         .card-list-item {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            margin-bottom: 5px;
-            padding: 5px 0;
-            border-bottom: 1px dotted var(--input-border);
-            text-overflow: ellipsis;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
         }
         .card-list-item a {
-            color: #0079bf;
+            color: var(--primary-color);
             text-decoration: none;
             flex-grow: 1; 
         }
-        [data-theme="dark"] .card-list-item a {
-            color: #4c9aff;
-        }
 
         .admin-section {
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
             background-color: var(--bg-secondary);
         }
 
         .actions-container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .actions-container .save-layout-button,
-        .actions-container .settings-button {
-            width: 50%;
-            max-width: 300px;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
         }
 
         .modal-actions {
@@ -516,8 +412,7 @@
             flex-direction: column;
             gap: 15px;
         }
-
-        .modal-actions .settings-button {
+        .modal-actions button, .modal-actions label {
             width: 100%;
         }
 
@@ -1726,9 +1621,8 @@
                                 />
                             </label>
                             <button 
-                                className="settings-button" 
+                                className="button-danger" 
                                 onClick={onReset}
-                                style={{backgroundColor: '#eb5a46', color: 'white'}}
                                 disabled={!selectedBoardId}
                             >
                                 Reset the layout for the {boardName}
