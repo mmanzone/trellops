@@ -26,6 +26,7 @@
             --danger-color: #dc3545;
             --danger-hover-color: #c82333;
             --shadow-color: rgba(0, 0, 0, 0.05);
+            --label-border-color: #555555;
         }
 
         [data-theme="dark"] {
@@ -39,6 +40,7 @@
             --danger-color: #dc3545;
             --danger-hover-color: #e06c75;
             --shadow-color: rgba(0, 0, 0, 0.2);
+            --label-border-color: #ffffff;
         }
 
         body {
@@ -389,6 +391,7 @@
             padding: 3px 6px;
             border-radius: 4px;
             margin-right: 5px;
+            border: 1px solid var(--label-border-color);
         }
         .card-list-item {
             display: flex;
@@ -434,6 +437,28 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
+        }
+        
+        .section-options {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .section-options label {
+            font-weight: normal;
+            font-size: 0.9em;
+            margin: 5px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .sub-option {
+            margin-left: 25px;
         }
         
         .settings-row {
@@ -768,7 +793,7 @@
         };
 
         // Dashboard Layout Management
-        const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, isCollapsed: false }];
+        const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];
 
         const getPersistentLayout = (userId, boardId) => {
             try {
@@ -777,7 +802,8 @@
                 return savedLayout.map(s => ({
                     ...s,
                     isCollapsed: s.isCollapsed || false,
-                    ignoreFirstCard: s.ignoreFirstCard || false
+                    ignoreFirstCard: s.ignoreFirstCard || false,
+                    displayFirstCardDescription: s.displayFirstCardDescription !== false // Default to true
                 }));
             } catch (e) {
                 console.error("Error parsing dashboard layout:", e);
@@ -1137,6 +1163,7 @@
                     name: newSectionName.trim(),
                     listIds: [],
                     ignoreFirstCard: false,
+                    displayFirstCardDescription: true,
                     isCollapsed: false
                 };
                 const newLayout = [...sections, newSection];
@@ -1201,6 +1228,15 @@
             const handleToggleIgnoreCard = (sectionId, isChecked) => {
                 const newSections = sections.map(s => 
                     s.id === sectionId ? { ...s, ignoreFirstCard: isChecked } : s
+                );
+                setSections(newSections);
+                setPersistentLayout(user.id, selectedBoardId, newSections);
+            };
+
+            // Handler for the 'Display first card as description' checkbox
+            const handleToggleDisplayDescription = (sectionId, isChecked) => {
+                const newSections = sections.map(s => 
+                    s.id === sectionId ? { ...s, displayFirstCardDescription: isChecked } : s
                 );
                 setSections(newSections);
                 setPersistentLayout(user.id, selectedBoardId, newSections);
@@ -1424,7 +1460,7 @@
 
                     {selectedBoardId && (
                         <div className="admin-section">
-                            <h3 style={{marginTop: '30px'}}>Manage sections and tiles</h3>
+                            <h3>Manage sections and tiles</h3>
 
                             <div className="section-management">
                                 <h4 style={{marginTop: 0}}>Manage Sections</h4>
@@ -1593,8 +1629,18 @@
                                                     checked={section.ignoreFirstCard}
                                                     onChange={e => handleToggleIgnoreCard(section.id, e.target.checked)}
                                                 />
-                                                Use first card as description
+                                                Do not include the first card in the total
                                             </label>
+                                            {section.ignoreFirstCard && (
+                                                <label className="sub-option">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={section.displayFirstCardDescription}
+                                                        onChange={e => handleToggleDisplayDescription(section.id, e.target.checked)}
+                                                    />
+                                                    Display the first card as a description
+                                                </label>
+                                            )}
                                         </div>
 
                                     </div>
@@ -1776,6 +1822,7 @@
                         const section = currentLayout.find(s => s.listIds.includes(listId));
                         
                         const isIgnored = section?.ignoreFirstCard;
+                        const displayDescription = section?.displayFirstCardDescription;
                         const result = listResults[listId] || { count: 0, firstCardName: '' };
                         
                         let finalCount = result.count;
@@ -1793,7 +1840,7 @@
                             count: finalCount,
                             name: listData?.name,
                             displayColor: color,
-                            firstCardName: isIgnored ? result.firstCardName : '' 
+                            firstCardName: isIgnored && displayDescription ? result.firstCardName : '' 
                         });
                     });
                     
