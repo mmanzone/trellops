@@ -491,6 +491,36 @@
             color: #4c9aff;
         }
 
+        .admin-section {
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: var(--bg-secondary);
+        }
+
+        .actions-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .actions-container .save-layout-button,
+        .actions-container .settings-button {
+            width: 50%;
+            max-width: 300px;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal-actions .settings-button {
+            width: 100%;
+        }
+
     </style>
 </head>
 <body>
@@ -972,6 +1002,7 @@
             const [sections, setSections] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
             const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
             const [newSectionName, setNewSectionName] = useState('');
+            const [showMoreOptions, setShowMoreOptions] = useState(false);
             
             // Clock setting state for settings screen
             const [showClockSetting, setShowClockSetting] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + initialSettings.boardId) !== 'false');
@@ -1078,28 +1109,16 @@
                 
                 const boardName = boards.find(b => b.id === selectedBoardId)?.name || 'this board';
 
-                if (window.confirm(`Are you sure you want to clear ALL configuration data for the board: "${boardName}"? This includes layout, colors, clock, and refresh settings and cannot be undone.`)) {
+                if (window.confirm(`Are you sure you want to reset the layout for the board: "${boardName}"? This cannot be undone.`)) {
                     // 1. Clear Layout
-                    let allLayouts = JSON.parse(localStorage.getItem(STORAGE_KEYS.DASHBOARD_LAYOUT) || '{}');
+                    const allLayouts = getUserData(user.id, 'dashboardLayout') || {};
                     delete allLayouts[selectedBoardId];
-                    localStorage.setItem(STORAGE_KEYS.DASHBOARD_LAYOUT, JSON.stringify(allLayouts));
+                    setUserData(user.id, 'dashboardLayout', allLayouts);
 
-                    // 2. Clear Colors
-                    let allColors = JSON.parse(localStorage.getItem(STORAGE_KEYS.LIST_COLORS) || '{}');
-                    delete allColors[selectedBoardId];
-                    localStorage.setItem(STORAGE_KEYS.LIST_COLORS, JSON.stringify(allColors));
-
-                    // 3. Clear other per-board settings
-                    localStorage.removeItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId);
-                    localStorage.removeItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
-
-                    // 4. Reset component state to default values
+                    // 2. Reset component state to default values
                     setSections(DEFAULT_LAYOUT);
-                    setListColors({});
-                    setRefreshValue(defaultRefreshSetting.value);
-                    setRefreshUnit(defaultRefreshSetting.unit);
                     
-                    alert(`Configuration cleared for "${boardName}". The dashboard will now reset.`);
+                    alert(`Layout cleared for "${boardName}". The dashboard will now reset.`);
                     
                     // Force a re-save and switch to dashboard (which will prompt re-setup)
                     onSave({ boardId: selectedBoardId, boardName: boardName, selectedLists: [] });
@@ -1398,79 +1417,81 @@
                     <h2>Dashboard Setup</h2>
                     {error && <div className="error">{error}</div>}
 
-                    <h3>1. Select Trello Board</h3>
-                    <label>
-                        Board:
-                        <select value={selectedBoardId} onChange={handleBoardChange}>
-                            <option value="">-- Select a Board --</option>
-                            {boards.map(board => (
-                                <option key={board.id} value={board.id}>{board.name}</option>
-                            ))}
-                        </select>
-                    </label>
+                    <div className="admin-section">
+                        <h3>General Settings</h3>
+                        <label>
+                            Board:
+                            <select value={selectedBoardId} onChange={handleBoardChange}>
+                                <option value="">-- Select a Board --</option>
+                                {boards.map(board => (
+                                    <option key={board.id} value={board.id}>{board.name}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        {selectedBoardId && (
+                            <div className="section-management">
+                                <h4 style={{marginTop: '30px'}}>Display Options (Saved Per Board)</h4>
+                                
+                                {/* NEW: Refresh Rate Setting */}
+                                <div style={{marginBottom: '15px', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
+                                    <label style={{marginBottom: 0, fontWeight: 600, minWidth: '150px'}}>
+                                        Auto-Refresh Interval:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={refreshValue}
+                                        onChange={e => handleRefreshChange(e.target.value)}
+                                        style={{width: '60px', marginRight: '5px', marginTop: '0', flexShrink: 0}}
+                                    />
+                                    <select 
+                                        value={refreshUnit} 
+                                        onChange={e => handleRefreshChange(refreshValue, e.target.value)}
+                                        style={{width: 'auto', flexShrink: 0, marginTop: '0'}}
+                                    >
+                                        <option value="seconds">Seconds</option>
+                                        <option value="minutes">Minutes</option>
+                                        <option value="hours">Hours</option>
+                                    </select>
+                                    <p style={{fontSize: '0.75em', color: '#6b778c', margin: '5px 0 0 10px'}}>
+                                        (Min: 10s, Max: 2h)
+                                    </p>
+                                </div>
+
+
+                                <label style={{marginBottom: 0}}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={showClockSetting}
+                                        onChange={e => handleToggleClock(e.target.checked)}
+                                    />
+                                    Show Large Digital Clock on Dashboard
+                                </label>
+                                
+                                {/* Dark/Light Theme Toggle Option */}
+                                <div style={{marginTop: '10px', display: 'flex', alignItems: 'center'}}>
+                                    <label style={{marginBottom: 0, fontWeight: 600}}>
+                                        Theme Preference: 
+                                    </label>
+                                    <select 
+                                        value={theme} 
+                                        onChange={(e) => toggleTheme(e.target.value)} 
+                                        style={{width: 'auto', marginLeft: '10px'}}
+                                    >
+                                        <option value="system">System Default</option>
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
 
                     {selectedBoardId && (
-                         <div className="section-management">
-                            <h4 style={{marginTop: '30px'}}>Display Options (Saved Per Board)</h4>
-                            
-                            {/* NEW: Refresh Rate Setting */}
-                            <div style={{marginBottom: '15px', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
-                                <label style={{marginBottom: 0, fontWeight: 600, minWidth: '150px'}}>
-                                    Auto-Refresh Interval:
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={refreshValue}
-                                    onChange={e => handleRefreshChange(e.target.value)}
-                                    style={{width: '60px', marginRight: '5px', marginTop: '0', flexShrink: 0}}
-                                />
-                                <select 
-                                    value={refreshUnit} 
-                                    onChange={e => handleRefreshChange(refreshValue, e.target.value)}
-                                    style={{width: 'auto', flexShrink: 0, marginTop: '0'}}
-                                >
-                                    <option value="seconds">Seconds</option>
-                                    <option value="minutes">Minutes</option>
-                                    <option value="hours">Hours</option>
-                                </select>
-                                <p style={{fontSize: '0.75em', color: '#6b778c', margin: '5px 0 0 10px'}}>
-                                    (Min: 10s, Max: 2h)
-                                </p>
-                            </div>
-
-
-                            <label style={{marginBottom: 0}}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={showClockSetting}
-                                    onChange={e => handleToggleClock(e.target.checked)}
-                                />
-                                Show Large Digital Clock on Dashboard
-                            </label>
-                            
-                            {/* Dark/Light Theme Toggle Option */}
-                            <div style={{marginTop: '10px', display: 'flex', alignItems: 'center'}}>
-                                <label style={{marginBottom: 0, fontWeight: 600}}>
-                                    Theme Preference: 
-                                </label>
-                                <select 
-                                    value={theme} 
-                                    onChange={(e) => toggleTheme(e.target.value)} 
-                                    style={{width: 'auto', marginLeft: '10px'}}
-                                >
-                                    <option value="system">System Default</option>
-                                    <option value="light">Light</option>
-                                    <option value="dark">Dark</option>
-                                </select>
-                            </div>
-                        </div>
-                    )}
-
-
-                    {selectedBoardId && (
-                        <>
-                            <h3 style={{marginTop: '30px'}}>2. Configure Dashboard Sections & Lists</h3>
+                        <div className="admin-section">
+                            <h3 style={{marginTop: '30px'}}>Manage sections and tiles</h3>
 
                             <div className="section-management">
                                 <h4 style={{marginTop: 0}}>Manage Sections</h4>
@@ -1646,54 +1667,74 @@
                                     </div>
                                 ))}
                             </div>
-                        </>
+                        </div>
                     )}
                     
                     {/* Global Notification Settings (REMOVED) */}
 
-                    {/* NEW: Export/Import Configuration Section */}
-                    <h3 style={{marginTop: '30px'}}>3. Configuration Management</h3>
-                    <div style={{display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '15px'}}>
-                        <button 
-                            className="settings-button" 
-                            onClick={handleExportConfig}
-                            style={{backgroundColor: '#0079bf', flexGrow: 1}}
-                            disabled={!selectedBoardId}
-                        >
-                            ⬇️ Export Dashboard Configuration
+                    <div className="actions-container">
+                        <button className="save-layout-button" onClick={handleSave}> 
+                            Save Layout & View Dashboard
                         </button>
-
-                        <label htmlFor="import-file-input" className="settings-button" 
-                               style={{backgroundColor: '#6b778c', flexGrow: 1, textAlign: 'center'}}>
-                            ⬆️ Import Configuration File
-                            <input 
-                                type="file" 
-                                id="import-file-input" 
-                                accept=".json" 
-                                onChange={handleImportConfig} 
-                                style={{display: 'none'}}
-                            />
-                        </label>
+                        <button className="settings-button" onClick={onBack} style={{marginTop: '10px', backgroundColor: '#6b778c'}}>
+                            Cancel changes
+                        </button>
+                        <button className="settings-button" onClick={() => setShowMoreOptions(true)} style={{marginTop: '20px'}}>
+                            More options...
+                        </button>
                     </div>
 
-                    {/* NEW: Clear Configuration Button */}
-                    <button 
-                        className="settings-button" 
-                        onClick={handleClearBoardConfig}
-                        style={{backgroundColor: '#eb5a46', color: 'white', marginTop: '0'}}
-                        disabled={!selectedBoardId}
-                    >
-                        🗑️ Clear ALL Saved Configuration for Selected Board
-                    </button>
+                    {showMoreOptions && (
+                        <MoreOptionsModal
+                            onClose={() => setShowMoreOptions(false)}
+                            onExport={handleExportConfig}
+                            onImport={handleImportConfig}
+                            onReset={handleClearBoardConfig}
+                            boardName={boards.find(b => b.id === selectedBoardId)?.name || ''}
+                            selectedBoardId={selectedBoardId}
+                        />
+                    )}
+                </div>
+            );
+        };
 
+        const MoreOptionsModal = ({ onClose, onExport, onImport, onReset, boardName, selectedBoardId }) => {
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <span className="modal-close" onClick={onClose}>&times;</span>
+                        <h3>More Options</h3>
+                        <div className="modal-actions">
+                            <button 
+                                className="settings-button" 
+                                onClick={onExport}
+                                style={{backgroundColor: '#0079bf'}}
+                                disabled={!selectedBoardId}
+                            >
+                                Export this dashboard configuration
+                            </button>
 
-                    {/* Apply Save Layout Button CSS */}
-                    <button className="save-layout-button" onClick={handleSave}> 
-                        Save Layout & View Dashboard
-                    </button>
-                    <button className="settings-button" onClick={onBack} style={{marginTop: '10px', backgroundColor: '#6b778c'}}>
-                        Cancel
-                    </button>
+                            <label htmlFor="import-file-input" className="settings-button" 
+                                   style={{backgroundColor: '#6b778c', textAlign: 'center'}}>
+                                Import a configuration file for {boardName}
+                                <input 
+                                    type="file" 
+                                    id="import-file-input" 
+                                    accept=".json" 
+                                    onChange={onImport} 
+                                    style={{display: 'none'}}
+                                />
+                            </label>
+                            <button 
+                                className="settings-button" 
+                                onClick={onReset}
+                                style={{backgroundColor: '#eb5a46', color: 'white'}}
+                                disabled={!selectedBoardId}
+                            >
+                                Reset the layout for the {boardName}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             );
         };
