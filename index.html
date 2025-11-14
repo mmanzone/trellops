@@ -425,6 +425,29 @@
             margin-top: 20px;
         }
 
+        .section-options {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-options label {
+            font-weight: normal;
+            font-size: 0.9em;
+            margin: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .sub-option {
+            margin-left: 0;
+        }
+
         .modal-actions {
             display: flex;
             flex-direction: column;
@@ -1724,6 +1747,16 @@
             const [timeFilter, setTimeFilter] = useState('all'); 
             const timerRef = useRef(null);
 
+            const buildNumber = (() => {
+                const now = new Date();
+                const year = now.getFullYear().toString().slice(-2);
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                return `3.${year}${month}${day}${hours}${minutes}`;
+            })();
+
             const [modalList, setModalList] = useState(null);
 
             const boardId = settings?.boardId;
@@ -2022,7 +2055,7 @@
 
                     {/* NEW: Fixed Footer Action Bar */}
                     <div className="footer-action-bar">
-                        <span className="version">v40</span>
+                        <span className="version">v.3 build: {buildNumber}</span>
                         <span className="countdown">Next refresh in {countdown}s</span>
                         <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Data</button>
                         <button className="settings-button" onClick={onShowSettings}>Settings</button>
