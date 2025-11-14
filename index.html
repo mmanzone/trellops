@@ -21,24 +21,24 @@
             --text-color: #222222;
             --text-secondary: #555555;
             --border-color: #e0e0e0;
-            --primary-color: #007aff;
-            --primary-hover-color: #0056b3;
+            --primary-color: #528aae;
+            --primary-hover-color: #416e8c;
             --danger-color: #dc3545;
             --danger-hover-color: #c82333;
             --shadow-color: rgba(0, 0, 0, 0.05);
         }
 
         [data-theme="dark"] {
-            --bg-primary: #121212;
-            --bg-secondary: #1e1e1e;
+            --bg-primary: #1c1c1e;
+            --bg-secondary: #2c2c2e;
             --text-color: #e0e0e0;
             --text-secondary: #aaaaaa;
-            --border-color: #333333;
-            --primary-color: #007aff;
-            --primary-hover-color: #2a8dff;
+            --border-color: #444;
+            --primary-color: #528aae;
+            --primary-hover-color: #6ca7d1;
             --danger-color: #dc3545;
             --danger-hover-color: #e06c75;
-            --shadow-color: rgba(255, 255, 255, 0.05);
+            --shadow-color: rgba(0, 0, 0, 0.2);
         }
 
         body {
@@ -66,9 +66,9 @@
             background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 8px;
-            font-size: 1em;
+            font-size: 0.95em;
             font-weight: 500;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
@@ -76,6 +76,7 @@
             align-items: center;
             justify-content: center;
             text-align: center;
+            height: 38px; /* Consistent height */
         }
 
         button:hover, .settings-button:hover, .logout-button:hover, .save-layout-button:hover, .refresh-button:hover {
@@ -94,6 +95,15 @@
         }
         .button-danger:hover {
             background-color: var(--danger-hover-color);
+        }
+        
+        .button-secondary {
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .button-secondary:hover {
+            background-color: var(--bg-primary);
         }
 
         /* --- Header/Navigation --- */
@@ -181,10 +191,9 @@
 
         /* --- Dashboard Grid Layout --- */
         .dashboard-section {
-            margin-bottom: 40px;
-            padding: 30px;
+            margin-bottom: 20px;
+            padding: 20px;
             background-color: transparent;
-            border-radius: 12px;
         }
         .section-header-row {
             display: flex;
@@ -211,7 +220,7 @@
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 30px;
+            gap: 20px;
         }
 
         /* --- Tile Styles --- */
@@ -288,7 +297,7 @@
             align-items: center;
             margin-top: 10px;
             padding: 12px;
-            background: var(--bg-primary); 
+            background: var(--bg-secondary); 
             border-radius: 8px;
             justify-content: space-between; 
         }
@@ -414,6 +423,28 @@
         }
         .modal-actions button, .modal-actions label {
             width: 100%;
+        }
+        
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .settings-row label {
+            margin-bottom: 0;
+            flex-shrink: 0;
+        }
+        .settings-row select, .settings-row input {
+            margin-top: 0;
+            width: auto;
+            flex-grow: 1;
+        }
+        .options-row > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
     </style>
@@ -1314,67 +1345,55 @@
 
                     <div className="admin-section">
                         <h3>General Settings</h3>
-                        <label>
-                            Board:
-                            <select value={selectedBoardId} onChange={handleBoardChange}>
+                        <div className="settings-row">
+                            <label htmlFor="board-select">Trello board:</label>
+                            <select id="board-select" value={selectedBoardId} onChange={handleBoardChange}>
                                 <option value="">-- Select a Board --</option>
                                 {boards.map(board => (
                                     <option key={board.id} value={board.id}>{board.name}</option>
                                 ))}
                             </select>
-                        </label>
+                        </div>
 
                         {selectedBoardId && (
-                            <div className="section-management">
-                                <h4 style={{marginTop: '30px'}}>Display Options (Saved Per Board)</h4>
-                                
-                                {/* NEW: Refresh Rate Setting */}
-                                <div style={{marginBottom: '15px', display: 'flex', alignItems: 'center', flexWrap: 'wrap'}}>
-                                    <label style={{marginBottom: 0, fontWeight: 600, minWidth: '150px'}}>
-                                        Auto-Refresh Interval:
-                                    </label>
+                            <div className="settings-row options-row">
+                                <div>
+                                    <label>Auto-Refresh:</label>
                                     <input
                                         type="number"
                                         min="1"
                                         value={refreshValue}
                                         onChange={e => handleRefreshChange(e.target.value)}
-                                        style={{width: '60px', marginRight: '5px', marginTop: '0', flexShrink: 0}}
+                                        style={{width: '60px'}}
                                     />
                                     <select 
                                         value={refreshUnit} 
                                         onChange={e => handleRefreshChange(refreshValue, e.target.value)}
-                                        style={{width: 'auto', flexShrink: 0, marginTop: '0'}}
                                     >
                                         <option value="seconds">Seconds</option>
                                         <option value="minutes">Minutes</option>
                                         <option value="hours">Hours</option>
                                     </select>
-                                    <p style={{fontSize: '0.75em', color: '#6b778c', margin: '5px 0 0 10px'}}>
-                                        (Min: 10s, Max: 2h)
-                                    </p>
                                 </div>
-
-
-                                <label style={{marginBottom: 0}}>
+                                
+                                <div>
                                     <input 
                                         type="checkbox" 
+                                        id="show-clock-check"
                                         checked={showClockSetting}
                                         onChange={e => handleToggleClock(e.target.checked)}
                                     />
-                                    Show Large Digital Clock on Dashboard
-                                </label>
+                                    <label htmlFor="show-clock-check">Show Clock</label>
+                                </div>
                                 
-                                {/* Dark/Light Theme Toggle Option */}
-                                <div style={{marginTop: '10px', display: 'flex', alignItems: 'center'}}>
-                                    <label style={{marginBottom: 0, fontWeight: 600}}>
-                                        Theme Preference: 
-                                    </label>
+                                <div>
+                                    <label htmlFor="theme-select">Theme:</label>
                                     <select 
+                                        id="theme-select"
                                         value={theme} 
                                         onChange={(e) => toggleTheme(e.target.value)} 
-                                        style={{width: 'auto', marginLeft: '10px'}}
                                     >
-                                        <option value="system">System Default</option>
+                                        <option value="system">System</option>
                                         <option value="light">Light</option>
                                         <option value="dark">Dark</option>
                                     </select>
@@ -1956,6 +1975,8 @@
             const [view, setView] = useState('auth'); // 'auth', 'settings', 'dashboard'
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
+
+           
 
             // Check for token in URL on initial load
             useEffect(() => {
