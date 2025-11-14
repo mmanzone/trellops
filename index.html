@@ -21,8 +21,8 @@
             --text-color: #222222;
             --text-secondary: #555555;
             --border-color: #e0e0e0;
-            --primary-color: #528aae;
-            --primary-hover-color: #416e8c;
+            --primary-color: #ced7de;
+            --primary-hover-color: #b0b9c0;
             --danger-color: #dc3545;
             --danger-hover-color: #c82333;
             --shadow-color: rgba(0, 0, 0, 0.05);
@@ -34,8 +34,8 @@
             --text-color: #e0e0e0;
             --text-secondary: #aaaaaa;
             --border-color: #444;
-            --primary-color: #528aae;
-            --primary-hover-color: #6ca7d1;
+            --primary-color: #9aa8b3;
+            --primary-hover-color: #82919c;
             --danger-color: #dc3545;
             --danger-hover-color: #e06c75;
             --shadow-color: rgba(0, 0, 0, 0.2);
@@ -44,7 +44,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 0 0 80px 0; /* Add padding to the bottom for the fixed footer */
+            padding: 0 0 80px 0;
             background-color: var(--bg-primary);
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
@@ -59,16 +59,17 @@
         h1, h2, h3, h4 {
             font-weight: 600;
             color: var(--text-color);
+            margin-top: 0;
         }
 
         /* --- Buttons --- */
         button, .settings-button, .logout-button, .save-layout-button, .refresh-button {
             background-color: var(--primary-color);
-            color: white;
+            color: #222;
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.95em;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
             font-weight: 500;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
@@ -76,7 +77,7 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            height: 38px; /* Consistent height */
+            height: 34px; /* Consistent height */
         }
 
         button:hover, .settings-button:hover, .logout-button:hover, .save-layout-button:hover, .refresh-button:hover {
@@ -92,6 +93,7 @@
 
         .button-danger {
             background-color: var(--danger-color);
+            color: white;
         }
         .button-danger:hover {
             background-color: var(--danger-hover-color);
@@ -297,7 +299,6 @@
             align-items: center;
             margin-top: 10px;
             padding: 12px;
-            background: var(--bg-secondary); 
             border-radius: 8px;
             justify-content: space-between; 
         }
@@ -369,7 +370,7 @@
             background: var(--bg-secondary);
             padding: 30px;
             border-radius: 12px;
-            max-width: 800px;
+            max-width: 500px;
             width: 90%;
             max-height: 90vh; 
             overflow-y: auto;
@@ -419,7 +420,7 @@
         .modal-actions {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
         }
         .modal-actions button, .modal-actions label {
             width: 100%;
@@ -496,9 +497,12 @@
 
         // --- Local Storage Keys ---
         const STORAGE_KEYS = {
-            // REMOVED: API_KEY and TOKEN are no longer stored globally
-            CURRENT_USER: 'trelloCurrentUser', // Stores the ID of the logged-in user
-            USER_DATA: 'trelloUserData' // A single key to hold an object of all users' data
+            CURRENT_USER: 'trelloCurrentUser',
+            USER_DATA: 'trelloUserData',
+            THEME: 'dashboardTheme',
+            CLOCK_SETTING: 'dashboardClockSetting_',
+            REFRESH_INTERVAL: 'dashboardRefreshInterval_',
+            RANDOM_COLORS_CACHE: 'dashboardRandomColors'
         };
         
         // --- User-Specific Storage Helpers ---
@@ -935,9 +939,6 @@
             
             // Theme setting from Context
             const { theme, toggleTheme } = useContext(DarkModeContext);
-            
-            // Alert Sound State (Cleaned up, default to 'none')
-            const [alertSound, setAlertSound] = useState(() => localStorage.getItem(STORAGE_KEYS.ALERT_SOUND) || 'none');
 
             // NEW: Refresh Interval State
             const defaultRefreshSetting = { value: 1, unit: 'minutes' };
@@ -1500,7 +1501,7 @@
                                                 const isAlertEnabled = false; // Alert removed
 
                                                 return (
-                                                    <div key={listId} className="list-config-item" style={{background: 'white', cursor: 'default'}}>
+                                                    <div key={listId} className="list-config-item">
                                                         
                                                         {/* List Name - FIXED WIDTH/TRUNCATION */}
                                                         <span style={{
@@ -1590,10 +1591,10 @@
                         <button className="save-layout-button" onClick={handleSave}> 
                             Save Layout & View Dashboard
                         </button>
-                        <button className="settings-button" onClick={onBack} style={{marginTop: '10px', backgroundColor: '#6b778c'}}>
+                        <button className="button-secondary" onClick={onBack}>
                             Cancel changes
                         </button>
-                        <button className="settings-button" onClick={() => setShowMoreOptions(true)} style={{marginTop: '20px'}}>
+                        <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>
                             More options...
                         </button>
                     </div>
@@ -1622,14 +1623,12 @@
                             <button 
                                 className="settings-button" 
                                 onClick={onExport}
-                                style={{backgroundColor: '#0079bf'}}
                                 disabled={!selectedBoardId}
                             >
                                 Export this dashboard configuration
                             </button>
 
-                            <label htmlFor="import-file-input" className="settings-button" 
-                                   style={{backgroundColor: '#6b778c', textAlign: 'center'}}>
+                            <label htmlFor="import-file-input" className="settings-button">
                                 Import a configuration file for {boardName}
                                 <input 
                                     type="file" 
