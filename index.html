@@ -831,6 +831,7 @@
             const [cards, setCards] = useState([]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
+            const { theme } = useContext(DarkModeContext);
             
             // Determine if the first card should be ignored based on section settings
             const section = sectionsLayout.find(s => s.listIds.includes(listId));
@@ -876,7 +877,7 @@
                                                 className="card-label"
                                                 style={{
                                                     backgroundColor: label.color || '#999',
-                                                    color: getLabelTextColor(label.color)
+                                                    color: getLabelTextColor(theme)
                                                 }}
                                             >
                                                 {label.name || label.color}
@@ -895,14 +896,12 @@
             );
         };
         
-        const getLabelTextColor = (backgroundColor) => {
-            if (!backgroundColor) return '#ffffff';
-            // Simple heuristic to determine if the background is light or dark
-            const color = backgroundColor.charAt(0) === '#' ? backgroundColor.substring(1, 7) : backgroundColor;
-            const r = parseInt(color.substring(0, 2), 16); // Red
-            const g = parseInt(color.substring(2, 4), 16); // Green
-            const b = parseInt(color.substring(4, 6), 16); // Blue
-            return (r * 0.299 + g * 0.587 + b * 0.114) > 186 ? '#000000' : '#ffffff';
+        const getLabelTextColor = (theme) => {
+            const resolvedTheme = 
+                theme === 'system' 
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : theme;
+            return resolvedTheme === 'dark' ? '#ffffff' : '#222222';
         };
 
         // 1. Authentication Screen
