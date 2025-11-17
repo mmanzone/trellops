@@ -663,6 +663,7 @@
                 grid-template-columns: 1fr;
             }
         }
+
     </style>
 </head>
 <body>
@@ -1120,125 +1121,20 @@
                 trelloAuth.login();
             };
             
-            // This component doesn't need to handle the token itself,
-            // the main App component will do that on load.
-
             return (
-                <div className="form-card">
-                    <h2>Trello Dashboard Login</h2>
-                    <p style={{fontSize: '0.9em', lineHeight: '1.4', marginBottom: '20px'}}>
-                        To access your Trello dashboard, please log in using your Trello account. This application will request read-only access to your boards and lists. Your credentials are not stored on our server.
-                    </p>
-                    {error && <div className="error">{error}</div>}
-                    
-                    <button className="save-layout-button" onClick={handleLoginClick} disabled={loading}>
-                        {loading ? 'Redirecting...' : 'Log In with Trello'}
-                    </button>
-
-                    <p style={{fontSize: '0.75em', color: '#6b778c', marginTop: '30px', textAlign: 'center'}}>
-                        Disclaimer: This application is not in production. All copyrights belong to Matthias Manzone.
-                    </p>
-                </div>
-            );
-        };
-
-        const LandingPage = ({ onLogin }) => {
-            return (
-                <div className="landing-page">
-                    <div className="hero-section">
-                        <div className="landing-container">
-                            <img src="powerupicon2.png" alt="Trellops Logo" className="logo" />
-                            <h1>Trellops</h1>
-                            <p>Transform Your Trello Boards into Real-Time Operational Dashboards.</p>
-                            <a href="#" className="cta-button" onClick={onLogin}>Try Trellops Now!</a>
-                            <p className="tagline">Simple. Powerful. Visible.</p>
-                        </div>
+                <div className="landing-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#1e1e1e', padding: '40px', borderRadius: '12px', textAlign: 'center', maxWidth: '500px', width: '90%' }}>
+                        <img src="powerupicon2.png" alt="Trellops Logo" style={{ width: '80px', height: '80px', margin: '0 auto 20px' }} />
+                        <h2 style={{ color: '#ffffff' }}>Get started with Trellops</h2>
+                        <p style={{fontSize: '1em', lineHeight: '1.6', marginBottom: '30px', color: '#aaaaaa'}}>
+                            To access your Trello dashboard, please log in using your Atlassian Trello account. Trellops will request read-only access to your boards and lists. Your credentials are not stored on our server, and none of your information is shared with the develpoper. Everything is private, secure and remains on your computer only.
+                        </p>
+                        {error && <div className="error" style={{ color: '#dc3545', marginBottom: '15px' }}>{error}</div>}
+                        
+                        <a href="#" className="cta-button" onClick={handleLoginClick} disabled={loading} style={{width: '100%', backgroundColor: '#007aff', color: 'white', fontSize: '1.1em', padding: '12px 24px', textDecoration: 'none', display: 'block'}}>
+                            {loading ? 'Redirecting...' : 'Log In with Trello'}
+                        </a>
                     </div>
-
-                    <div className="value-prop-section">
-                        <div className="landing-container">
-                            <div className="value-grid">
-                                <div className="value-item">
-                                    <div className="icon">📊</div>
-                                    <h3>Real-Time Wallboard</h3>
-                                    <p>See instant, close-to-realtime workload metrics for any Trello list. Perfect for wall screens and command centers.</p>
-                                </div>
-                                <div className="value-item">
-                                    <div className="icon">✨</div>
-                                    <h3>Uncluttered Simplicity</h3>
-                                    <p>Go beyond cluttered lists. Display only essential card counts in a clean, customizable tile-based interface.</p>
-                                </div>
-                                <div className="value-item">
-                                    <div className="icon">🔒</div>
-                                    <h3>Secure & Private</h3>
-                                    <p>We only require READ access to your Trello boards. All your layout settings are stored locally on your computer.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="features-section">
-                        <div className="landing-container">
-                            <h2>Your Trello Data, Your Rules</h2>
-                            <div className="features-grid">
-                                <div className="feature-item">
-                                    <h4>Custom Tile Sections</h4>
-                                    <p>Group lists into collapsible Sections to organize your dashboard and focus on what matters most.</p>
-                                </div>
-                                <div className="feature-item">
-                                    <h4>Time Filtered Counts</h4>
-                                    <p>Filter card totals based on creation date to see trends and monitor recent activity.</p>
-                                </div>
-                                <div className="feature-item">
-                                    <h4>Skip Description Cards</h4>
-                                    <p>Automatically exclude the first card in a list from the total, so you can use it for instructions without skewing your metrics.</p>
-                                </div>
-                                <div className="feature-item">
-                                    <h4>Effortless Sharing</h4>
-                                    <p>Easily export and import dashboard layouts to share your setup with your team or across different computers.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="final-cta-section">
-                        <div className="landing-container">
-                            <p>Ready to level up your operational visibility? Trellops is the dedicated Trello dashboard you've been waiting for.</p>
-                            <a href="#" className="cta-button" onClick={onLogin}>Login with Trello</a>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // 1. Authentication Screen
-        const AuthScreen = ({ onLoginSuccess }) => {
-            const [error, setError] = useState('');
-            const [loading, setLoading] = useState(false);
-
-            const handleLoginClick = () => {
-                setLoading(true);
-                trelloAuth.login();
-            };
-            
-            // This component doesn't need to handle the token itself,
-            // the main App component will do that on load.
-
-            return (
-                <div className="form-card">
-                    <h2>Trello Dashboard Login</h2>
-                    <p style={{fontSize: '0.9em', lineHeight: '1.4', marginBottom: '20px'}}>
-                        To access your Trello dashboard, please log in using your Trello account. This application will request read-only access to your boards and lists. Your credentials are not stored on our server.
-                    </p>
-                    {error && <div className="error">{error}</div>}
-                    
-                    <button className="save-layout-button" onClick={handleLoginClick} disabled={loading}>
-                        {loading ? 'Redirecting...' : 'Log In with Trello'}
-                    </button>
-
-                    <p style={{fontSize: '0.75em', color: '#6b778c', marginTop: '30px', textAlign: 'center'}}>
-                        Disclaimer: This application is not in production. All copyrights belong to Matthias Manzone.
-                    </p>
                 </div>
             );
         };
