@@ -1286,14 +1286,32 @@
                     const allLayouts = getUserData(user.id, 'dashboardLayout') || {};
                     delete allLayouts[selectedBoardId];
                     setUserData(user.id, 'dashboardLayout', allLayouts);
-
-                    // 2. Reset component state to default values
+            
+                    // 2. Clear Colors
+                    const allColors = getPersistentColors(user.id);
+                    delete allColors[selectedBoardId];
+                    setUserData(user.id, 'listColors', allColors);
+            
+                    // 3. Clear other per-board settings
+                    localStorage.removeItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId);
+                    localStorage.removeItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
+            
+                    // 4. Clear the main settings if it's the current board
+                    const currentSettings = getUserData(user.id, 'settings');
+                    if (currentSettings && currentSettings.boardId === selectedBoardId) {
+                        setUserData(user.id, 'settings', null);
+                    }
+            
+                    // 5. Reset component state to default values
                     setSections(DEFAULT_LAYOUT);
+                    setListColors({});
+                    setRefreshValue(defaultRefreshSetting.value);
+                    setRefreshUnit(defaultRefreshSetting.unit);
                     
                     alert(`Layout cleared for "${boardName}". The dashboard will now reset.`);
                     
                     // Force a re-save and switch to dashboard (which will prompt re-setup)
-                    onSave({ boardId: selectedBoardId, boardName: boardName, selectedLists: [] });
+                    onSave(null);
                 }
             };
 
