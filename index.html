@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Trello Stats Dashboard</title>
+    <title>Trellops - Your Trello board, visualised</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -430,7 +430,6 @@
             padding-top: 10px;
             border-top: 1px solid var(--border-color);
             display: flex;
-            flex-direction: row;
             align-items: center;
             gap: 20px;
             flex-wrap: wrap;
@@ -463,28 +462,6 @@
             justify-content: center;
         }
         
-        .section-options {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .section-options label {
-            font-weight: normal;
-            font-size: 0.9em;
-            margin: 5px 0;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-        }
-
-        .sub-option {
-            margin-left: 25px;
-        }
-        
         .settings-row {
             display: flex;
             align-items: center;
@@ -507,6 +484,164 @@
             gap: 10px;
         }
 
+        /* --- Landing Page Styles --- */
+        .landing-page {
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+        .landing-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .hero-section {
+            padding: 80px 0;
+        }
+
+        .hero-section .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        .hero-section h1 {
+            font-size: 4em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .hero-section p {
+            font-size: 1.5em;
+            color: #aaaaaa;
+            margin-bottom: 30px;
+        }
+
+        .hero-section .cta-button {
+            background-color: #00c6ff;
+            color: #121212;
+            font-size: 1.2em;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .hero-section .cta-button:hover {
+            background-color: #2a8dff;
+            transform: translateY(-2px);
+        }
+
+        .hero-section .tagline {
+            margin-top: 30px;
+            font-size: 1.1em;
+            color: #999;
+        }
+
+        .value-prop-section {
+            background-color: #1e1e1e;
+            padding: 80px 0;
+        }
+
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .value-item {
+            padding: 20px;
+        }
+
+        .value-item .icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .value-item h3 {
+            font-size: 1.5em;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .value-item p {
+            color: #aaaaaa;
+        }
+
+        .features-section {
+            padding: 80px 0;
+        }
+
+        .features-section h2 {
+            font-size: 2.5em;
+            margin-bottom: 50px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            text-align: left;
+        }
+
+        .feature-item {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+        }
+
+        .feature-item h4 {
+            font-size: 1.3em;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .feature-item p {
+            color: #aaaaaa;
+        }
+
+        .final-cta-section {
+            background-color: #007aff;
+            color: white;
+            padding: 60px 20px;
+        }
+
+        .final-cta-section p {
+            font-size: 1.5em;
+            font-weight: 500;
+            margin-bottom: 30px;
+        }
+
+        .final-cta-section .cta-button {
+            background-color: #ffffff;
+            color: #007aff;
+            font-size: 1.2em;
+            padding: 15px 30px;
+        }
+
+        @media (max-width: 768px) {
+            .hero-section h1 {
+                font-size: 3em;
+            }
+
+            .value-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -517,7 +652,7 @@
         const ReactDOM = window.ReactDOM;
 
         // IMPORTANT: Replace with your Trello API Key
-        const TRELLO_API_KEY = "44382b25e75ceb100edaa4d308acf019"; 
+        const TRELLO_API_KEY = "558e200650487a28cf1cc0b33561cd82"; 
 
         // --- Trello OAuth Integration ---
         const trelloAuth = {
@@ -954,8 +1089,78 @@
             return resolvedTheme === 'dark' ? '#ffffff' : '#222222';
         };
 
+        const LandingPage = ({ onLogin }) => {
+            return (
+                <div className="landing-page">
+                    <div className="hero-section">
+                        <div className="landing-container">
+                            <img src="powerupicon2.png" alt="Trellops Logo" className="logo" />
+                            <h1>Trellops</h1>
+                            <p>Transform Your Trello Boards into Real-Time Operational Dashboards.</p>
+                            <a href="#" className="cta-button" onClick={onLogin}>Try Trellops Now!</a>
+                            <p className="tagline">Simple. Powerful. Visible.</p>
+                        </div>
+                    </div>
+
+                    <div className="value-prop-section">
+                        <div className="landing-container">
+                            <div className="value-grid">
+                                <div className="value-item">
+                                    <div className="icon">📊</div>
+                                    <h3>Real-Time Wallboard</h3>
+                                    <p>See instant, close-to-realtime workload metrics for any Trello list. Perfect for wall screens and command centers.</p>
+                                </div>
+                                <div className="value-item">
+                                    <div className="icon">✨</div>
+                                    <h3>Uncluttered Simplicity</h3>
+                                    <p>Go beyond cluttered lists. Display only essential card counts in a clean, customizable tile-based interface.</p>
+                                </div>
+                                <div className="value-item">
+                                    <div className="icon">🔒</div>
+                                    <h3>Secure & Private</h3>
+                                    <p>We only require READ access to your Trello boards. All your layout settings are stored locally on your computer.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="features-section">
+                        <div className="landing-container">
+                            <h2 style={{ color: '#ffffff' }}>Your Trello Data, Your Rules</h2>
+                            <div className="features-grid">
+                                <div className="feature-item">
+                                    <h4>Custom Tile Sections</h4>
+                                    <p>Group lists into collapsible Sections to organize your dashboard and focus on what matters most.</p>
+                                </div>
+                                <div className="feature-item">
+                                    <h4>Time Filtered Counts</h4>
+                                    <p>Filter card totals based on creation date to see trends and monitor recent activity.</p>
+                                </div>
+                                <div className="feature-item">
+                                    <h4>Skip Description Cards</h4>
+                                    <p>Automatically exclude the first card in a list from the total, so you can use it for instructions without skewing your metrics.</p>
+                                </div>
+                                <div className="feature-item">
+                                    <h4>Effortless Sharing</h4>
+                                    <p>Easily export and import dashboard layouts to share your setup with your team or across different computers.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="final-cta-section">
+                        <div className="landing-container">
+                            <p>Ready to level up your operational visibility? Trellops is the dedicated Trello dashboard you've been waiting for.</p>
+                            <a href="#" className="cta-button" onClick={onLogin}>Login with Trello</a>
+                            <p style={{ fontSize: '0.8em', marginTop: '30px' }}><a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a></p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // 1. Authentication Screen
-        const AuthScreen = ({ onLoginSuccess }) => {
+        const LoginPage = ({ onLoginSuccess }) => {
             const [error, setError] = useState('');
             const [loading, setLoading] = useState(false);
 
@@ -964,24 +1169,24 @@
                 trelloAuth.login();
             };
             
-            // This component doesn't need to handle the token itself,
-            // the main App component will do that on load.
-
             return (
-                <div className="form-card">
-                    <h2>Trello Dashboard Login</h2>
-                    <p style={{fontSize: '0.9em', lineHeight: '1.4', marginBottom: '20px'}}>
-                        To access your Trello dashboard, please log in using your Trello account. This application will request read-only access to your boards and lists. Your credentials are not stored on our server.
-                    </p>
-                    {error && <div className="error">{error}</div>}
-                    
-                    <button className="save-layout-button" onClick={handleLoginClick} disabled={loading}>
-                        {loading ? 'Redirecting...' : 'Log In with Trello'}
-                    </button>
-
-                    <p style={{fontSize: '0.75em', color: '#6b778c', marginTop: '30px', textAlign: 'center'}}>
-                        Disclaimer: This application is not in production. All copyrights belong to Matthias Manzone.
-                    </p>
+                <div className="landing-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: '#1e1e1e', padding: '40px', borderRadius: '12px', textAlign: 'center', maxWidth: '500px', width: '90%' }}>
+                        <img src="powerupicon2.png" alt="Trellops Logo" style={{ width: '80px', height: '80px', margin: '0 auto 20px' }} />
+                        <h2 style={{ color: '#ffffff' }}>Get started with Trellops</h2>
+                        <p style={{fontSize: '1em', lineHeight: '1.6', marginBottom: '30px', color: '#aaaaaa'}}>
+                            To access your Trello dashboard, please log in using your Atlassian Trello account. Trellops will request read-only access to your boards and lists. Your credentials are not stored on our server, and none of your information is shared with the develpoper. Everything is private, secure and remains on your computer only.
+                        </p>
+                        {error && <div className="error" style={{ color: '#dc3545', marginBottom: '15px' }}>{error}</div>}
+                        
+                        <a href="#" className="cta-button" onClick={handleLoginClick} disabled={loading} style={{width: '100%', backgroundColor: '#007aff', color: 'white', fontSize: '1.1em', padding: '12px 24px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                            <svg viewBox="0 0 24 24" fill="currentColor" height="1.2em" width="1.2em" style={{ marginRight: '8px' }}>
+                                <path d="M20.15 2.25H3.85a1.6 1.6 0 00-1.6 1.6v16.3a1.6 1.6 0 001.6 1.6h16.3a1.6 1.6 0 001.6-1.6V3.85a1.6 1.6 0 00-1.6-1.6zM11.5 16.5h-4a1 1 0 01-1-1v-8a1 1 0 011-1h4a1 1 0 011 1v8a1 1 0 01-1 1zm6-6h-4a1 1 0 01-1-1v-4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1z" />
+                            </svg>
+                            {loading ? 'Redirecting...' : 'Log In with Trello'}
+                        </a>
+                        <p style={{ fontSize: '0.8em', marginTop: '30px' }}><a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a></p>
+                    </div>
                 </div>
             );
         };
@@ -1890,7 +2095,7 @@
 
             // Interval setup
             useEffect(() => {
-                if (timerRef.current) {
+                               if (timerRef.current) {
                     clearInterval(timerRef.current);
                 }
 
@@ -2080,11 +2285,9 @@
         const App = () => {
             const [user, setUser] = useState(null);
             const [settings, setSettings] = useState(null);
-            const [view, setView] = useState('auth'); // 'auth', 'settings', 'dashboard'
+            const [view, setView] = useState('landing'); // 'landing', 'login', 'settings', 'dashboard'
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
-
-           
 
             // Check for token in URL on initial load
             useEffect(() => {
@@ -2102,9 +2305,11 @@
                         if (userSession && userSession.token) {
                              handleLoginSuccess(userSession.token);
                         } else {
+                            setView('landing');
                             setLoading(false); // No valid session found
                         }
                     } else {
+                        setView('landing');
                         setLoading(false);
                     }
                 }
@@ -2150,7 +2355,7 @@
                 setCurrentUser(null);
                 setUser(null);
                 setSettings(null);
-                setView('auth');
+                setView('landing');
             };
 
             const handleSaveSettings = (newSettings) => {
@@ -2173,6 +2378,10 @@
                 );
             }
 
+            if (view === 'login') {
+                return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+            }
+
             if (view === 'dashboard') {
                 return <Dashboard user={user} settings={settings} onShowSettings={() => setView('settings')} onLogout={handleLogout} />;
             }
@@ -2181,7 +2390,7 @@
                 return <SettingsScreen user={user} onSave={handleSaveSettings} onBack={() => setView('dashboard')} onLogout={handleLogout} />;
             }
 
-            return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
+            return <LandingPage onLogin={() => setView('login')} />;
         };
 
         ReactDOM.render(
