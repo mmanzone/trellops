@@ -2281,11 +2281,9 @@
         const App = () => {
             const [user, setUser] = useState(null);
             const [settings, setSettings] = useState(null);
-            const [view, setView] = useState('auth'); // 'auth', 'settings', 'dashboard'
+            const [view, setView] = useState('landing'); // 'landing', 'login', 'settings', 'dashboard'
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
-
-           
 
             // Check for token in URL on initial load
             useEffect(() => {
