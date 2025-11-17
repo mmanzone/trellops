@@ -1089,7 +1089,11 @@
             return resolvedTheme === 'dark' ? '#ffffff' : '#222222';
         };
 
-        const LandingPage = ({ onLogin }) => {
+        const LandingPage = () => {
+            const handleLogin = () => {
+                trelloAuth.login();
+            };
+
             return (
                 <div className="landing-page">
                     <div className="hero-section">
@@ -1097,7 +1101,7 @@
                             <img src="powerupicon2.png" alt="Trellops Logo" className="logo" />
                             <h1>Trellops</h1>
                             <p>Transform Your Trello Boards into Real-Time Operational Dashboards.</p>
-                            <a href="#" className="cta-button" onClick={onLogin}>Try Trellops Now!</a>
+                            <a href="#" className="cta-button" onClick={handleLogin}>Try Trellops Now!</a>
                             <p className="tagline">Simple. Powerful. Visible.</p>
                         </div>
                     </div>
@@ -1151,41 +1155,9 @@
                     <div className="final-cta-section">
                         <div className="landing-container">
                             <p>Ready to level up your operational visibility? Trellops is the dedicated Trello dashboard you've been waiting for.</p>
-                            <a href="#" className="cta-button" onClick={onLogin}>Login with Trello</a>
+                            <a href="#" className="cta-button" onClick={handleLogin}>Login with Trello</a>
                             <p style={{ fontSize: '0.8em', marginTop: '30px' }}><a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a></p>
                         </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // 1. Authentication Screen
-        const LoginPage = ({ onLoginSuccess }) => {
-            const [error, setError] = useState('');
-            const [loading, setLoading] = useState(false);
-
-            const handleLoginClick = () => {
-                setLoading(true);
-                trelloAuth.login();
-            };
-            
-            return (
-                <div className="landing-page" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ background: '#1e1e1e', padding: '40px', borderRadius: '12px', textAlign: 'center', maxWidth: '500px', width: '90%' }}>
-                        <img src="powerupicon2.png" alt="Trellops Logo" style={{ width: '80px', height: '80px', margin: '0 auto 20px' }} />
-                        <h2 style={{ color: '#ffffff' }}>Get started with Trellops</h2>
-                        <p style={{fontSize: '1em', lineHeight: '1.6', marginBottom: '30px', color: '#aaaaaa'}}>
-                            To access your Trello dashboard, please log in using your Atlassian Trello account. Trellops will request read-only access to your boards and lists. Your credentials are not stored on our server, and none of your information is shared with the develpoper. Everything is private, secure and remains on your computer only.
-                        </p>
-                        {error && <div className="error" style={{ color: '#dc3545', marginBottom: '15px' }}>{error}</div>}
-                        
-                        <a href="#" className="cta-button" onClick={handleLoginClick} disabled={loading} style={{width: '100%', backgroundColor: '#007aff', color: 'white', fontSize: '1.1em', padding: '12px 24px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
-                            <svg viewBox="0 0 24 24" fill="currentColor" height="1.2em" width="1.2em" style={{ marginRight: '8px' }}>
-                                <path d="M20.15 2.25H3.85a1.6 1.6 0 00-1.6 1.6v16.3a1.6 1.6 0 001.6 1.6h16.3a1.6 1.6 0 001.6-1.6V3.85a1.6 1.6 0 00-1.6-1.6zM11.5 16.5h-4a1 1 0 01-1-1v-8a1 1 0 011-1h4a1 1 0 011 1v8a1 1 0 01-1 1zm6-6h-4a1 1 0 01-1-1v-4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1z" />
-                            </svg>
-                            {loading ? 'Redirecting...' : 'Log In with Trello'}
-                        </a>
-                        <p style={{ fontSize: '0.8em', marginTop: '30px' }}><a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a></p>
                     </div>
                 </div>
             );
@@ -2285,7 +2257,7 @@
         const App = () => {
             const [user, setUser] = useState(null);
             const [settings, setSettings] = useState(null);
-            const [view, setView] = useState('landing'); // 'landing', 'login', 'settings', 'dashboard'
+            const [view, setView] = useState('landing'); // 'landing', 'settings', 'dashboard'
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
 
@@ -2378,8 +2350,8 @@
                 );
             }
 
-            if (view === 'login') {
-                return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+            if (view === 'landing') {
+                return <LandingPage />;
             }
 
             if (view === 'dashboard') {
@@ -2390,7 +2362,7 @@
                 return <SettingsScreen user={user} onSave={handleSaveSettings} onBack={() => setView('dashboard')} onLogout={handleLogout} />;
             }
 
-            return <LandingPage onLogin={() => setView('login')} />;
+            return <LandingPage />;
         };
 
         ReactDOM.render(
