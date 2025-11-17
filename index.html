@@ -1179,9 +1179,13 @@
                         </p>
                         {error && <div className="error" style={{ color: '#dc3545', marginBottom: '15px' }}>{error}</div>}
                         
-                        <a href="#" className="cta-button" onClick={handleLoginClick} disabled={loading} style={{width: '100%', backgroundColor: '#007aff', color: 'white', fontSize: '1.1em', padding: '12px 24px', textDecoration: 'none', display: 'block'}}>
+                        <a href="#" className="cta-button" onClick={handleLoginClick} disabled={loading} style={{width: '100%', backgroundColor: '#007aff', color: 'white', fontSize: '1.1em', padding: '12px 24px', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                            <svg viewBox="0 0 24 24" fill="currentColor" height="1.2em" width="1.2em" style={{ marginRight: '8px' }}>
+                                <path d="M20.15 2.25H3.85a1.6 1.6 0 00-1.6 1.6v16.3a1.6 1.6 0 001.6 1.6h16.3a1.6 1.6 0 001.6-1.6V3.85a1.6 1.6 0 00-1.6-1.6zM11.5 16.5h-4a1 1 0 01-1-1v-8a1 1 0 011-1h4a1 1 0 011 1v8a1 1 0 01-1 1zm6-6h-4a1 1 0 01-1-1v-4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1z" />
+                            </svg>
                             {loading ? 'Redirecting...' : 'Log In with Trello'}
                         </a>
+                        <p style={{ fontSize: '0.8em', marginTop: '30px' }}><a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a></p>
                     </div>
                 </div>
             );
