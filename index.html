@@ -1156,7 +1156,11 @@
                         <div className="landing-container">
                             <p>Ready to level up your operational visibility? Trellops is the dedicated Trello dashboard you've been waiting for.</p>
                             <a href="#" className="cta-button" onClick={handleLogin}>Login with Trello</a>
-                            <p style={{ fontSize: '0.8em', marginTop: '30px' }}><a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a></p>
+                            <p style={{ fontSize: '0.8em', marginTop: '30px' }}>
+                                <a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a>
+                                &nbsp;&nbsp;|&nbsp;&nbsp;
+                                <a href="help.html" style={{ color: 'white' }}>Trellops Use Guide</a>
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -2138,6 +2142,11 @@
                         </p>
                         <div style={{textAlign: 'center', marginTop: '20px'}}>
                             <button className="settings-button" onClick={onShowSettings}>Go to Settings</button>
+                        </div>
+                        <div style={{textAlign: 'center', marginTop: '10px'}}>
+                            <span style={{color: 'var(--text-secondary)'}}>Need help?</span>
+                            &nbsp;
+                            <a href="help.html" style={{color: 'var(--primary-color)'}}>Trellops Use Guide</a>
                         </div>
                     </div>
                 );
