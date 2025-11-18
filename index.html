@@ -2149,9 +2149,12 @@
                             <button className="settings-button" onClick={onShowSettings}>Go to Settings</button>
                         </div>
                         <div style={{textAlign: 'center', marginTop: '10px'}}>
-                            <span style={{color: 'var(--text-secondary)'}}>Need help?</span>
-                            &nbsp;
-                            <a href="help.html" style={{color: '#0057d9'}}>Trellops Use Guide</a>
+                            <a href="help.html" style={{display: 'inline-flex', alignItems: 'center', textDecoration: 'none'}}>
+                                <img src="assets/help-icon.svg" alt="Help" style={{width: '18px', height: '18px', verticalAlign: 'middle', marginRight: '8px'}} />
+                                <span style={{color: 'var(--text-secondary)'}}>Need help?</span>
+                                &nbsp;
+                                <span style={{color: '#0057d9', fontWeight: 600}}>Trellops Use Guide</span>
+                            </a>
                         </div>
                     </div>
                 );
