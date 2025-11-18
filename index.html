@@ -1620,8 +1620,11 @@
                     </div>
                     <h2>
                         Dashboard Setup
-                        <a href="help.html" target="_blank" rel="noopener noreferrer" title="Help" style={{marginLeft: '10px', fontSize: '0.9em', textDecoration: 'none'}}>
-                            ❓
+                        <a href="help.html" target="_blank" rel="noopener noreferrer" title="Help" style={{marginLeft: '10px', fontSize: '0.9em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center'}}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0}}>
+                                <circle cx="12" cy="12" r="10" fill="var(--primary-color)" />
+                                <path d="M11 16h2v-2h-2v2zm1-12c-2.21 0-4 1.79-4 4h2a2 2 0 114 0c0 1.5-2 2.1-2 4" fill="var(--text-color)" />
+                            </svg>
                         </a>
                     </h2>
                     {error && <div className="error">{error}</div>}
