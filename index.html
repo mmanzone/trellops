@@ -194,17 +194,17 @@
         }
 
         /* --- Dashboard Grid Layout --- */
-        .dashboard-section {
+        .dashboard-block {
             padding: 20px;
             background-color: transparent;
         }
-        .section-header-row {
+        .block-header-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 20px;
         }
-        .section-header {
+        .block-header {
             font-size: 1.8em;
             font-weight: 700;
         }
@@ -299,7 +299,7 @@
             display: flex;
             align-items: center;
             margin-top: 10px;
-            padding: 12px;
+            padding: 8x;
             background: var(--bg-primary); 
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -318,7 +318,7 @@
              align-items: center;
         }
         
-        .order-buttons button, .section-order-buttons button {
+        .order-buttons button, .block-order-buttons button {
             background: var(--bg-secondary);
             color: var(--text-color);
             border: 1px solid var(--border-color);
@@ -327,7 +327,7 @@
             padding: 0;
             margin: 0 2px;
         }
-        .order-buttons button:hover, .section-order-buttons button:hover {
+        .order-buttons button:hover, .block-order-buttons button:hover {
             background: var(--primary-color);
             color: white;
             border-color: var(--primary-color);
@@ -336,10 +336,24 @@
         /* --- Layout Configuration --- */
         .layout-config-container {
             display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .layout-column {
+            display: flex;
             flex-direction: column;
             gap: 20px;
+            flex-basis: 100%;
         }
-        .layout-section-box {
+        @media (min-width: 768px) {
+            .layout-column:first-child {
+                flex-basis: 40%;
+            }
+            .layout-column:last-child {
+                flex-basis: calc(60% - 20px);
+            }
+        }
+        .layout-block-box {
             background: var(--bg-secondary);
             padding: 20px;
             border-radius: 8px;
@@ -482,6 +496,71 @@
             display: flex;
             align-items: center;
             gap: 10px;
+        }
+
+        .three-column {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 30px;
+            height: 17px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 13px;
+            width: 13px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(13px);
+            -ms-transform: translateX(13px);
+            transform: translateX(13px);
+        }
+
+        .slider.round {
+            border-radius: 17px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
         }
 
         /* --- Landing Page Styles --- */
@@ -952,7 +1031,7 @@
         };
 
         // Dashboard Layout Management
-        const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];
+        const DEFAULT_LAYOUT = [{ id: 'all', name: 'Default', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];
 
         const getPersistentLayout = (userId, boardId) => {
             try {
@@ -1018,7 +1097,7 @@
             const [error, setError] = useState('');
             const { theme } = useContext(DarkModeContext);
             
-            // Determine if the first card should be ignored based on section settings
+            // Determine if the first card should be ignored based on block settings
             const section = sectionsLayout.find(s => s.listIds.includes(listId));
             const shouldIgnoreFirst = section?.ignoreFirstCard || false;
 
@@ -1177,10 +1256,10 @@
             const [error, setError] = useState('');
             const [loading, setLoading] = useState(false);
 
-            // --- Section Management State ---
-            const [sections, setSections] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
+            // --- Block Management State ---
+            const [blocks, setBlocks] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
             const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
-            const [newSectionName, setNewSectionName] = useState('');
+            const [newBlockName, setNewBlockName] = useState('');
             const [showMoreOptions, setShowMoreOptions] = useState(false);
             
             // Clock setting state for settings screen
@@ -1195,6 +1274,8 @@
             const [refreshValue, setRefreshValue] = useState(savedRefresh ? JSON.parse(savedRefresh).value : 1);
             const [refreshUnit, setRefreshUnit] = useState(savedRefresh ? JSON.parse(savedRefresh).unit : 'minutes');
 
+
+            const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
             // --- Export/Import Handlers ---
             const handleExportConfig = () => {
@@ -1251,10 +1332,10 @@
                             localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, importedConfig.clockSetting);
                             setShowClockSetting(importedConfig.clockSetting !== 'false');
                         }
-                        // 4. Update Layout (Sections)
+                        // 4. Update Layout (Blocks)
                         if (importedConfig.layout) {
                             setPersistentLayout(user.id, selectedBoardId, importedConfig.layout);
-                            setSections(getPersistentLayout(user.id, selectedBoardId));
+                            setBlocks(getPersistentLayout(user.id, selectedBoardId));
                         }
                         // 5. Update Colors
                         if (importedConfig.colors) {
@@ -1307,7 +1388,7 @@
                     }
             
                     // 5. Reset component state to default values
-                    setSections(DEFAULT_LAYOUT);
+                    setBlocks(DEFAULT_LAYOUT);
                     setListColors({});
                     setRefreshValue(defaultRefreshSetting.value);
                     setRefreshUnit(defaultRefreshSetting.unit);
@@ -1353,7 +1434,7 @@
                     .then(data => {
                         setAllBoardLists(data);
                         setListColors(boardPersistentColors);
-                        setSections(boardLayout);
+                        setBlocks(boardLayout);
                         setShowClockSetting(clockSetting);
                         setRefreshValue(rValue);
                         setRefreshUnit(rUnit);
@@ -1367,8 +1448,8 @@
             const handleBoardChange = (e) => {
                 const newId = e.target.value;
                 setSelectedBoardId(newId);
-                // Reset sections/colors/clock, will be reloaded by useEffect
-                setSections(getPersistentLayout(user.id, newId));
+                // Reset blocks/colors/clock, will be reloaded by useEffect
+                setBlocks(getPersistentLayout(user.id, newId));
                 setListColors(getPersistentColors(user.id)[newId] || {});
                 setAllBoardLists([]);
                 setShowClockSetting(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + newId) !== 'false');
@@ -1379,31 +1460,31 @@
                 setRefreshUnit(rUnit);
             };
 
-            const handleAddSection = () => {
-                if (!newSectionName.trim()) return;
-                const newSection = {
+            const handleAddBlock = () => {
+                if (!newBlockName.trim()) return;
+                const newBlock = {
                     id: Date.now().toString(),
-                    name: newSectionName.trim(),
+                    name: newBlockName.trim(),
                     listIds: [],
                     ignoreFirstCard: false,
                     displayFirstCardDescription: true,
                     isCollapsed: false
                 };
-                const newLayout = [...sections, newSection];
-                setSections(newLayout);
-                setNewSectionName('');
+                const newLayout = [...blocks, newBlock];
+                setBlocks(newLayout);
+                setNewBlockName('');
                 setPersistentLayout(user.id, selectedBoardId, newLayout);
             };
 
-            const handleRemoveSection = (sectionId) => {
-                const sectionToRemove = sections.find(s => s.id === sectionId);
-                if (!sectionToRemove) return;
+            const handleRemoveBlock = (blockId) => {
+                const blockToRemove = blocks.find(s => s.id === blockId);
+                if (!blockToRemove) return;
 
-                const listIdsToMoveBack = sectionToRemove.listIds;
+                const listIdsToMoveBack = blockToRemove.listIds;
 
-                // Add lists from the removed section back to the 'All' section
-                const newSections = sections
-                    .filter(s => s.id !== sectionId)
+                // Add lists from the removed block back to the 'Default' block
+                const newBlocks = blocks
+                    .filter(s => s.id !== blockId)
                     .map(s => {
                         if (s.id === 'all') {
                              return { ...s, listIds: [...s.listIds, ...listIdsToMoveBack] };
@@ -1411,58 +1492,58 @@
                         return s;
                     });
 
-                // Ensure 'All' section exists if it was somehow deleted
-                if (!newSections.some(s => s.id === 'all')) {
-                    newSections.unshift({ id: 'all', name: 'All', listIds: listIdsToMoveBack, ignoreFirstCard: false, isCollapsed: false });
+                // Ensure 'Default' block exists if it was somehow deleted
+                if (!newBlocks.some(s => s.id === 'all')) {
+                    newBlocks.unshift({ id: 'all', name: 'Default', listIds: listIdsToMoveBack, ignoreFirstCard: false, isCollapsed: false });
                 }
 
-                setSections(newSections);
-                setPersistentLayout(user.id, selectedBoardId, newSections);
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
             };
             
-            // Handler for re-ordering sections
-            const handleReorderSection = (sectionId, direction) => {
-                const currentSections = [...sections];
-                const index = currentSections.findIndex(s => s.id === sectionId);
+            // Handler for re-ordering blocks
+            const handleReorderBlock = (blockId, direction) => {
+                const currentBlocks = [...blocks];
+                const index = currentBlocks.findIndex(s => s.id === blockId);
                 if (index === -1) return;
 
                 const newIndex = direction === 'up' ? index - 1 : index + 1;
                 
                 // Only allow swap if the new index is valid and not swapping 'all' (index 0) with any other element
-                if (newIndex > 0 && newIndex < currentSections.length && currentSections[newIndex].id !== 'all') 
+                if (newIndex > 0 && newIndex < currentBlocks.length && currentBlocks[newIndex].id !== 'all') 
                 {
-                    [currentSections[index], currentSections[newIndex]] = [currentSections[newIndex], currentSections[index]];
+                    [currentBlocks[index], currentBlocks[newIndex]] = [currentBlocks[newIndex], currentBlocks[index]];
 
-                    setSections(currentSections);
-                    setPersistentLayout(user.id, selectedBoardId, currentSections);
+                    setBlocks(currentBlocks);
+                    setPersistentLayout(user.id, selectedBoardId, currentBlocks);
                 }
             };
 
 
-            // Allows renaming of all sections, including 'all'
-            const handleRenameSection = (sectionId, newName) => {
+            // Allows renaming of all blocks, including 'all'
+            const handleRenameBlock = (blockId, newName) => {
                 if (!newName.trim()) return;
-                const newSections = sections.map(s => s.id === sectionId ? { ...s, name: newName } : s);
-                setSections(newSections);
-                setPersistentLayout(user.id, selectedBoardId, newSections);
+                const newBlocks = blocks.map(s => s.id === blockId ? { ...s, name: newName } : s);
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
             };
 
             // Handler for the 'Use first card as description' checkbox
-            const handleToggleIgnoreCard = (sectionId, isChecked) => {
-                const newSections = sections.map(s => 
-                    s.id === sectionId ? { ...s, ignoreFirstCard: isChecked } : s
+            const handleToggleIgnoreCard = (blockId, isChecked) => {
+                const newBlocks = blocks.map(s => 
+                    s.id === blockId ? { ...s, ignoreFirstCard: isChecked } : s
                 );
-                setSections(newSections);
-                setPersistentLayout(user.id, selectedBoardId, newSections);
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
             };
 
             // Handler for the 'Display first card as description' checkbox
-            const handleToggleDisplayDescription = (sectionId, isChecked) => {
-                const newSections = sections.map(s => 
-                    s.id === sectionId ? { ...s, displayFirstCardDescription: isChecked } : s
+            const handleToggleDisplayDescription = (blockId, isChecked) => {
+                const newBlocks = blocks.map(s => 
+                    s.id === blockId ? { ...s, displayFirstCardDescription: isChecked } : s
                 );
-                setSections(newSections);
-                setPersistentLayout(user.id, selectedBoardId, newSections);
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
             };
             
             // Handler for the Clock checkbox
@@ -1478,59 +1559,59 @@
 
 
             // Handler for re-ordering tiles
-            const handleReorderList = (sectionId, listId, direction) => {
-                const newSections = sections.map(section => {
-                    if (section.id !== sectionId) return section;
+            const handleReorderList = (blockId, listId, direction) => {
+                const newBlocks = blocks.map(block => {
+                    if (block.id !== blockId) return block;
 
-                    const listIds = [...section.listIds];
+                    const listIds = [...block.listIds];
                     const index = listIds.indexOf(listId);
 
-                    if (index === -1) return section;
+                    if (index === -1) return block;
 
                     const newIndex = direction === 'up' ? index - 1 : index + 1;
 
                     if (newIndex >= 0 && newIndex < listIds.length) {
                         // Swap elements
                         [listIds[index], listIds[newIndex]] = [listIds[newIndex], listIds[index]];
-                        return { ...section, listIds };
+                        return { ...block, listIds };
                     }
-                    return section;
+                    return block;
                 });
 
-                setSections(newSections);
-                setPersistentLayout(user.id, selectedBoardId, newSections);
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
             };
 
 
-            const handleMoveList = (listId, fromSectionId, toSectionId) => {
-                const newSections = sections.map(section => {
-                    if (section.id === fromSectionId) {
-                        return { ...section, listIds: section.listIds.filter(id => id !== listId) };
+            const handleMoveList = (listId, fromBlockId, toBlockId) => {
+                const newBlocks = blocks.map(block => {
+                    if (block.id === fromBlockId) {
+                        return { ...block, listIds: block.listIds.filter(id => id !== listId) };
                     }
-                    if (section.id === toSectionId) {
-                        return { ...section, listIds: [...section.listIds, listId] };
+                    if (block.id === toBlockId) {
+                        return { ...block, listIds: [...block.listIds, listId] };
                     }
-                    return section;
+                    return block;
                 });
                 
                 // Handle move to pool ("Unassigned Lists")
-                if (toSectionId === 'pool') {
-                    const updatedSections = newSections.map(s => 
+                if (toBlockId === 'pool') {
+                    const updatedBlocks = newBlocks.map(s => 
                        ({ ...s, listIds: s.listIds.filter(id => id !== listId) })
                     );
                     
-                    const allSelectedIds = updatedSections.flatMap(s => s.listIds);
+                    const allSelectedIds = updatedBlocks.flatMap(s => s.listIds);
                     setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
-                    setSections(updatedSections);
-                    setPersistentLayout(user.id, selectedBoardId, updatedSections);
+                    setBlocks(updatedBlocks);
+                    setPersistentLayout(user.id, selectedBoardId, updatedBlocks);
                     return;
                 }
                 
-                setSections(newSections);
-                setPersistentLayout(user.id, selectedBoardId, newSections);
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
 
                 // Update persistent selections cache (add listId)
-                const allSelectedIds = newSections.flatMap(s => s.listIds);
+                const allSelectedIds = newBlocks.flatMap(s => s.listIds);
                 setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
             };
 
@@ -1578,9 +1659,9 @@
                 }));
 
 
-                // Gather all lists that are currently assigned to ANY section
+                // Gather all lists that are currently assigned to ANY block
                 const selectedListsMap = new Map();
-                sections.flatMap(s => s.listIds).forEach(listId => {
+                blocks.flatMap(s => s.listIds).forEach(listId => {
                     const listData = allBoardLists.find(l => l.id === listId);
                     if (listData) {
                         selectedListsMap.set(listId, {
@@ -1602,14 +1683,14 @@
                 onSave(finalSettings);
             };
 
-            // Derive list pool: Trello lists not currently assigned to any section
-            const assignedListIds = new Set(sections.flatMap(s => s.listIds));
+            // Derive list pool: Trello lists not currently assigned to any block
+            const assignedListIds = new Set(blocks.flatMap(s => s.listIds));
             const listPool = allBoardLists
                 .filter(list => !assignedListIds.has(list.id))
                 .map(list => ({ id: list.id, name: list.name }));
             
-            // Get the ID of the first section for the default move action
-            const firstSectionId = sections[0].id;
+            // Get the ID of the first block for the default move action
+            const firstBlockId = blocks[0].id;
 
             if (loading) return <div className="form-card settings">Loading Boards...</div>;
 
@@ -1619,9 +1700,9 @@
                         <button className="logout-button" onClick={onLogout} style={{margin: 0}}>Log Out</button>
                     </div>
                     <h2>
-                        Dashboard Setup
-                        <a href="help.html" target="_blank" rel="noopener noreferrer" title="Help" style={{marginLeft: '10px', fontSize: '0.9em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center'}}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0}}>
+                        Trellops Dashboard Setup
+                        <a href="help.html" target="_blank" rel="noopener noreferrer" title="Help" style={{marginLeft: '10px', fontSize: '3em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center'}}>
+                            <svg width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0}}>
                                 <circle cx="12" cy="12" r="10" fill="var(--primary-color)" />
                                 <path d="M11 16h2v-2h-2v2zm1-12c-2.21 0-4 1.79-4 4h2a2 2 0 114 0c0 1.5-2 2.1-2 4" fill="var(--text-color)" />
                             </svg>
@@ -1630,9 +1711,12 @@
                     {error && <div className="error">{error}</div>}
 
                     <div className="admin-section">
-                        <h3>General Settings</h3>
+                        <h3>1. Choose your Trello Board</h3>
+                        <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                            Boards are pulled directly from your Trello account, across all workspaces.
+                        </p>
                         <div className="settings-row">
-                            <label htmlFor="board-select">Trello board:</label>
+                            <label htmlFor="board-select">Your Trello board:</label>
                             <select id="board-select" value={selectedBoardId} onChange={handleBoardChange}>
                                 <option value="">-- Select a Board --</option>
                                 {boards.map(board => (
@@ -1640,10 +1724,205 @@
                                 ))}
                             </select>
                         </div>
+                    </div>
 
-                        {selectedBoardId && (
-                            <div className="settings-row options-row">
-                                <div>
+                    {selectedBoard && (
+                        <div className="admin-section">
+                            <h3>2. Manage your Trellops Blocks</h3>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
+                            </p>
+                            <div className="block-management">
+                                <input
+                                    type="text"
+                                    placeholder="New Block Name"
+                                    value={newBlockName}
+                                    onChange={e => setNewBlockName(e.target.value)}
+                                    className="block-title-input"
+                                    style={{width: '200px', marginRight: '10px'}}
+                                />
+                                <button className="settings-button" onClick={handleAddBlock} disabled={!newBlockName.trim()}>
+                                    Add Block
+                                </button>
+                            </div>
+
+                            {blocks.map((block, blockIndex) => (
+                                <div key={block.id} className="layout-block-box" style={{flexGrow: 1, maxWidth: '100%', marginTop: '20px', padding: '15px'}}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', flexGrow: 1}}>
+                                            <div className="order-buttons" style={{marginRight: '15px'}}>
+                                                <button 
+                                                    onClick={() => handleReorderBlock(block.id, 'up')}
+                                                    disabled={blockIndex === 0} 
+                                                    title="Move Block Up"
+                                                >
+                                                    ▲
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleReorderBlock(block.id, 'down')}
+                                                    disabled={blockIndex === blocks.length - 1}
+                                                    title="Move Block Down"
+                                                >
+                                                    ▼
+                                                </button>
+                                            </div>
+                                            
+                                            <input
+                                                type="text"
+                                                value={block.name}
+                                                onChange={e => handleRenameBlock(block.id, e.target.value)}
+                                                className="block-title-input"
+                                                style={{width: 'calc(100% - 15px)'}}
+                                            />
+                                        </div>
+
+                                        {block.id !== 'all' && (
+                                            <button
+                                                className="remove-block-button"
+                                                onClick={() => handleRemoveBlock(block.id)}
+                                                title="Delete block and move lists to 'Default'"
+                                            >
+                                                &times;
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {selectedBoard && (
+                        <div className="admin-section">
+                            <h3>3. Assign Tiles to your Blocks</h3>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left,  the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
+                            </p>
+                            <div className="layout-config-container">
+                                <div className="layout-column">
+                                    <div className="layout-block-box">
+                                        <h4 style={{marginBottom: '10px', color: '#6b778c'}}>Pool of Unassigned Trello Lists ({listPool.length})</h4>
+                                        <div className="list-pool" style={{minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                            {listPool.map(list => (
+                                                <div key={list.id} className="layout-list-item" style={{justifyContent: 'flex-start', flexWrap: 'wrap', gap: '10px', flexBasis: 'auto', flexGrow: 0}}>
+                                                    <span style={{flexGrow: 1, flexBasis: '100%'}}>{list.name}</span>
+                                                    <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%'}}>
+                                                        {blocks.map(block => (
+                                                            <button 
+                                                                key={block.id}
+                                                                className="move-button-pool" 
+                                                                onClick={() => handleMoveList(list.id, 'pool', block.id)}
+                                                                title={`Move to ${block.name}`}
+                                                            >
+                                                                {block.name} &raquo;
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {listPool.length === 0 && <p style={{fontSize: '0.9em', color: '#6b778c'}}>All lists assigned.</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="layout-column">
+                                    {blocks.map((block) => (
+                                        <div key={block.id} className="layout-block-box" style={{flexGrow: 1, maxWidth: '100%'}}>
+                                            <h4 style={{marginBottom: '10px'}}>{block.name}</h4>
+                                            {block.listIds.length > 0 ? (
+                                                block.listIds.map((listId, index) => {
+                                                    const listData = allBoardLists.find(l => l.id === listId);
+                                                    if (!listData) return null;
+
+                                                    return (
+                                                        <div key={listId} className="list-config-item">
+                                                            <div className="order-buttons">
+                                                                <button 
+                                                                    onClick={() => handleReorderList(block.id, listId, 'up')}
+                                                                    disabled={index === 0}
+                                                                    title="Move Up"
+                                                                >
+                                                                    ▲
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleReorderList(block.id, listId, 'down')}
+                                                                    disabled={index === block.listIds.length - 1}
+                                                                    title="Move Down"
+                                                                >
+                                                                    ▼
+                                                                </button>
+                                                            </div>
+                                                            <span style={{
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis', 
+                                                                width: '50%' 
+                                                            }}>
+                                                                {listData.name}
+                                                            </span>
+                                                            <div style={{display: 'flex', alignItems: 'center'}}>
+                                                                <input
+                                                                    type="color"
+                                                                    value={listColors[listId] || '#cccccc'}
+                                                                    onChange={e => handleColorChange(listId, e.target.value)}
+                                                                    title="Choose Tile Color"
+                                                                    style={{marginLeft: '10px'}}
+                                                                />
+                                                                <select
+                                                                    onChange={e => handleMoveList(listId, block.id, e.target.value)}
+                                                                    style={{marginLeft: '10px', padding: '5px', fontSize: '0.8em', width: '85px'}}
+                                                                    value={block.id}
+                                                                >
+                                                                    <option value={block.id}>Move...</option>
+                                                                    <optgroup label="Blocks">
+                                                                        {blocks.map(s => (
+                                                                            s.id !== block.id && <option key={s.id} value={s.id}>{s.name}</option>
+                                                                    ))}
+                                                                    </optgroup>
+                                                                    <optgroup label="Unassigned">
+                                                                        <option value="pool">Move to Pool</option>
+                                                                    </optgroup>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <p style={{fontSize: '0.9em', color: '#6b778c'}}>Move lists here.</p>
+                                            )}
+                                            
+                                            <div className="section-options">
+                                                <label>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={block.ignoreFirstCard}
+                                                        onChange={e => handleToggleIgnoreCard(block.id, e.target.checked)}
+                                                    />
+                                                    Do not count the first card in the total
+                                                </label>
+                                                {block.ignoreFirstCard && (
+                                                    <label className="sub-option">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={block.displayFirstCardDescription}
+                                                            onChange={e => handleToggleDisplayDescription(block.id, e.target.checked)}
+                                                        />
+                                                        Display the first card as tile description
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {selectedBoard && (
+                        <div className="admin-section">
+                            <h3>4. Other Dashboard settings for "{selectedBoard.name}"</h3>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                These settings are saved separately for each board. Auto-refresh must be at least 30 seconds. The digital clock appears in the top-left corner for the screen and follows the local computer time format.
+                            </p>
+                            <div className="three-column">
+                                <div className="settings-row">
                                     <label>Auto-Refresh:</label>
                                     <input
                                         type="number"
@@ -1662,17 +1941,20 @@
                                     </select>
                                 </div>
                                 
-                                <div>
-                                    <input 
-                                        type="checkbox" 
-                                        id="show-clock-check"
-                                        checked={showClockSetting}
-                                        onChange={e => handleToggleClock(e.target.checked)}
-                                    />
-                                    <label htmlFor="show-clock-check">Show Clock</label>
+                                <div className="settings-row">
+                                    <label className="switch">
+                                        <input 
+                                            type="checkbox" 
+                                            id="show-clock-check"
+                                            checked={showClockSetting}
+                                            onChange={e => handleToggleClock(e.target.checked)}
+                                        />
+                                        <span className="slider round"></span>
+                                    </label>
+                                    <label htmlFor="show-clock-check">Show Digital Clock</label>
                                 </div>
                                 
-                                <div>
+                                <div className="settings-row">
                                     <label htmlFor="theme-select">Theme:</label>
                                     <select 
                                         id="theme-select"
@@ -1684,198 +1966,6 @@
                                         <option value="dark">Dark</option>
                                     </select>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-
-
-                    {selectedBoardId && (
-                        <div className="admin-section">
-                            <h3>Manage sections and tiles</h3>
-
-                            <div className="section-management">
-                                <h4 style={{marginTop: 0}}>Manage Sections</h4>
-                                <input
-                                    type="text"
-                                    placeholder="New Section Name"
-                                    value={newSectionName}
-                                    onChange={e => setNewSectionName(e.target.value)}
-                                    className="section-title-input"
-                                    style={{width: '200px', marginRight: '10px'}}
-                                />
-                                <button className="settings-button" onClick={handleAddSection} disabled={!newSectionName.trim()}>
-                                    Add Section
-                                </button>
-                            </div>
-
-                            <div className="layout-config-container">
-                                {/* LIST POOL (Unassigned Lists) - Fixed at top, full width */}
-                                <div className="layout-section-box" style={{flexBasis: '100%', maxWidth: '100%', flexShrink: 0}}>
-                                    <h4 style={{marginBottom: '10px', color: '#6b778c'}}>Unassigned Lists ({listPool.length})</h4>
-                                    <div className="list-pool" style={{minHeight: '100px', display: 'flex', flexWrap: 'wrap', gap: '10px'}}>
-                                        {listPool.map(list => (
-                                            <div key={list.id} className="layout-list-item" style={{justifyContent: 'flex-start', flexWrap: 'wrap', gap: '10px', flexBasis: 'auto', flexGrow: 0}}>
-                                                <span style={{flexGrow: 1}}>{list.name}</span>
-                                                {/* Render move button for ALL sections */}
-                                                {sections.map(section => (
-                                                    <button 
-                                                        key={section.id}
-                                                        className="move-button-pool" 
-                                                        onClick={() => handleMoveList(list.id, 'pool', section.id)}
-                                                        title={`Move to ${section.name}`}
-                                                    >
-                                                        {section.name.substring(0, 5)} &raquo;
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        ))}
-                                        {listPool.length === 0 && <p style={{fontSize: '0.9em', color: '#6b778c'}}>All lists assigned.</p>}
-                                    </div>
-                                </div>
-
-                                {/* CONFIGURED SECTIONS (Stacked Vertically) */}
-                                {sections.map((section, sectionIndex) => (
-                                    <div key={section.id} className="layout-section-box" style={{flexGrow: 1, maxWidth: '100%'}}>
-                                        
-                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
-                                            <div style={{display: 'flex', alignItems: 'center', flexGrow: 1}}>
-                                                {/* Section Reorder Buttons */}
-                                                <div className="section-order-buttons" style={{marginRight: '15px'}}>
-                                                    <button 
-                                                        onClick={() => handleReorderSection(section.id, 'up')}
-                                                        disabled={sectionIndex === 0} 
-                                                        title="Move Section Up"
-                                                    >
-                                                        ▲
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => handleReorderSection(section.id, 'down')}
-                                                        disabled={sectionIndex === sections.length - 1}
-                                                        title="Move Section Down"
-                                                    >
-                                                        ▼
-                                                    </button>
-                                                </div>
-                                                
-                                                {/* Allows renaming of all sections (including "All") */}
-                                                <input
-                                                    type="text"
-                                                    value={section.name}
-                                                    onChange={e => handleRenameSection(section.id, e.target.value)}
-                                                    className="section-title-input"
-                                                    style={{width: 'calc(100% - 15px)'}}
-                                                />
-                                            </div>
-
-                                            {section.id !== 'all' && (
-                                                <button
-                                                    className="remove-section-button"
-                                                    onClick={() => handleRemoveSection(section.id)}
-                                                    title="Delete section and move lists to 'All'"
-                                                >
-                                                    &times;
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {section.listIds.length > 0 ? (
-                                            section.listIds.map((listId, index) => {
-                                                const listData = allBoardLists.find(l => l.id === listId);
-                                                if (!listData) return null;
-
-                                                const isAlertEnabled = false; // Alert removed
-
-                                                return (
-                                                    <div key={listId} className="list-config-item">
-                                                        
-                                                        {/* List Name - FIXED WIDTH/TRUNCATION */}
-                                                        <span style={{
-                                                            overflow: 'hidden',
-                                                           
-                                                            textOverflow: 'ellipsis', 
-                                                            width: '50%' 
-                                                        }}>
-                                                            {listData.name}
-                                                        </span>
-
-                                                        {/* Color Picker, Tile Order, Move Dropdown Group */}
-                                                        <div style={{display: 'flex', alignItems: 'center'}}>
-                                                            
-                                                            {/* Color Picker */}
-                                                            <input
-                                                                type="color"
-                                                                value={listColors[listId] || '#cccccc'}
-                                                                onChange={e => handleColorChange(listId, e.target.value)}
-                                                                title="Choose Tile Color"
-                                                                style={{marginLeft: '10px'}}
-                                                            />
-
-                                                            {/* Tile Order Buttons */}
-                                                            <div className="order-buttons">
-                                                                <button 
-                                                                    onClick={() => handleReorderList(section.id, listId, 'up')}
-                                                                    disabled={index === 0}
-                                                                    title="Move Up"
-                                                                >
-                                                                    ▲
-                                                                </button>
-                                                                <button 
-                                                                    onClick={() => handleReorderList(section.id, listId, 'down')}
-                                                                    disabled={index === section.listIds.length - 1}
-                                                                    title="Move Down"
-                                                                >
-                                                                    ▼
-                                                                </button>
-                                                            </div>
-
-                                                            {/* Move/Remove Dropdown */}
-                                                            <select
-                                                                onChange={e => handleMoveList(listId, section.id, e.target.value)}
-                                                                style={{marginLeft: '10px', padding: '5px', fontSize: '0.8em', width: '85px'}}
-                                                                value={section.id}
-                                                            >
-                                                                <option value={section.id}>Move...</option>
-                                                                <optgroup label="Sections">
-                                                                    {sections.map(s => (
-                                                                        s.id !== section.id && <option key={s.id} value={s.id}>{s.name}</option>
-                                                                ))}
-                                                            </optgroup>
-                                                            <optgroup label="Unassigned">
-                                                                <option value="pool">Move to Pool</option>
-                                                            </optgroup>
-                                                        </select>
-                                                            </div>
-                                                    </div>
-                                                );
-                                            })
-                                        ) : (
-                                            <p style={{fontSize: '0.9em', color: '#6b778c'}}>Move lists here.</p>
-                                        )}
-                                        
-                                        {/* Section Options (Use first card as description) */}
-                                        <div className="section-options">
-                                            <label>
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={section.ignoreFirstCard}
-                                                    onChange={e => handleToggleIgnoreCard(section.id, e.target.checked)}
-                                                />
-                                                Do not include the first card in the total
-                                            </label>
-                                            {section.ignoreFirstCard && (
-                                                <label className="sub-option">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={section.displayFirstCardDescription}
-                                                        onChange={e => handleToggleDisplayDescription(section.id, e.target.checked)}
-                                                    />
-                                                    Display the first card as a description
-                                                </label>
-                                            )}
-                                        </div>
-
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     )}
@@ -1962,7 +2052,7 @@
                 const day = now.getDate().toString().padStart(2, '0');
                 const hours = now.getHours().toString().padStart(2, '0');
                 const minutes = now.getMinutes().toString().padStart(2, '0');
-                return `3.${year}${month}${day}${hours}${minutes}`;
+                return `3.2.${year}${month}${day}${hours}${minutes}`;
             })();
 
             const [modalList, setModalList] = useState(null);
@@ -1974,20 +2064,20 @@
             const sectionsLayout = boardId ? getPersistentLayout(user.id, boardId) : DEFAULT_LAYOUT;
             
             const allListsMap = new Map(listsFromSettings.map(list => [list.id, list]));
-            const persistentColors = getPersistentColors(user.id);
+                       const persistentColors = getPersistentColors(user.id);
             // Removed listAlerts reading
 
             // Removed alertSoundKey/Url
 
             // Removed usePrevious hook
 
-            // Define sectionsMap for rendering/lookup
-            const sectionsMap = new Map(sectionsLayout.map(s => [s.id, s]));
+            // Define blocksMap for rendering/lookup
+            const blocksMap = new Map(sectionsLayout.map(s => [s.id, s]));
 
-            // Toggle section collapse state
-            const handleToggleCollapse = (sectionId) => {
+            // Toggle block collapse state
+            const handleToggleCollapse = (blockId) => {
                 const newLayout = sectionsLayout.map(s => 
-                    s.id === sectionId ? { ...s, isCollapsed: !s.isCollapsed } : s
+                    s.id === blockId ? { ...s, isCollapsed: !s.isCollapsed } : s
                 );
                 setPersistentLayout(user.id, boardId, newLayout);
                 fetchListCounts(true);
@@ -2011,7 +2101,7 @@
 
                 const persistentColorsCopy = getPersistentColors(user.id); 
                 const currentLayout = getPersistentLayout(user.id, boardId);
-                const currentSectionsMap = new Map(currentLayout.map(s => [s.id, s]));
+                const currentBlocksMap = new Map(currentLayout.map(s => [s.id, s]));
                 const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
 
                 const dateFilterParam = calculateDateFilter(timeFilter);
@@ -2060,10 +2150,10 @@
                     
                     Array.from(uniqueListIds).forEach(listId => {
                         const listData = allListsMap.get(listId);
-                        const section = currentLayout.find(s => s.listIds.includes(listId));
+                        const block = currentLayout.find(s => s.listIds.includes(listId));
                         
-                        const isIgnored = section?.ignoreFirstCard;
-                        const displayDescription = section?.displayFirstCardDescription;
+                        const isIgnored = block?.ignoreFirstCard;
+                        const displayDescription = block?.displayFirstCardDescription;
                         const result = listResults[listId] || { count: 0, firstCardName: '' };
                         
                         let finalCount = result.count;
@@ -2142,11 +2232,11 @@
                  return (
                     <div className="container">
                         <div className="header">
-                            <h1>📊 Trello Dashboard</h1>
+                            <h1>Trellops Dashboard</h1>
                             <button className="logout-button" onClick={onLogout}>Log Out</button>
                         </div>
                         <p style={{textAlign: 'center', marginTop: '50px'}}>
-                            No board or lists configured. Please go to settings to set up your dashboard.
+                            No board or lists configured. Please go to settings to set up your first dashboard.
                         </p>
                         <div style={{textAlign: 'center', marginTop: '20px'}}>
                             <button className="settings-button" onClick={onShowSettings}>Go to Settings</button>
@@ -2189,9 +2279,9 @@
                         </div>
                     </div>
 
-                    {/* RENDER SECTIONS */}
-                    {sectionsLayout.map(section => {
-                        const sectionTiles = section.listIds
+                    {/* RENDER BLOCKS */}
+                    {sectionsLayout.map(block => {
+                        const blockTiles = block.listIds
                             .map(listId => {
                                 const tileData = counts.get(listId);
                                 
@@ -2210,17 +2300,17 @@
                             .filter(item => item !== undefined);
 
                         // Determine collapse state
-                        const isCollapsed = sectionsMap.get(section.id)?.isCollapsed || false;
+                        const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
 
-                        if (sectionTiles.length === 0 && !isCollapsed) return null;
+                        if (blockTiles.length === 0 && !isCollapsed) return null;
 
                         return (
-                            <div key={section.id} className="dashboard-section">
-                                <div className="section-header-row">
-                                    <div className="section-header">{section.name}</div>
+                            <div key={block.id} className="dashboard-block">
+                                <div className="block-header-row">
+                                    <div className="block-header">{block.name}</div>
                                     <button 
                                         className="collapse-toggle" 
-                                        onClick={() => handleToggleCollapse(section.id)}
+                                        onClick={() => handleToggleCollapse(block.id)}
                                         title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}
                                     >
                                         {isCollapsed ? (
@@ -2241,7 +2331,7 @@
                                 {/* Conditionally render the grid */}
                                 {!isCollapsed && (
                                     <div className="dashboard-grid">
-                                        {sectionTiles.map((item) => (
+                                        {blockTiles.map((item) => (
                                             <div
                                                 key={item.listId}
                                                 className="dashboard-tile"
