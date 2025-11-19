@@ -299,7 +299,7 @@
             display: flex;
             align-items: center;
             margin-top: 10px;
-            padding: 12px;
+            padding: 8x;
             background: var(--bg-primary); 
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -346,8 +346,11 @@
             flex-basis: 100%;
         }
         @media (min-width: 768px) {
-            .layout-column {
-                flex-basis: calc(50% - 10px);
+            .layout-column:first-child {
+                flex-basis: 40%;
+            }
+            .layout-column:last-child {
+                flex-basis: calc(60% - 20px);
             }
         }
         .layout-block-box {
@@ -1697,9 +1700,9 @@
                         <button className="logout-button" onClick={onLogout} style={{margin: 0}}>Log Out</button>
                     </div>
                     <h2>
-                        Dashboard Setup
-                        <a href="help.html" target="_blank" rel="noopener noreferrer" title="Help" style={{marginLeft: '10px', fontSize: '0.9em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center'}}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0}}>
+                        Trellops Dashboard Setup
+                        <a href="help.html" target="_blank" rel="noopener noreferrer" title="Help" style={{marginLeft: '10px', fontSize: '3em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center'}}>
+                            <svg width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0}}>
                                 <circle cx="12" cy="12" r="10" fill="var(--primary-color)" />
                                 <path d="M11 16h2v-2h-2v2zm1-12c-2.21 0-4 1.79-4 4h2a2 2 0 114 0c0 1.5-2 2.1-2 4" fill="var(--text-color)" />
                             </svg>
@@ -1708,12 +1711,12 @@
                     {error && <div className="error">{error}</div>}
 
                     <div className="admin-section">
-                        <h3>1. Choose your Trello board</h3>
+                        <h3>1. Choose your Trello Board</h3>
                         <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                             Boards are pulled directly from your Trello account, across all workspaces.
                         </p>
                         <div className="settings-row">
-                            <label htmlFor="board-select">Trello board:</label>
+                            <label htmlFor="board-select">Your Trello board:</label>
                             <select id="board-select" value={selectedBoardId} onChange={handleBoardChange}>
                                 <option value="">-- Select a Board --</option>
                                 {boards.map(board => (
@@ -1725,7 +1728,7 @@
 
                     {selectedBoard && (
                         <div className="admin-section">
-                            <h3>2. Manage your dashboard blocks</h3>
+                            <h3>2. Manage your Trellops Blocks</h3>
                             <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                                 A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
                             </p>
@@ -1790,14 +1793,14 @@
 
                     {selectedBoard && (
                         <div className="admin-section">
-                            <h3>3. Assign tiles to your blocks</h3>
+                            <h3>3. Assign Tiles to your Blocks</h3>
                             <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                                Tiles show the total count of cards in each Trello list, automatically updating as the cards are updated. Choose the lists from the left unassigned pool, you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
+                                Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left,  the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
                             </p>
                             <div className="layout-config-container">
                                 <div className="layout-column">
                                     <div className="layout-block-box">
-                                        <h4 style={{marginBottom: '10px', color: '#6b778c'}}>Unassigned Lists ({listPool.length})</h4>
+                                        <h4 style={{marginBottom: '10px', color: '#6b778c'}}>Pool of Unassigned Trello Lists ({listPool.length})</h4>
                                         <div className="list-pool" style={{minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                             {listPool.map(list => (
                                                 <div key={list.id} className="layout-list-item" style={{justifyContent: 'flex-start', flexWrap: 'wrap', gap: '10px', flexBasis: 'auto', flexGrow: 0}}>
@@ -1892,7 +1895,7 @@
                                                         checked={block.ignoreFirstCard}
                                                         onChange={e => handleToggleIgnoreCard(block.id, e.target.checked)}
                                                     />
-                                                    Do not include the first card in the total
+                                                    Do not count the first card in the total
                                                 </label>
                                                 {block.ignoreFirstCard && (
                                                     <label className="sub-option">
@@ -1901,7 +1904,7 @@
                                                             checked={block.displayFirstCardDescription}
                                                             onChange={e => handleToggleDisplayDescription(block.id, e.target.checked)}
                                                         />
-                                                        Display the first card as a description
+                                                        Display the first card as tile description
                                                     </label>
                                                 )}
                                             </div>
@@ -1916,7 +1919,7 @@
                         <div className="admin-section">
                             <h3>4. Other Dashboard settings for "{selectedBoard.name}"</h3>
                             <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                                These settings are saved separately for each board.
+                                These settings are saved separately for each board. Auto-refresh must be at least 30 seconds. The digital clock appears in the top-left corner for the screen and follows the local computer time format.
                             </p>
                             <div className="three-column">
                                 <div className="settings-row">
@@ -1939,7 +1942,6 @@
                                 </div>
                                 
                                 <div className="settings-row">
-                                    <label htmlFor="show-clock-check">Show Clock</label>
                                     <label className="switch">
                                         <input 
                                             type="checkbox" 
@@ -1949,6 +1951,7 @@
                                         />
                                         <span className="slider round"></span>
                                     </label>
+                                    <label htmlFor="show-clock-check">Show Digital Clock</label>
                                 </div>
                                 
                                 <div className="settings-row">
@@ -2229,11 +2232,11 @@
                  return (
                     <div className="container">
                         <div className="header">
-                            <h1>📊 Trello Dashboard</h1>
+                            <h1>Trellops Dashboard</h1>
                             <button className="logout-button" onClick={onLogout}>Log Out</button>
                         </div>
                         <p style={{textAlign: 'center', marginTop: '50px'}}>
-                            No board or lists configured. Please go to settings to set up your dashboard.
+                            No board or lists configured. Please go to settings to set up your first dashboard.
                         </p>
                         <div style={{textAlign: 'center', marginTop: '20px'}}>
                             <button className="settings-button" onClick={onShowSettings}>Go to Settings</button>
