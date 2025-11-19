@@ -149,6 +149,23 @@
             align-items: center;
             flex-shrink: 0;
         }
+
+        /* Subtle help link shown next to the settings header */
+        .subtle-help-link {
+            margin-left: 12px;
+            font-size: 0.82em;
+            color: #2a8dff; /* subtle blue */
+            text-decoration: none;
+            padding: 4px 6px;
+            border-radius: 6px;
+            display: inline-block;
+            font-weight: 500;
+        }
+        .subtle-help-link:hover {
+            color: #1a73e8;
+            background-color: rgba(42,141,255,0.06);
+            text-decoration: underline;
+        }
         .countdown {
             margin-right: 15px;
             font-size: 0.9em;
@@ -1699,14 +1716,9 @@
                      <div style={{position: 'absolute', top: '10px', right: '10px'}}>
                         <button className="logout-button" onClick={onLogout} style={{margin: 0}}>Log Out</button>
                     </div>
-                    <h2>
-                        Trellops Dashboard Setup
-                        <a href="help.html" target="_blank" rel="noopener noreferrer" title="Help" style={{marginLeft: '10px', fontSize: '3em', textDecoration: 'none', display: 'inline-flex', alignItems: 'center'}}>
-                            <svg width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{flexShrink: 0}}>
-                                <circle cx="12" cy="12" r="10" fill="var(--primary-color)" />
-                                <path d="M11 16h2v-2h-2v2zm1-12c-2.21 0-4 1.79-4 4h2a2 2 0 114 0c0 1.5-2 2.1-2 4" fill="var(--text-color)" />
-                            </svg>
-                        </a>
+                    <h2 style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                        <span>Trellops Dashboard Setup</span>
+                        <a href="help.html" target="_blank" rel="noopener noreferrer" className="subtle-help-link">First time user? Check out our user guide</a>
                     </h2>
                     {error && <div className="error">{error}</div>}
 
