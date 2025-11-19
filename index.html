@@ -495,6 +495,71 @@
             gap: 10px;
         }
 
+        .three-column {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
         /* --- Landing Page Styles --- */
         .landing-page {
             background-color: #121212;
@@ -963,7 +1028,7 @@
         };
 
         // Dashboard Layout Management
-        const DEFAULT_LAYOUT = [{ id: 'all', name: 'All', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];
+        const DEFAULT_LAYOUT = [{ id: 'all', name: 'Default', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];
 
         const getPersistentLayout = (userId, boardId) => {
             try {
@@ -1414,7 +1479,7 @@
 
                 const listIdsToMoveBack = blockToRemove.listIds;
 
-                // Add lists from the removed block back to the 'All' block
+                // Add lists from the removed block back to the 'Default' block
                 const newBlocks = blocks
                     .filter(s => s.id !== blockId)
                     .map(s => {
@@ -1424,9 +1489,9 @@
                         return s;
                     });
 
-                // Ensure 'All' block exists if it was somehow deleted
+                // Ensure 'Default' block exists if it was somehow deleted
                 if (!newBlocks.some(s => s.id === 'all')) {
-                    newBlocks.unshift({ id: 'all', name: 'All', listIds: listIdsToMoveBack, ignoreFirstCard: false, isCollapsed: false });
+                    newBlocks.unshift({ id: 'all', name: 'Default', listIds: listIdsToMoveBack, ignoreFirstCard: false, isCollapsed: false });
                 }
 
                 setBlocks(newBlocks);
@@ -1661,8 +1726,11 @@
                     {selectedBoard && (
                         <div className="admin-section">
                             <h3>Dashboard settings for "{selectedBoard.name}"</h3>
-                            <div className="settings-row options-row">
-                                <div>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                These settings are saved separately for each board.
+                            </p>
+                            <div className="three-column">
+                                <div className="settings-row">
                                     <label>Auto-Refresh:</label>
                                     <input
                                         type="number"
@@ -1681,17 +1749,20 @@
                                     </select>
                                 </div>
                                 
-                                <div>
-                                    <input 
-                                        type="checkbox" 
-                                        id="show-clock-check"
-                                        checked={showClockSetting}
-                                        onChange={e => handleToggleClock(e.target.checked)}
-                                    />
+                                <div className="settings-row">
                                     <label htmlFor="show-clock-check">Show Clock</label>
+                                    <label className="switch">
+                                        <input 
+                                            type="checkbox" 
+                                            id="show-clock-check"
+                                            checked={showClockSetting}
+                                            onChange={e => handleToggleClock(e.target.checked)}
+                                        />
+                                        <span className="slider round"></span>
+                                    </label>
                                 </div>
                                 
-                                <div>
+                                <div className="settings-row">
                                     <label htmlFor="theme-select">Theme:</label>
                                     <select 
                                         id="theme-select"
@@ -1711,7 +1782,9 @@
                     {selectedBoard && (
                         <div className="admin-section">
                             <h3>Manage your dashboard blocks</h3>
-
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                A block is a group of tiles representing each Trello list or column.
+                            </p>
                             <div className="block-management">
                                 <input
                                     type="text"
@@ -1760,7 +1833,7 @@
                                             <button
                                                 className="remove-block-button"
                                                 onClick={() => handleRemoveBlock(block.id)}
-                                                title="Delete block and move lists to 'All'"
+                                                title="Delete block and move lists to 'Default'"
                                             >
                                                 &times;
                                             </button>
@@ -1774,6 +1847,9 @@
                     {selectedBoard && (
                         <div className="admin-section">
                             <h3>Assign tiles to your blocks</h3>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                Choose from the left unassigned pool which Trello List you want to create as a card in the respective block on the right. Customise each tile position and colour.
+                            </p>
                             <div className="layout-config-container">
                                 <div className="layout-column">
                                     <div className="layout-block-box">
@@ -1781,8 +1857,8 @@
                                         <div className="list-pool" style={{minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
                                             {listPool.map(list => (
                                                 <div key={list.id} className="layout-list-item" style={{justifyContent: 'flex-start', flexWrap: 'wrap', gap: '10px', flexBasis: 'auto', flexGrow: 0}}>
-                                                    <span style={{flexGrow: 1}}>{list.name}</span>
-                                                    <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap'}}>
+                                                    <span style={{flexGrow: 1, flexBasis: '100%'}}>{list.name}</span>
+                                                    <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%'}}>
                                                         {blocks.map(block => (
                                                             <button 
                                                                 key={block.id}
@@ -1974,7 +2050,7 @@
                 const day = now.getDate().toString().padStart(2, '0');
                 const hours = now.getHours().toString().padStart(2, '0');
                 const minutes = now.getMinutes().toString().padStart(2, '0');
-                return `3.${year}${month}${day}${hours}${minutes}`;
+                return `3.5.${year}${month}${day}${hours}${minutes}`;
             })();
 
             const [modalList, setModalList] = useState(null);
