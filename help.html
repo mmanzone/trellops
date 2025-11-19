@@ -19,6 +19,9 @@
         h2{font-size:1.2em;margin-top:28px;color:#ffffff}
         .guide-image{max-width:100%;border-radius:8px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,0.5)}
         .meta-row{margin-top:6px;color:#9aa8b3;font-size:0.9em}
+        /* Make quick links more readable against dark background */
+        .meta-row a{color:#cfeeff;text-decoration:none;font-weight:600}
+        .meta-row a:hover{color:#ffffff;text-decoration:underline}
         .video-embed{margin-top:18px}
         .footer{margin-top:40px;color:#9aa8b3;font-size:0.9em}
     </style>
@@ -29,20 +32,139 @@
         <a class="home-link" href="index.html">← Home</a>
         <h1>Trellops User Guide</h1>
 
-        <h2>Components</h2>
-        <p class="meta-row">Click the image to open a larger version.</p>
+        <p class="meta-row">Quick links: <a href="#user-guide">User guide</a> · <a href="#walkthrough">Walkthrough</a> · <a href="#faq">FAQ</a></p>
+
+        <h2 id="user-guide">How to use Trellops</h2>
+        <p>This section provides an overview of accessing Trellops and interacting with the completed dashboard.</p>
+
+        <h3>Initial Setup and Security</h3>
+        <p>Access Trellops by logging in with your Atlassian Trello user account. All configuration information is stored locally on your computer; Trellops does not store user data on its servers. For security, Trellops only requires read permissions from Trello and cannot make any changes to your boards.</p>
+
+        <h3>Dashboard Interaction and Filtering</h3>
+        <ul>
+            <li><strong>View Cards:</strong> Clicking on a tile displays a detailed list of the cards contained within that Trello list, including any associated labels.</li>
+            <li><strong>Access Trello:</strong> Clicking on an individual card in the detailed list will take you directly to that card on the original Trello board.</li>
+            <li><strong>Filtering:</strong> The dashboard can be filtered to display cards based on a specific time period (for example, cards created "last week" or "this week").</li>
+            <li><strong>Hide/Show Blocks:</strong> Blocks can be temporarily hidden or shown on the final dashboard view using the associated icon.</li>
+        </ul>
+
+        <h2>Setting up Trellops</h2>
+        <ol>
+            <li>
+                <strong>Selecting a Trello Board</strong>
+                <p>Choose the specific Trello board for which you wish to create a dashboard. All boards accessible by your Trello account, across all workspaces, will be available for selection.</p>
+            </li>
+            <li>
+                <strong>Creating and Managing Blocks</strong>
+                <p>Blocks are logical groupings of Trello lists (tiles) on the dashboard.</p>
+                <ul>
+                    <li><strong>Create Blocks:</strong> Define a name for each block (for example, "Backlog", "In progress", "Completed").</li>
+                    <li><strong>Reorder:</strong> Blocks can be reordered on the dashboard layout at any time.</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Configuring List Tiles</strong>
+                <p>Select Trello lists from your chosen board to display as individual tiles on the dashboard.</p>
+                <ul>
+                    <li><strong>Assignment:</strong> Move to assign each selected list to one of your created blocks.</li>
+                    <li><strong>Reorder Tiles:</strong> Lists (tiles) can be moved up or down within their assigned block.</li>
+                    <li><strong>Colour Customisation:</strong> Assign a custom colour to each tile for visual differentiation. If no colour is chosen, the system will assign a random one.</li>
+                    <li><strong>Move Menu:</strong> If a tile is mistakenly assigned to the wrong block, use the "move" menu to reassign it.</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Other Settings</strong>
+                <ul>
+                    <li><strong>Refresh Rate:</strong> By default, the dashboard refreshes every minute. This interval can be changed, with a minimum refresh rate of every 30 seconds.</li>
+                    <li><strong>Digital Clock:</strong> You can enable a digital clock to be displayed on the top left of the dashboard.</li>
+                    <li><strong>Theme:</strong> The theme (light/dark) will default to following the system settings but can be manually changed.</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Advanced Settings</strong>
+                <p>These settings control how the first card of a list is handled, typically for lists where the first card is a description rather than a task.</p>
+                <ul>
+                    <li><strong>Do not count the first card in the total:</strong> Excludes the first card from the displayed card count.</li>
+                    <li><strong>Display the first card as tile description:</strong> Allows the content of the first card to be shown as a description on the main dashboard tile, even if it is excluded from the count.</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h3>Export and Import Configuration</h3>
+        <p><strong>Export Layout:</strong> To share your dashboard configuration with colleagues: Click on the "More options..." button, then select "Export the configuration to a file." The file will be saved locally.</p>
+        <p><strong>Import Layout:</strong> To apply a shared configuration: Ensure you have access to the same Trello board, then import the shared configuration file. The dashboard will update once the settings are saved.</p>
+
         <p>
             <a href="trellops-guide.png" target="_blank" rel="noopener noreferrer">
                 <img src="trellops-guide.png" alt="Trellops Guide" class="guide-image" />
             </a>
         </p>
-       
+      <p class="meta-row">Click the image to open a larger version.</p>
 
-        <h2>Video Walkthrough</h2>
+
+        <h3>Video Walkthrough</h3>
         <div class="video-embed">
             <div class="sp-embed-player" data-id="cTXq3anqlqS" data-aspect-ratio="1.825352" data-padding-top="54.783951%" style="position:relative;width:100%;aspect-ratio:1.825352;"><script src="https://go.screenpal.com/consumption/player_appearance/cTXq3anqlqS/1.825352"></script><iframe style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"  scrolling="no" src="https://go.screenpal.com/player/cTXq3anqlqS?ff=1&title=0" allowfullscreen="true"></iframe></div>
         </div>
 
+        <h2 id="faq">Trellops: Frequently Asked Questions (FAQ)</h2>
+
+        <h3>Getting Started and Security</h3>
+        <dl>
+            <dt><strong>Q: How do I access Trellops?</strong></dt>
+            <dd>A: You must log in using your existing Atlassian Trello user account.</dd>
+
+            <dt><strong>Q: Is my Trello data stored on your servers?</strong></dt>
+            <dd>A: No. All dashboard configuration data is stored locally on your computer. Trellops does not store any user information on external servers.</dd>
+
+            <dt><strong>Q: What permissions does Trellops require for my Trello boards?</strong></dt>
+            <dd>A: Trellops only requires read permissions. It cannot create, edit, or delete cards, lists, or boards on your Trello account.</dd>
+
+            <dt><strong>Q: Which Trello boards can I create a dashboard for?</strong></dt>
+            <dd>A: You can create a dashboard for any Trello board your user account has access to, across all your workspaces.</dd>
+        </dl>
+
+        <h3>Configuration and Display</h3>
+        <dl>
+            <dt><strong>Q: What is a "Block" in Trellops?</strong></dt>
+            <dd>A: A Block is a collection of Trello lists (displayed as tiles) that you group together on the dashboard. This allows for logical separation and the ability to temporarily hide or show large sections of the dashboard.</dd>
+
+            <dt><strong>Q: How do I assign a Trello list to a Block?</strong></dt>
+            <dd>A: In the setup, you move to assign the selected Trello lists to the desired Block you have created.</dd>
+
+            <dt><strong>Q: Can I change the order of my Blocks or my Lists?</strong></dt>
+            <dd>A: Yes. You can reorder Blocks on the dashboard layout at any time, and you can move Lists (tiles) up or down within their assigned Block.</dd>
+
+            <dt><strong>Q: What happens if I don't assign a color to a tile?</strong></dt>
+            <dd>A: The system will automatically assign a random color to the tile.</dd>
+
+            <dt><strong>Q: How often does the dashboard update?</strong></dt>
+            <dd>A: By default, the dashboard refreshes every minute. You can adjust this value in the "Other Settings," with a minimum refresh rate of every 30 seconds.</dd>
+        </dl>
+
+        <h3>Advanced Settings</h3>
+        <dl>
+            <dt><strong>Q: Why would the card count on the tile be inaccurate compared to my Trello list?</strong></dt>
+            <dd>A: This often happens if the first card in your list is used as a list description or set of instructions, rather than an actual task card.</dd>
+
+            <dt><strong>Q: How do I correct an inaccurate card count?</strong></dt>
+            <dd>A: In the "Advanced Settings" for that specific list, select the option: <em>Do not count the first card in the total</em>. This excludes the descriptive card from the final tally.</dd>
+
+            <dt><strong>Q: Can I display the content of that descriptive first card on the tile?</strong></dt>
+            <dd>A: Yes. If you want to exclude the card from the count but still use it for context, select the option: <em>Display the first card as tile description</em>.</dd>
+        </dl>
+
+        <h3>Sharing and Interaction</h3>
+        <dl>
+            <dt><strong>Q: How do I view the cards behind a tile?</strong></dt>
+            <dd>A: Simply click on the tile. A detailed list of the cards and their associated labels will appear.</dd>
+
+            <dt><strong>Q: How do I go directly to a card in Trello?</strong></dt>
+            <dd>A: After clicking the tile to view the detailed card list, click on the individual card you are interested in. This will take you directly to that card on the original Trello board.</dd>
+
+            <dt><strong>Q: Can I share my dashboard layout with my team?</strong></dt>
+            <dd>A: Yes. You can Export the configuration to a file using the "More options..." menu. As long as your colleagues have access to the same Trello board and use Trellops, they can import this file.</dd>
+        </dl>
 
         <div class="footer">
             <p>Privacy Disclaimer: <a href="privacy.html" style="color:var(--accent)">Read</a></p>
