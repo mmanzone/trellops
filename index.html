@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
     <title>Trellops - Your Trello board, visualised</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -725,8 +727,12 @@
         }
 
         @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
             .hero-section h1 {
-                font-size: 3em;
+                font-size: 2em;
             }
 
             .value-grid {
@@ -735,6 +741,106 @@
 
             .features-grid {
                 grid-template-columns: 1fr;
+            }
+
+            /* Dashboard responsive styles */
+            .dashboard-block {
+                padding: 15px;
+            }
+
+            .block-header {
+                font-size: 1.4em;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .dashboard-tile {
+                min-height: 140px;
+            }
+
+            .card-count {
+                font-size: 3.5em;
+            }
+
+            .list-name {
+                font-size: 1em;
+            }
+
+            /* Form and settings responsive */
+            .form-card {
+                padding: 20px;
+                margin: 10px auto;
+            }
+
+            /* Buttons and controls */
+            button, .settings-button, .logout-button, .save-layout-button, .refresh-button, label.settings-button {
+                padding: 10px 16px;
+                font-size: 0.95em;
+                min-height: 44px; /* Touch-friendly size */
+            }
+
+            /* Header and navigation */
+            .header-row {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .header-row > * {
+                flex: 1 1 auto;
+            }
+
+            /* Modal responsive */
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+                max-height: 95vh;
+            }
+
+            /* Layout columns */
+            .layout-column {
+                flex-basis: 100% !important;
+            }
+
+            /* Typography adjustments */
+            h1 {
+                font-size: 1.8em;
+            }
+
+            h2 {
+                font-size: 1.4em;
+            }
+
+            h3 {
+                font-size: 1.2em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            .dashboard-block {
+                padding: 10px;
+            }
+
+            .block-header {
+                font-size: 1.2em;
+            }
+
+            .card-count {
+                font-size: 3em;
+            }
+
+            .form-card {
+                padding: 15px;
+            }
+
+            .hero-section h1 {
+                font-size: 1.5em;
             }
         }
 
