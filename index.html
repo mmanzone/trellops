@@ -37,8 +37,8 @@
             --text-color: #e0e0e0;
             --text-secondary: #aaaaaa;
             --border-color: #444;
-            --primary-color: #9aa8b3;
-            --primary-hover-color: #82919c;
+            --primary-color: #5a646b;
+            --primary-hover-color: #707980;
             --danger-color: #dc3545;
             --danger-hover-color: #e06c75;
             --shadow-color: rgba(0, 0, 0, 0.2);
@@ -69,7 +69,7 @@
         /* --- Buttons --- */
         button, .settings-button, .logout-button, .save-layout-button, .refresh-button, label.settings-button {
             background-color: var(--primary-color);
-            color: #222;
+            color: var(--text-color);
             border: none;
             padding: 6px 12px;
             border-radius: 6px;
@@ -1414,13 +1414,13 @@
                     layout: getPersistentLayout(user.id, selectedBoardId),
                     colors: getPersistentColors(user.id)[selectedBoardId],
                     // NOTE: API Key and Token are EXCLUDED for security
-                    boardName: allBoardLists.find(b => b.id === selectedBoardId)?.name || 'UnknownBoard'
+                    boardName: selectedBoard?.name || 'UnknownBoard'
                 };
 
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(configData, null, 2));
                 const downloadAnchorNode = document.createElement('a');
                 downloadAnchorNode.setAttribute("href", dataStr);
-                downloadAnchorNode.setAttribute("download", `trello_dashboard_config_${configData.boardName.replace(/\s/g, '_')}.json`);
+                downloadAnchorNode.setAttribute("download", `trellops_${configData.boardName.replace(/\s/g, '_')}_configuration.json`);
                 document.body.appendChild(downloadAnchorNode);
                 downloadAnchorNode.click();
                 downloadAnchorNode.remove();
@@ -2219,11 +2219,8 @@
 
                 const persistentColorsCopy = getPersistentColors(user.id); 
                 const currentLayout = getPersistentLayout(user.id, boardId);
-                const currentBlocksMap = new Map(currentLayout.map(s => [s.id, s]));
                 const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
-
                 const dateFilterParam = calculateDateFilter(timeFilter);
-                
                 const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
 
                 if (uniqueListIds.size === 0) {
@@ -2233,34 +2230,42 @@
                 }
                 
                 try {
-                    // --- API OPTIMIZATION: Single Call for Board Data ---
-                    // Fetch all cards from the board with necessary fields
-                    const allCards = await trelloFetch(
-                        `/boards/${boardId}/cards?fields=id,idList,name${dateFilterParam}`, 
+                    // --- New Logic: Identify and fetch first card for lists where it might be ignored/used as description ---
+                    const ignorableFirstCardLists = new Set();
+                    currentLayout.forEach(block => {
+                        if (block.ignoreFirstCard) {
+                            block.listIds.forEach(listId => ignorableFirstCardLists.add(listId));
+                        }
+                    });
+
+                    const firstCardPromises = Array.from(ignorableFirstCardLists).map(listId =>
+                        trelloFetch(`/lists/${listId}/cards?limit=1&fields=name,id`, user.token)
+                        .then(cards => ({ listId, firstCard: cards.length > 0 ? cards[0] : null }))
+                        .catch(e => {
+                            console.error(`Error fetching first card for list ${listId}:`, e);
+                            return { listId, firstCard: null };
+                        })
+                    );
+                    
+                    const firstCardResults = await Promise.all(firstCardPromises);
+                    const firstCardMap = new Map(firstCardResults.map(r => [r.listId, r.firstCard]));
+
+                    // Fetch all cards for counting, respecting the time filter. Only ID and list association are needed.
+                    const allCardsForCount = await trelloFetch(
+                        `/boards/${boardId}/cards?fields=id,idList${dateFilterParam}`, 
                         user.token
                     );
 
                     const listResults = {};
                     
-                    // 2. Process results
-                    allCards.forEach(card => {
-                        // Ignore cards not in a selected list
+                    // 2. Process card counts from the time-filtered results
+                    allCardsForCount.forEach(card => {
                         if (!uniqueListIds.has(card.idList)) return;
                         
                         if (!listResults[card.idList]) {
-                            listResults[card.idList] = {
-                                count: 0,
-                                firstCardName: ''
-                            };
+                            listResults[card.idList] = { count: 0 };
                         }
-                        
-                        // Count total cards
                         listResults[card.idList].count++;
-
-                        // Capture the name of the first card we encounter in the single batch fetch.
-                        if (listResults[card.idList].firstCardName === '') {
-                            listResults[card.idList].firstCardName = card.name;
-                        }
                     });
 
                     // 3. Final calculation and mapping
@@ -2272,12 +2277,31 @@
                         
                         const isIgnored = block?.ignoreFirstCard;
                         const displayDescription = block?.displayFirstCardDescription;
-                        const result = listResults[listId] || { count: 0, firstCardName: '' };
+                        const result = listResults[listId] || { count: 0 };
                         
                         let finalCount = result.count;
-                        if (isIgnored && finalCount > 0) {
-                            finalCount -= 1;
+                        let descriptionCardName = '';
+
+                        // If the first card should be ignored, we may need to adjust the count
+                        if (isIgnored) {
+                            const firstCard = firstCardMap.get(listId);
+                            if (firstCard) {
+                                // Check if this first card ID is present in the time-filtered list of cards
+                                const isFirstCardInFilteredSet = allCardsForCount.some(c => c.id === firstCard.id);
+                                
+                                // If it IS in the set, we need to subtract one because it's being used as a description
+                                // or is otherwise ignored, and shouldn't be part of the count.
+                                if (isFirstCardInFilteredSet) {
+                                    finalCount--;
+                                }
+                                
+                                // If "display description" is also checked, set the name for display
+                                if (displayDescription) {
+                                    descriptionCardName = firstCard.name;
+                                }
+                            }
                         }
+                        if (finalCount < 0) finalCount = 0; // Sanity check
 
                         let color = persistentColors[boardId]?.[listId] || listData?.color;
                         if (!color || color === '#cccccc') {
@@ -2289,7 +2313,7 @@
                             count: finalCount,
                             name: listData?.name,
                             displayColor: color,
-                            firstCardName: isIgnored && displayDescription ? result.firstCardName : '' 
+                            firstCardName: descriptionCardName
                         });
                     });
                     
