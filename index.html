@@ -104,6 +104,16 @@
             background-color: var(--danger-hover-color);
         }
         
+        .error {
+            background-color: #dc3545; /* A standard danger red */
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+            border: 1px solid #c82333;
+        }
+
         .button-secondary {
             background-color: var(--bg-secondary);
             color: var(--text-color);
@@ -1771,8 +1781,8 @@
                     setError('Minimum refresh rate is 10 seconds.');
                     return;
                 }
-                if (intervalInSeconds > 7200) { // 2 hours = 7200 seconds
-                    setError('Maximum refresh rate is 2 hours.');
+                if (intervalInSeconds > 86400) { // 24 hours = 86400 seconds
+                    setError('Maximum refresh rate is 24 hours.');
                     return;
                 }
                 // Save final refresh setting
@@ -1826,7 +1836,6 @@
                         <span>Trellops Dashboard Setup</span>
                         <a href="help.html" target="_blank" rel="noopener noreferrer" className="subtle-help-link">First time user? Check out our user guide</a>
                     </h2>
-                    {error && <div className="error">{error}</div>}
 
                     <div className="admin-section">
                         <h3>1. Choose your Trello Board</h3>
@@ -2035,9 +2044,9 @@
 
                     {selectedBoard && (
                         <div className="admin-section">
-                            <h3>4. Other Dashboard settings for "{selectedBoard.name}"</h3>
+                            <h3>4. Other Dashboard Settings for "{selectedBoard.name}"</h3>
                             <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                                These settings are saved separately for each board. Auto-refresh must be at least 30 seconds. The digital clock appears in the top-left corner for the screen and follows the local computer time format.
+                                These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommmended 30 seconds for live displays. The digital clock appears in the top-left corner for the screen and follows the local computer time format.
                             </p>
                             <div className="three-column">
                                 <div className="settings-row">
@@ -2087,6 +2096,8 @@
                             </div>
                         </div>
                     )}
+                    
+                    {error && <div className="error">{error}</div>}
                     
                     {/* Global Notification Settings (REMOVED) */}
 
