@@ -908,6 +908,7 @@
             THEME: 'dashboardTheme',
             CLOCK_SETTING: 'dashboardClockSetting_',
             REFRESH_INTERVAL: 'dashboardRefreshInterval_',
+            IGNORE_TEMPLATE_CARDS: 'dashboardIgnoreTemplateCards_',
             RANDOM_COLORS_CACHE: 'dashboardRandomColors'
         };
         
@@ -1224,7 +1225,7 @@
         };
 
         // --- Component: Card Details Modal ---
-        const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLayout }) => {
+        const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLayout, ignoreTemplateCards }) => {
             const [cards, setCards] = useState([]);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState('');
@@ -1238,10 +1239,14 @@
             useEffect(() => {
                 setLoading(true);
                 setError('');
-                trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels`, token) 
+                trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels,isTemplate`, token) 
                     .then(data => {
+                        let cardsToDisplay = data;
+                        if (ignoreTemplateCards) {
+                             cardsToDisplay = cardsToDisplay.filter(card => !card.isTemplate);
+                        }
                         // Conditionally filter the first card based on setting
-                        const filteredCards = shouldIgnoreFirst ? data.slice(1) : data;
+                        const filteredCards = shouldIgnoreFirst ? cardsToDisplay.slice(1) : cardsToDisplay;
                         setCards(filteredCards);
                     })
                     .catch(e => {
@@ -1249,7 +1254,7 @@
                         setError(`Failed to load cards for this list: ${e.message}`);
                     })
                     .finally(() => setLoading(false));
-            }, [listId, token, shouldIgnoreFirst]);
+            }, [listId, token, shouldIgnoreFirst, ignoreTemplateCards]);
 
             return (
                 <div className="modal-overlay" onClick={onClose}>
@@ -1397,6 +1402,8 @@
             
             // Clock setting state for settings screen
             const [showClockSetting, setShowClockSetting] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + initialSettings.boardId) !== 'false');
+             // NEW: Ignore Template Cards setting
+            const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(() => localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + initialSettings.boardId) !== 'false');
             
             // Theme setting from Context
             const { theme, toggleTheme } = useContext(DarkModeContext);
@@ -1513,6 +1520,7 @@
                     // 3. Clear other per-board settings
                     localStorage.removeItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId);
                     localStorage.removeItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
+                    localStorage.removeItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId);
             
                     // 4. Clear the main settings if it's the current board
                     const currentSettings = getUserData(user.id, 'settings');
@@ -1525,6 +1533,7 @@
                     setListColors({});
                     setRefreshValue(defaultRefreshSetting.value);
                     setRefreshUnit(defaultRefreshSetting.unit);
+                    setIgnoreTemplateCards(true); // Reset to default
                     
                     alert(`Layout cleared for "${boardName}". The dashboard will now reset.`);
                     
@@ -1557,6 +1566,7 @@
                 const boardPersistentColors = getPersistentColors(user.id)[selectedBoardId] || {};
                 const boardLayout = getPersistentLayout(user.id, selectedBoardId);
                 const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId) !== 'false';
+                const ignoreTemplates = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId) !== 'false';
                 
                 // Read refresh setting
                 const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
@@ -1569,6 +1579,7 @@
                         setListColors(boardPersistentColors);
                         setBlocks(boardLayout);
                         setShowClockSetting(clockSetting);
+                        setIgnoreTemplateCards(ignoreTemplates);
                         setRefreshValue(rValue);
                         setRefreshUnit(rUnit);
                     })
@@ -1586,6 +1597,7 @@
                 setListColors(getPersistentColors(user.id)[newId] || {});
                 setAllBoardLists([]);
                 setShowClockSetting(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + newId) !== 'false');
+                setIgnoreTemplateCards(localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + newId) !== 'false');
 
                 const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + newId);
                 const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
@@ -1683,6 +1695,12 @@
             const handleToggleClock = (isChecked) => {
                 setShowClockSetting(isChecked);
                 localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, isChecked ? 'true' : 'false');
+            };
+
+            // NEW: Handler for Ignore Template Cards checkbox
+            const handleToggleIgnoreTemplateCards = (isChecked) => {
+                setIgnoreTemplateCards(isChecked);
+                localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, isChecked ? 'true' : 'false');
             };
             
             // Alert Handler (REMOVED)
@@ -2046,7 +2064,7 @@
                         <div className="admin-section">
                             <h3>4. Other Dashboard Settings for "{selectedBoard.name}"</h3>
                             <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                                These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommmended 30 seconds for live displays. The digital clock appears in the top-left corner for the screen and follows the local computer time format.
+                                These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommmended 30 seconds for live displays. The digital clock appears in the top-left corner for the screen and follows the local computer time format. Template Cards in Trello can be exceluded from the count (recommended)
                             </p>
                             <div className="three-column">
                                 <div className="settings-row">
@@ -2079,6 +2097,19 @@
                                         <span className="slider round"></span>
                                     </label>
                                     <label htmlFor="show-clock-check">Show Digital Clock</label>
+                                </div>
+
+                                <div className="settings-row">
+                                    <label className="switch">
+                                        <input 
+                                            type="checkbox" 
+                                            id="ignore-templates-check"
+                                            checked={ignoreTemplateCards}
+                                            onChange={e => handleToggleIgnoreTemplateCards(e.target.checked)}
+                                        />
+                                        <span className="slider round"></span>
+                                    </label>
+                                    <label htmlFor="ignore-templates-check">Ignore Template Cards</label>
                                 </div>
                                 
                                 <div className="settings-row">
@@ -2139,7 +2170,7 @@
                                 onClick={onExport}
                                 disabled={!selectedBoardId}
                             >
-                                Export configuration for {boardName}
+                                Export Dashboard configuration for {boardName}
                             </button>
 
                             <label htmlFor="import-file-input" className="settings-button">
@@ -2220,6 +2251,7 @@
             const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
             const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
             const refreshIntervalMs = convertIntervalToMilliseconds(refreshSetting.value, refreshSetting.unit);
+            const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
 
 
             const fetchListCounts = useCallback(async (manual = false) => {
@@ -2233,6 +2265,8 @@
                 const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
                 const dateFilterParam = calculateDateFilter(timeFilter);
                 const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
+                const ignoreTemplateCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+
 
                 if (uniqueListIds.size === 0) {
                     setCounts(new Map());
@@ -2250,7 +2284,7 @@
                     });
 
                     const firstCardPromises = Array.from(ignorableFirstCardLists).map(listId =>
-                        trelloFetch(`/lists/${listId}/cards?limit=1&fields=name,id`, user.token)
+                        trelloFetch(`/lists/${listId}/cards?limit=1&fields=name,id,isTemplate`, user.token)
                         .then(cards => ({ listId, firstCard: cards.length > 0 ? cards[0] : null }))
                         .catch(e => {
                             console.error(`Error fetching first card for list ${listId}:`, e);
@@ -2263,14 +2297,18 @@
 
                     // Fetch all cards for counting, respecting the time filter. Only ID and list association are needed.
                     const allCardsForCount = await trelloFetch(
-                        `/boards/${boardId}/cards?fields=id,idList${dateFilterParam}`, 
+                        `/boards/${boardId}/cards?fields=id,idList,isTemplate${dateFilterParam}`, 
                         user.token
                     );
+                    
+                    const cardsForProcessing = ignoreTemplateCardsSetting
+                        ? allCardsForCount.filter(c => !c.isTemplate)
+                        : allCardsForCount;
 
                     const listResults = {};
                     
                     // 2. Process card counts from the time-filtered results
-                    allCardsForCount.forEach(card => {
+                    cardsForProcessing.forEach(card => {
                         if (!uniqueListIds.has(card.idList)) return;
                         
                         if (!listResults[card.idList]) {
@@ -2297,8 +2335,8 @@
                         if (isIgnored) {
                             const firstCard = firstCardMap.get(listId);
                             if (firstCard) {
-                                // Check if this first card ID is present in the time-filtered list of cards
-                                const isFirstCardInFilteredSet = allCardsForCount.some(c => c.id === firstCard.id);
+                                // Check if this first card ID is present in the time-filtered, template-filtered list of cards
+                                const isFirstCardInFilteredSet = cardsForProcessing.some(c => c.id === firstCard.id);
                                 
                                 // If it IS in the set, we need to subtract one because it's being used as a description
                                 // or is otherwise ignored, and shouldn't be part of the count.
@@ -2389,7 +2427,7 @@
                             <button className="logout-button" onClick={onLogout}>Log Out</button>
                         </div>
                         <p style={{textAlign: 'center', marginTop: '50px'}}>
-                            No board or lists configured. Please go to settings to set up your first dashboard.
+                            No Trello Board configured. Please go to settings to set up your first dashboard.
                         </p>
                         <div style={{textAlign: 'center', marginTop: '20px'}}>
                             <button className="settings-button" onClick={onShowSettings}>Go to Settings</button>
@@ -2519,6 +2557,7 @@
                             token={user.token}
                             onClose={handleCloseModal}
                             sectionsLayout={sectionsLayout} 
+                            ignoreTemplateCards={ignoreTemplateCards}
                         />
                     )}
 
@@ -2526,7 +2565,7 @@
                     <div className="footer-action-bar">
                         <span className="version">v.3</span>
                         <span className="countdown">Next refresh in {countdown}s</span>
-                        <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Data</button>
+                        <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
                         <button className="settings-button" onClick={onShowSettings}>Settings</button>
                         <button className="logout-button" onClick={onLogout}>Log Out</button>
                     </div>
