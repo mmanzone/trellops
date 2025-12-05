@@ -288,6 +288,8 @@ function renderBlockList() {
       savePreferences();
       renderMarkers();
       updateCardCount();
+      // When visibility changes, re-evaluate geocoding for newly visible cards
+      startGeocodingQueue();
     });
 
     const label = document.createElement('label');
@@ -456,12 +458,22 @@ function getMarkerConfig(card) {
 // ============================================================================
 
 function startGeocodingQueue() {
-  // Add all cards without coordinates to the queue
+  // Add only cards from visible blocks that need geocoding to the queue
   appState.geocodingQueue = appState.cards.filter(card => {
-    return !card.coordinates && card.desc && card.desc.trim();
+    // Must have no coordinates
+    if (card.coordinates) return false;
+    
+    // Must have a description
+    if (!card.desc || !card.desc.trim()) return false;
+    
+    // Must belong to a visible block
+    const block = appState.blocks.find(b => b.listIds?.includes(card.idList));
+    if (!block || !appState.visibleBlocks.has(block.id)) return false;
+    
+    return true;
   }).map(card => card.id);
 
-  console.log('[Map] Geocoding queue initialized with', appState.geocodingQueue.length, 'cards');
+  console.log('[Map] Geocoding queue initialized with', appState.geocodingQueue.length, 'cards from visible blocks');
   console.log('[Map] Queue card IDs:', appState.geocodingQueue);
 
   processGeocodingQueue();
@@ -535,22 +547,59 @@ async function processGeocodingQueue() {
 }
 
 function parseAddressFromDescription(desc) {
-  // Try to extract Google Maps link
-  const mapsLinkMatch = desc.match(/https:\/\/(www\.)?google\.com\/maps[^\s]*/i);
+  if (!desc || !desc.trim()) return null;
+  
+  // Try to extract Google Maps link and parse coordinates from it
+  const mapsLinkMatch = desc.match(/https:\/\/(www\.)?google\.com\/maps\/place\/[^\s]+/i);
   if (mapsLinkMatch) {
-    return mapsLinkMatch[0];
+    const mapsUrl = mapsLinkMatch[0];
+    console.log('[Map] Found Google Maps URL');
+    
+    // Extract coordinates from the URL if they're in the format /@lat,lng
+    const coordMatch = mapsUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (coordMatch) {
+      console.log('[Map] Extracted coordinates from Maps URL:', coordMatch[1], coordMatch[2]);
+      return `${coordMatch[1]},${coordMatch[2]}`;
+    }
+    
+    // Otherwise return the URL for geocoding
+    return mapsUrl;
   }
 
-  // Try to extract coordinates from description
+  // Try to extract coordinates from description (lat,lng format)
   const coordMatch = desc.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
   if (coordMatch) {
+    console.log('[Map] Found coordinates in description:', coordMatch[1], coordMatch[2]);
     return `${coordMatch[1]},${coordMatch[2]}`;
   }
 
-  // Return the first line as a potential address
-  const firstLine = desc.split('\n')[0].trim();
-  if (firstLine.length > 3) {
-    return firstLine;
+  // Look for address-like patterns (street address)
+  // Search for patterns like "123 Street Name, City" or "Street Name, Suburb, State"
+  const addressPatterns = [
+    /^\d+\s+[A-Za-z\s]+(?:St|Street|Ave|Avenue|Rd|Road|Ln|Lane|Dr|Drive|Way|Court|Ct|Place|Pl|Parkway|Crescent|Cres|Boulevard|Blvd)[^\n]*/i,
+    /(?:CNR|Corner)\s+[A-Za-z\s]+[&\/]\s+[A-Za-z\s]+[^\n]*/i,
+    /[A-Za-z\s]+(?:VIC|NSW|QLD|SA|WA|TAS|ACT)\s+\d{4}/i
+  ];
+
+  for (const pattern of addressPatterns) {
+    const match = desc.match(pattern);
+    if (match) {
+      const address = match[0].trim();
+      if (address.length > 5) {
+        console.log('[Map] Extracted address pattern:', address);
+        return address;
+      }
+    }
+  }
+
+  // Return the first non-empty line as fallback address
+  const lines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length > 0 && lines[0].length > 5) {
+    // Skip if it looks like a short code or event number
+    if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0])) {
+      console.log('[Map] Using first line as address:', lines[0]);
+      return lines[0];
+    }
   }
 
   return null;
@@ -630,6 +679,7 @@ document.getElementById('selectAllBtn').addEventListener('click', () => {
   renderBlockList();
   renderMarkers();
   updateCardCount();
+  startGeocodingQueue();
 });
 
 document.getElementById('clearAllBtn').addEventListener('click', () => {
@@ -638,6 +688,8 @@ document.getElementById('clearAllBtn').addEventListener('click', () => {
   renderBlockList();
   renderMarkers();
   updateCardCount();
+  // Clearing visibility means no geocoding needed
+  appState.geocodingQueue = [];
 });
 
 document.getElementById('settingsBtn').addEventListener('click', () => {
