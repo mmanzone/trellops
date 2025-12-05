@@ -151,6 +151,63 @@
             background: #5a6268;
         }
 
+        .status-message {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            max-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .status-message.hidden {
+            display: none;
+        }
+
+        .status-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        #statusText {
+            font-size: 0.9em;
+            color: #333;
+            font-weight: 500;
+        }
+
         .block-list {
             display: flex;
             flex-direction: row;
@@ -400,6 +457,14 @@
 
         <!-- Map -->
         <div id="map"></div>
+        
+        <!-- Status Message -->
+        <div id="statusMessage" class="status-message hidden">
+            <div class="status-content">
+                <div class="spinner"></div>
+                <span id="statusText">Decoding addresses...</span>
+            </div>
+        </div>
     </div>
 
     <!-- Settings Modal -->

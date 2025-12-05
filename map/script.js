@@ -60,8 +60,30 @@ let appState = {
   selectedBoardId: null,
   selectedBoardName: null,
   userToken: null,
-  userId: null
+  userId: null,
+  refreshInterval: null,
+  refreshIntervalMs: 300000 // 5 minutes default
 };
+
+// ============================================================================
+// UI HELPERS
+// ============================================================================
+
+function showStatusMessage(message) {
+  const statusEl = document.getElementById('statusMessage');
+  const statusText = document.getElementById('statusText');
+  if (statusEl && statusText) {
+    statusText.textContent = message;
+    statusEl.classList.remove('hidden');
+  }
+}
+
+function hideStatusMessage() {
+  const statusEl = document.getElementById('statusMessage');
+  if (statusEl) {
+    statusEl.classList.add('hidden');
+  }
+}
 
 // ============================================================================
 // INITIALIZATION
@@ -136,6 +158,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[Map] Starting geocoding queue...');
     startGeocodingQueue();
 
+    // Load auto-refresh interval from dashboard settings
+    try {
+      const dashboardSettings = localStorage.getItem('dashboardSettings');
+      if (dashboardSettings) {
+        const settings = JSON.parse(dashboardSettings);
+        if (settings.refreshInterval && settings.refreshInterval > 0) {
+          appState.refreshIntervalMs = settings.refreshInterval * 1000; // Convert to ms
+          console.log('[Map] Using refresh interval from settings:', appState.refreshIntervalMs, 'ms');
+        }
+      }
+    } catch (e) {
+      console.log('[Map] Could not load refresh interval from settings, using default');
+    }
+
+    // Start auto-refresh
+    startAutoRefresh();
+
     console.log('[Map] Initialization complete!');
 
   } catch (error) {
@@ -192,6 +231,49 @@ async function getAuthData() {
   }
 
   return null;
+}
+
+// ============================================================================
+// AUTO-REFRESH
+// ============================================================================
+
+function startAutoRefresh() {
+  if (appState.refreshInterval) {
+    clearInterval(appState.refreshInterval);
+  }
+  
+  appState.refreshInterval = setInterval(async () => {
+    console.log('[Map] Auto-refreshing map data...');
+    try {
+      await loadCards();
+      renderMarkers();
+      startGeocodingQueue();
+    } catch (error) {
+      console.error('[Map] Error during auto-refresh:', error);
+    }
+  }, appState.refreshIntervalMs);
+  
+  console.log('[Map] Auto-refresh started with interval:', appState.refreshIntervalMs, 'ms');
+}
+
+function stopAutoRefresh() {
+  if (appState.refreshInterval) {
+    clearInterval(appState.refreshInterval);
+    appState.refreshInterval = null;
+    console.log('[Map] Auto-refresh stopped');
+  }
+}
+
+async function manualRefresh() {
+  console.log('[Map] Manual refresh triggered...');
+  try {
+    await loadCards();
+    renderMarkers();
+    startGeocodingQueue();
+  } catch (error) {
+    console.error('[Map] Error during manual refresh:', error);
+    showError('Failed to refresh map data');
+  }
 }
 
 function getBoardData() {
@@ -254,8 +336,12 @@ async function loadCards() {
     const fieldsUrl = `https://api.trello.com/1/boards/${boardId}/customFields?key=${TRELLO_API_KEY}&token=${appState.userToken}`;
     const fieldsResponse = await fetch(fieldsUrl);
     const customFields = fieldsResponse.ok ? await fieldsResponse.json() : [];
-    const coordinatesField = customFields.find(f => f.name?.toLowerCase() === 'coordinates');
-    console.log('[Map] Coordinates field found:', coordinatesField?.id);
+    console.log('[Map] All custom fields on board:', customFields);
+    const coordinatesField = customFields.find(f => {
+      const lowerName = f.name?.toLowerCase() || '';
+      return lowerName.includes('coordinates') || lowerName.includes('location') || lowerName.includes('coord');
+    });
+    console.log('[Map] Coordinates field found:', coordinatesField?.id, coordinatesField?.name);
 
     // If coordinates field exists, fetch custom field items for all cards
     if (coordinatesField) {
@@ -633,6 +719,7 @@ async function processGeocodingQueue() {
   }
 
   appState.isProcessingGeocodeQueue = true;
+  showStatusMessage('Decoding addresses...');
   console.log('[Map] Starting geocoding queue processing...');
 
   while (appState.geocodingQueue.length > 0) {
@@ -690,6 +777,7 @@ async function processGeocodingQueue() {
   }
 
   appState.isProcessingGeocodeQueue = false;
+  hideStatusMessage();
   console.log('[Map] Geocoding queue processing complete');
 }
 
