@@ -57,8 +57,12 @@ let appState = {
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
+    console.log('[Map] Initializing...');
+    
     // Get board data FIRST before initializing map
     const boardData = getBoardData();
+    console.log('[Map] Board data:', boardData);
+    
     if (!boardData) {
       showError('No board configured. Please set up a dashboard first.');
       return;
@@ -80,6 +84,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Get auth from session/URL
     const authData = await getAuthData();
+    console.log('[Map] Auth data:', authData ? { userId: authData.userId, hasToken: !!authData.token } : null);
+    
     if (!authData) {
       showError('Not authenticated. Please log in from the main dashboard.');
       return;
@@ -89,11 +95,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     appState.userId = authData.userId;
 
     // Initialize Leaflet map
+    console.log('[Map] Initializing Leaflet map...');
     initializeMap();
 
     // Load blocks and cards
+    console.log('[Map] Loading blocks...');
     await loadBlocks();
+    console.log('[Map] Blocks loaded:', appState.blocks);
+
+    console.log('[Map] Loading cards...');
     await loadCards();
+    console.log('[Map] Cards loaded:', appState.cards.length, 'total cards');
 
     // Initialize UI
     renderBlockList();
@@ -101,15 +113,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Restore saved preferences
     restorePreferences();
+    console.log('[Map] Visible blocks:', Array.from(appState.visibleBlocks));
 
     // Render markers
+    console.log('[Map] Rendering markers...');
     renderMarkers();
 
     // Start geocoding queue for cards that need it
+    console.log('[Map] Starting geocoding queue...');
     startGeocodingQueue();
 
+    console.log('[Map] Initialization complete!');
+
   } catch (error) {
-    console.error('Initialization error:', error);
+    console.error('[Map] Initialization error:', error);
     showError(`Failed to initialize map: ${error.message}`);
   }
 });
@@ -208,11 +225,20 @@ async function loadCards() {
   try {
     const url = `https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,desc,idList,coordinates,labels,idLabels&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
     
+    console.log('[Map] Fetching cards from:', url);
+    
     const response = await fetch(url);
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} - ${response.statusText}`);
+    }
 
     const cards = await response.json();
+    console.log('[Map] Raw cards response:', cards);
+    
     appState.cards = cards || [];
+    console.log('[Map] Total cards:', appState.cards.length);
+    console.log('[Map] Cards with coordinates:', appState.cards.filter(c => c.coordinates).length);
+    console.log('[Map] Cards with description:', appState.cards.filter(c => c.desc).length);
 
     // Filter out template cards by default
     if (!appState.showTemplates) {
@@ -227,8 +253,10 @@ async function loadCards() {
       });
     }
 
+    console.log('[Map] Filtered cards:', appState.cards.length);
+
   } catch (error) {
-    console.error('Error loading cards:', error);
+    console.error('[Map] Error loading cards:', error);
     throw error;
   }
 }
@@ -328,15 +356,21 @@ function renderMarkers() {
   appState.markers.clear();
 
   const visibleCards = getVisibleCards();
+  console.log('[Map] Visible cards:', visibleCards.length);
+  console.log('[Map] Visible cards with coordinates:', visibleCards.filter(c => c.coordinates).length);
+
   const bounds = L.latLngBounds();
   let hasMarkers = false;
 
   visibleCards.forEach(card => {
     // Skip cards without coordinates (they're in the geocoding queue)
     if (!card.coordinates || !card.coordinates.lat || !card.coordinates.lng) {
+      console.log('[Map] Card without coordinates:', card.id, card.name);
       return;
     }
 
+    console.log('[Map] Creating marker for card:', card.id, card.name, 'at', card.coordinates.lat, card.coordinates.lng);
+    
     const marker = createMarker(card);
     if (marker) {
       marker.addTo(appState.map);
@@ -346,9 +380,14 @@ function renderMarkers() {
     }
   });
 
+  console.log('[Map] Total markers created:', appState.markers.size);
+
   // Auto-zoom to fit all markers
   if (hasMarkers && bounds.isValid()) {
+    console.log('[Map] Fitting bounds...');
     appState.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+  } else {
+    console.log('[Map] No markers to display, staying at default zoom');
   }
 }
 
@@ -422,33 +461,54 @@ function startGeocodingQueue() {
     return !card.coordinates && card.desc && card.desc.trim();
   }).map(card => card.id);
 
+  console.log('[Map] Geocoding queue initialized with', appState.geocodingQueue.length, 'cards');
+  console.log('[Map] Queue card IDs:', appState.geocodingQueue);
+
   processGeocodingQueue();
 }
 
 async function processGeocodingQueue() {
   if (appState.isProcessingGeocodeQueue || appState.geocodingQueue.length === 0) {
+    console.log('[Map] Geocoding queue processing skipped. Already processing:', appState.isProcessingGeocodeQueue, 'Queue empty:', appState.geocodingQueue.length === 0);
     return;
   }
 
   appState.isProcessingGeocodeQueue = true;
+  console.log('[Map] Starting geocoding queue processing...');
 
   while (appState.geocodingQueue.length > 0) {
     const cardId = appState.geocodingQueue.shift();
     const card = appState.cards.find(c => c.id === cardId);
 
-    if (!card || !card.desc) continue;
+    if (!card || !card.desc) {
+      console.log('[Map] Skipping card', cardId, '- no card or description found');
+      continue;
+    }
 
     try {
+      console.log('[Map] Processing card for geocoding:', cardId, card.name);
+      
       const address = parseAddressFromDescription(card.desc);
-      if (!address) continue;
+      console.log('[Map] Parsed address from description:', address);
+      
+      if (!address) {
+        console.log('[Map] No address found in description for card', cardId);
+        continue;
+      }
 
       const coordinates = await geocodeAddress(address);
-      if (!coordinates) continue;
+      console.log('[Map] Geocoded address to coordinates:', coordinates);
+      
+      if (!coordinates) {
+        console.log('[Map] Geocoding failed for address:', address);
+        continue;
+      }
 
       // Update card locally
       card.coordinates = coordinates;
 
       // Update in Trello via API
+      console.log('[Map] Updating Trello card with coordinates...');
       await updateCardCoordinates(cardId, coordinates);
 
       // Render marker if card is visible
@@ -458,6 +518,7 @@ async function processGeocodingQueue() {
         if (marker) {
           marker.addTo(appState.map);
           appState.markers.set(card.id, marker);
+          console.log('[Map] Marker added for card:', cardId);
         }
       }
 
@@ -465,11 +526,12 @@ async function processGeocodingQueue() {
       await sleep(CONFIG.GEOCODING.DELAY_MS);
 
     } catch (error) {
-      console.error(`Error geocoding card ${cardId}:`, error);
+      console.error(`[Map] Error geocoding card ${cardId}:`, error);
     }
   }
 
   appState.isProcessingGeocodeQueue = false;
+  console.log('[Map] Geocoding queue processing complete');
 }
 
 function parseAddressFromDescription(desc) {
