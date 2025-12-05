@@ -223,7 +223,7 @@ async function loadCards() {
   const boardId = appState.selectedBoardId;
 
   try {
-    const url = `https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,desc,idList,coordinates,labels,idLabels&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
+    const url = `https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,desc,idList,coordinates,labels,idLabels,pos,isTemplate&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
     
     console.log('[Map] Fetching cards from:', url);
     
@@ -234,11 +234,15 @@ async function loadCards() {
 
     const cards = await response.json();
     console.log('[Map] Raw cards response:', cards);
-    
-    appState.cards = cards || [];
-    console.log('[Map] Total cards:', appState.cards.length);
-    console.log('[Map] Cards with coordinates:', appState.cards.filter(c => c.coordinates).length);
-    console.log('[Map] Cards with description:', appState.cards.filter(c => c.desc).length);
+
+    // Keep a copy of the raw cards (unfiltered) so we can determine first-card per list
+    appState.rawCards = cards || [];
+
+    // Work on a filtered set for display and geocoding decisions
+    appState.cards = appState.rawCards.slice();
+    console.log('[Map] Total cards (raw):', appState.rawCards.length);
+    console.log('[Map] Cards with coordinates (raw):', appState.rawCards.filter(c => c.coordinates).length);
+    console.log('[Map] Cards with description (raw):', appState.rawCards.filter(c => c.desc).length);
 
     // Filter out template cards by default
     if (!appState.showTemplates) {
@@ -458,18 +462,38 @@ function getMarkerConfig(card) {
 // ============================================================================
 
 function startGeocodingQueue() {
+  // Determine first card per list (based on raw Trello 'pos') so we can skip them when blocks request it
+  const firstCardByList = {};
+  if (Array.isArray(appState.rawCards)) {
+    appState.rawCards.forEach(c => {
+      const listId = c.idList;
+      const pos = typeof c.pos === 'number' ? c.pos : parseFloat(c.pos || 0);
+      if (!firstCardByList[listId] || pos < firstCardByList[listId].pos) {
+        firstCardByList[listId] = { id: c.id, pos };
+      }
+    });
+  }
+
+  const firstCardIds = new Set(Object.values(firstCardByList).map(x => x.id));
+
   // Add only cards from visible blocks that need geocoding to the queue
   appState.geocodingQueue = appState.cards.filter(card => {
     // Must have no coordinates
     if (card.coordinates) return false;
-    
+
     // Must have a description
     if (!card.desc || !card.desc.trim()) return false;
-    
+
     // Must belong to a visible block
     const block = appState.blocks.find(b => b.listIds?.includes(card.idList));
     if (!block || !appState.visibleBlocks.has(block.id)) return false;
-    
+
+    // Skip template cards if global setting says so
+    if (!appState.showTemplates && card.isTemplate) return false;
+
+    // If the block has ignoreFirstCard, skip the list's first card
+    if (block.ignoreFirstCard && firstCardIds.has(card.id)) return false;
+
     return true;
   }).map(card => card.id);
 
@@ -549,22 +573,34 @@ async function processGeocodingQueue() {
 function parseAddressFromDescription(desc) {
   if (!desc || !desc.trim()) return null;
   
-  // Try to extract Google Maps link and parse coordinates from it
-  const mapsLinkMatch = desc.match(/https:\/\/(www\.)?google\.com\/maps\/place\/[^\s]+/i);
-  if (mapsLinkMatch) {
-    const mapsUrl = mapsLinkMatch[0];
-    console.log('[Map] Found Google Maps URL');
-    
-    // Extract coordinates from the URL if they're in the format /@lat,lng
-    const coordMatch = mapsUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (coordMatch) {
-      console.log('[Map] Extracted coordinates from Maps URL:', coordMatch[1], coordMatch[2]);
-      return `${coordMatch[1]},${coordMatch[2]}`;
+    // Try to extract Google Maps /place/ link and pull the place text from it (handles google.com.au etc.)
+    const mapsPlaceMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\/\s]+\/maps\/place\/([^\s)]+)/i);
+    if (mapsPlaceMatch) {
+      const placePart = mapsPlaceMatch[1];
+      console.log('[Map] Found Google Maps /place/ URL, placePart:', placePart);
+
+      // Try to extract coordinates from the URL as well (format: /@lat,lng)
+      const mapsUrlFullMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\s]+/i);
+      const mapsUrlFull = mapsUrlFullMatch ? mapsUrlFullMatch[0] : null;
+      if (mapsUrlFull) {
+        const coordMatch = mapsUrlFull.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (coordMatch) {
+          console.log('[Map] Extracted coordinates from Maps URL:', coordMatch[1], coordMatch[2]);
+          return `${coordMatch[1]},${coordMatch[2]}`;
+        }
+      }
+
+      // Decode plus signs and percent-encoding to a readable address for geocoding
+      try {
+        const decoded = decodeURIComponent(placePart.replace(/\+/g, ' '));
+        console.log('[Map] Decoded place part for geocoding:', decoded);
+        return decoded;
+      } catch (e) {
+        const fallback = placePart.replace(/\+/g, ' ');
+        console.log('[Map] Using fallback place part for geocoding:', fallback);
+        return fallback;
+      }
     }
-    
-    // Otherwise return the URL for geocoding
-    return mapsUrl;
-  }
 
   // Try to extract coordinates from description (lat,lng format)
   const coordMatch = desc.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
