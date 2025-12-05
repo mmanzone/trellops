@@ -3,6 +3,18 @@
  * Fetches Trello cards, geocodes them if needed, and displays on an interactive map
  */
 
+// Wait for required libraries to load before initializing
+function waitForLibraries(callback, attempts = 0) {
+  if (typeof L !== 'undefined' && typeof L.AwesomeMarkers !== 'undefined') {
+    callback();
+  } else if (attempts < 50) {
+    setTimeout(() => waitForLibraries(callback, attempts + 1), 100);
+  } else {
+    console.warn('[Map] AwesomeMarkers did not load, using fallback markers');
+    callback();
+  }
+}
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -56,11 +68,12 @@ let appState = {
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log('[Map] Initializing...');
-    
-    // Get board data FIRST before initializing map
-    const boardData = getBoardData();
+  waitForLibraries(async () => {
+    try {
+      console.log('[Map] Initializing...');
+      
+      // Get board data FIRST before initializing map
+      const boardData = getBoardData();
     console.log('[Map] Board data:', boardData);
     
     if (!boardData) {
@@ -129,6 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('[Map] Initialization error:', error);
     showError(`Failed to initialize map: ${error.message}`);
   }
+  });
 });
 
 // ============================================================================
@@ -409,14 +423,32 @@ function createMarker(card) {
   }
 
   try {
+    let markerIcon;
+    
+    // Try to use AwesomeMarkers if available, otherwise use default Leaflet marker
+    if (typeof L !== 'undefined' && L.AwesomeMarkers && L.AwesomeMarkers.icon) {
+      markerIcon = L.AwesomeMarkers.icon({
+        icon: markerConfig.icon || 'map-marker',
+        prefix: markerConfig.prefix || 'fa',
+        markerColor: markerConfig.color || 'blue'
+      });
+    } else {
+      // Fallback to basic Leaflet marker
+      console.warn('[Map] AwesomeMarkers not available, using default marker');
+      markerIcon = L.icon({
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+    }
+
     const marker = L.marker(
       [card.coordinates.lat, card.coordinates.lng],
       {
-        icon: L.AwesomeMarkers.icon({
-          icon: markerConfig.icon || 'map-marker',
-          prefix: markerConfig.prefix || 'fa',
-          markerColor: markerConfig.color || 'blue'
-        })
+        icon: markerIcon
       }
     );
 
