@@ -728,6 +728,10 @@ document.getElementById('clearAllBtn').addEventListener('click', () => {
   appState.geocodingQueue = [];
 });
 
+document.getElementById('dashboardBtn').addEventListener('click', () => {
+  window.location.href = '/';
+});
+
 document.getElementById('settingsBtn').addEventListener('click', () => {
   renderBlockSettingsModal();
   document.getElementById('settingsModal').classList.add('active');

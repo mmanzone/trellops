@@ -60,10 +60,11 @@
             border-right: 1px solid #eee;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            min-width: 200px;
+            min-width: 250px;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            position: relative;
         }
 
         .sidebar-header h2 {
@@ -74,6 +75,25 @@
         .sidebar-header p {
             font-size: 0.8em;
             opacity: 0.9;
+        }
+
+        .sidebar-header .dashboard-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.2s;
+        }
+
+        .sidebar-header .dashboard-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            border-color: white;
         }
 
         .sidebar-content {
@@ -355,6 +375,7 @@
             <div class="sidebar-header">
                 <h2>Map View</h2>
                 <p>Filter cards by block</p>
+                <button class="dashboard-btn" id="dashboardBtn" title="Return to Dashboard">← Dashboard</button>
             </div>
 
             <div class="sidebar-content">

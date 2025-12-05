@@ -42,21 +42,12 @@ export default async function handler(req, res) {
 
   try {
     // Make PUT request to Trello API to update card coordinates
-    const updateUrl = `${TRELLO_API_BASE}/cards/${cardId}?key=${TRELLO_KEY}&token=${TRELLO_TOKEN}`;
-    
-    const updatePayload = {
-      coordinates: {
-        lat: lat,
-        lng: lng
-      }
-    };
+    // Trello expects the `coordinates` parameter as a comma-separated query string
+    const coordsStr = `${lat},${lng}`;
+    const updateUrl = `${TRELLO_API_BASE}/cards/${cardId}?key=${TRELLO_KEY}&token=${TRELLO_TOKEN}&coordinates=${encodeURIComponent(coordsStr)}`;
 
     const response = await fetch(updateUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(updatePayload)
+      method: 'PUT'
     });
 
     if (!response.ok) {
