@@ -237,17 +237,82 @@ async function loadCards() {
   const boardId = appState.selectedBoardId;
 
   try {
-    const url = `https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,desc,idList,coordinates,labels,idLabels,pos,isTemplate&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
+    // Fetch cards
+    const cardsUrl = `https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,desc,idList,labels,idLabels,pos,isTemplate&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
     
-    console.log('[Map] Fetching cards from:', url);
+    console.log('[Map] Fetching cards...');
     
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status} - ${response.statusText}`);
+    const cardsResponse = await fetch(cardsUrl);
+    if (!cardsResponse.ok) {
+      throw new Error(`Cards API error: ${cardsResponse.status} - ${cardsResponse.statusText}`);
     }
 
-    const cards = await response.json();
+    const cards = await cardsResponse.json();
     console.log('[Map] Raw cards response:', cards);
+
+    // Fetch custom fields to find the coordinates field ID
+    const fieldsUrl = `https://api.trello.com/1/boards/${boardId}/customFields?key=${TRELLO_API_KEY}&token=${appState.userToken}`;
+    const fieldsResponse = await fetch(fieldsUrl);
+    const customFields = fieldsResponse.ok ? await fieldsResponse.json() : [];
+    const coordinatesField = customFields.find(f => f.name?.toLowerCase() === 'coordinates');
+    console.log('[Map] Coordinates field found:', coordinatesField?.id);
+
+    // If coordinates field exists, fetch custom field items for all cards
+    if (coordinatesField) {
+      try {
+        // Fetch all list items and cards from the board with custom field items
+        const listUrl = `https://api.trello.com/1/boards/${boardId}/lists?cards=open&customFieldItems=open&fields=id&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
+        const listResponse = await fetch(listUrl);
+        if (listResponse.ok) {
+          const lists = await listResponse.json();
+          
+          // Build a map of card ID to coordinates from nested card data
+          for (const list of lists) {
+            if (list.cards) {
+              for (const cardWithCustomFields of list.cards) {
+                const originalCard = cards.find(c => c.id === cardWithCustomFields.id);
+                if (originalCard && cardWithCustomFields.customFieldItems) {
+                  const coordItem = cardWithCustomFields.customFieldItems.find(
+                    item => item.idCustomField === coordinatesField.id
+                  );
+                  if (coordItem && coordItem.value) {
+                    if (typeof coordItem.value === 'string') {
+                      originalCard.coordinates = coordItem.value;
+                    } else if (coordItem.value.text) {
+                      originalCard.coordinates = coordItem.value.text;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.log('[Map] Could not fetch custom field items via lists:', e);
+        
+        // Fallback: fetch custom items for each card individually (slower)
+        console.log('[Map] Falling back to individual card custom field requests...');
+        for (const card of cards) {
+          try {
+            const itemUrl = `https://api.trello.com/1/cards/${card.id}/customFieldItems?key=${TRELLO_API_KEY}&token=${appState.userToken}`;
+            const itemResponse = await fetch(itemUrl);
+            if (itemResponse.ok) {
+              const items = await itemResponse.json();
+              const coordItem = items.find(item => item.idCustomField === coordinatesField.id);
+              if (coordItem && coordItem.value) {
+                if (typeof coordItem.value === 'string') {
+                  card.coordinates = coordItem.value;
+                } else if (coordItem.value.text) {
+                  card.coordinates = coordItem.value.text;
+                }
+              }
+            }
+          } catch (itemError) {
+            // Silently skip if we can't fetch custom items for a card
+          }
+        }
+      }
+    }
 
     // Keep a copy of the raw cards (unfiltered) so we can determine first-card per list
     appState.rawCards = cards || [];
