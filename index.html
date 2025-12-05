@@ -2584,7 +2584,7 @@
                         <span className="version">v.3</span>
                         <span className="countdown">Next refresh in {countdown}s</span>
                         <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
-                        <button className="settings-button" onClick={() => window.location.href = '/map'}>Map View</button>
+                        <button className="settings-button" onClick={() => window.open('/map', '_blank')}>Map View</button>
                         <button className="settings-button" onClick={onShowSettings}>Settings</button>
                         <button className="logout-button" onClick={onLogout}>Log Out</button>
                     </div>
