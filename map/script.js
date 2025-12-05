@@ -520,11 +520,17 @@ function getVisibleCards() {
 }
 
 function renderMarkers() {
-  // Clear existing markers
-  appState.markers.forEach(marker => {
-    appState.map.removeLayer(marker);
-  });
-  appState.markers.clear();
+  // Clear only markers for cards that are no longer visible
+  // Don't clear all markers upfront - this preserves them during refresh
+  const visibleCardIds = new Set(getVisibleCards().map(c => c.id));
+  
+  // Remove markers for cards that are no longer visible
+  for (const [cardId, marker] of appState.markers.entries()) {
+    if (!visibleCardIds.has(cardId)) {
+      appState.map.removeLayer(marker);
+      appState.markers.delete(cardId);
+    }
+  }
 
   const visibleCards = getVisibleCards();
   console.log('[Map] Visible cards:', visibleCards.length);
@@ -547,6 +553,14 @@ function renderMarkers() {
     if (!coords || !coords.lat || !coords.lng) {
       console.log('[Map] Card without coordinates:', card.id, card.name);
       return;
+    }
+
+    // Check if marker already exists
+    if (appState.markers.has(card.id)) {
+      const existingMarker = appState.markers.get(card.id);
+      bounds.extend([coords.lat, coords.lng]);
+      hasMarkers = true;
+      return; // Skip creating new marker, keep existing one
     }
 
     console.log('[Map] Creating marker for card:', card.id, card.name, 'at', coords.lat, coords.lng);
@@ -594,16 +608,33 @@ function createMarker(card) {
         prefix: markerConfig.prefix || 'fa',
         markerColor: markerConfig.color || 'blue'
       });
+      console.log('[Map] Using AwesomeMarkers icon:', markerConfig.color, markerConfig.icon);
     } else {
-      // Fallback to basic Leaflet marker
-      console.warn('[Map] AwesomeMarkers not available, using default marker');
-      markerIcon = L.icon({
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
+      // Fallback: Create a colored SVG marker using HTML div element
+      console.log('[Map] AwesomeMarkers not available, using SVG fallback marker');
+      const colorMap = {
+        'blue': '#3388ff',
+        'red': '#ff6b6b',
+        'green': '#51cf66',
+        'orange': '#ffa94d',
+        'yellow': '#ffd43b'
+      };
+      
+      const markerColor = colorMap[markerConfig.color] || '#3388ff';
+      
+      // Create a custom HTML element for the marker
+      const html = `
+        <div class="custom-marker" style="background-color: ${markerColor}; width: 30px; height: 40px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 0 6px rgba(0,0,0,0.3); border: 2px solid white; display: flex; align-items: center; justify-content: center;">
+          <div style="transform: rotate(45deg); color: white; font-weight: bold; font-size: 16px;">📍</div>
+        </div>
+      `;
+      
+      markerIcon = L.divIcon({
+        html: html,
+        iconSize: [30, 40],
+        iconAnchor: [15, 40],
+        popupAnchor: [0, -40],
+        className: 'custom-div-marker'
       });
     }
 
@@ -685,8 +716,11 @@ function startGeocodingQueue() {
 
   const firstCardIds = new Set(Object.values(firstCardByList).map(x => x.id));
 
+  // Use rawCards (unfiltered) to include all cards, even if they were just made visible
+  const cardsToCheck = appState.rawCards || appState.cards;
+
   // Add only cards from visible blocks that need geocoding to the queue
-  appState.geocodingQueue = appState.cards.filter(card => {
+  appState.geocodingQueue = cardsToCheck.filter(card => {
     // Must have no coordinates
     if (card.coordinates) return false;
 
@@ -695,7 +729,9 @@ function startGeocodingQueue() {
 
     // Must belong to a visible block
     const block = appState.blocks.find(b => b.listIds?.includes(card.idList));
-    if (!block || !appState.visibleBlocks.has(block.id)) return false;
+    if (!block || !appState.visibleBlocks.has(block.id)) {
+      return false;
+    }
 
     // Skip template cards if global setting says so
     if (!appState.showTemplates && card.isTemplate) return false;
