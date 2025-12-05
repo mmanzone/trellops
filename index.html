@@ -1175,7 +1175,8 @@
                     ...s,
                     isCollapsed: s.isCollapsed || false,
                     ignoreFirstCard: s.ignoreFirstCard || false,
-                    displayFirstCardDescription: s.displayFirstCardDescription !== false // Default to true
+                    displayFirstCardDescription: s.displayFirstCardDescription !== false, // Default to true
+                    includeOnMap: s.includeOnMap !== false // Default to true
                 }));
             } catch (e) {
                 console.error("Error parsing dashboard layout:", e);
@@ -1690,6 +1691,15 @@
                 setBlocks(newBlocks);
                 setPersistentLayout(user.id, selectedBoardId, newBlocks);
             };
+
+            // NEW: Handler for 'Include on Map' checkbox
+            const handleToggleIncludeOnMap = (blockId, isChecked) => {
+                const newBlocks = blocks.map(s => 
+                    s.id === blockId ? { ...s, includeOnMap: isChecked } : s
+                );
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+            };
             
             // Handler for the Clock checkbox
             const handleToggleClock = (isChecked) => {
@@ -2052,6 +2062,14 @@
                                                         Display the first card as tile description
                                                     </label>
                                                 )}
+                                                <label>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={block.includeOnMap !== false}
+                                                        onChange={e => handleToggleIncludeOnMap(block.id, e.target.checked)}
+                                                    />
+                                                    Include this block on Map
+                                                </label>
                                             </div>
                                         </div>
                                     ))}
@@ -2566,6 +2584,7 @@
                         <span className="version">v.3</span>
                         <span className="countdown">Next refresh in {countdown}s</span>
                         <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
+                        <button className="settings-button" onClick={() => window.location.href = '/map'}>Map View</button>
                         <button className="settings-button" onClick={onShowSettings}>Settings</button>
                         <button className="logout-button" onClick={onLogout}>Log Out</button>
                     </div>

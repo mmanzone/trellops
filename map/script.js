@@ -57,8 +57,26 @@ let appState = {
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Initialize Leaflet map
-    initializeMap();
+    // Get board data FIRST before initializing map
+    const boardData = getBoardData();
+    if (!boardData) {
+      showError('No board configured. Please set up a dashboard first.');
+      return;
+    }
+
+    appState.selectedBoardId = boardData.boardId;
+    appState.selectedBoardName = boardData.boardName;
+
+    // Update sidebar header with board name
+    const headerTitle = document.querySelector('.sidebar-header h2');
+    if (headerTitle) {
+      headerTitle.textContent = `${boardData.boardName}`;
+    }
+
+    const headerSubtitle = document.querySelector('.sidebar-header p');
+    if (headerSubtitle) {
+      headerSubtitle.textContent = 'Map View - Filter by block';
+    }
 
     // Get auth from session/URL
     const authData = await getAuthData();
@@ -70,15 +88,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     appState.userToken = authData.token;
     appState.userId = authData.userId;
 
-    // Get board from settings
-    const boardData = getBoardData();
-    if (!boardData) {
-      showError('No board configured. Please set up a dashboard first.');
-      return;
-    }
-
-    appState.selectedBoardId = boardData.boardId;
-    appState.selectedBoardName = boardData.boardName;
+    // Initialize Leaflet map
+    initializeMap();
 
     // Load blocks and cards
     await loadBlocks();
@@ -108,6 +119,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================================================
 
 function initializeMap() {
+  const mapElement = document.getElementById('map');
+  if (!mapElement) {
+    showError('Map container not found in DOM');
+    throw new Error('Map container not found');
+  }
+
   appState.map = L.map('map').setView(CONFIG.MAP.DEFAULT_CENTER, CONFIG.MAP.DEFAULT_ZOOM);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -174,6 +191,14 @@ async function loadBlocks() {
   const boardLayout = layouts[appState.selectedBoardId] || [];
 
   appState.blocks = boardLayout;
+
+  // Initialize visibility based on 'includeOnMap' setting
+  // Default to true if not explicitly set to false
+  appState.blocks.forEach(block => {
+    if (block.includeOnMap !== false) {
+      appState.visibleBlocks.add(block.id);
+    }
+  });
 }
 
 async function loadCards() {
@@ -601,8 +626,13 @@ function restorePreferences() {
     appState.showCompleted = prefs.showCompleted !== false;
     appState.showTemplates = prefs.showTemplates !== false;
   } else {
-    // Default: show all blocks
-    appState.blocks.forEach(block => appState.visibleBlocks.add(block.id));
+    // Default: show blocks that have includeOnMap set to true
+    appState.visibleBlocks.clear();
+    appState.blocks.forEach(block => {
+      if (block.includeOnMap !== false) {
+        appState.visibleBlocks.add(block.id);
+      }
+    });
   }
 
   // Also restore global toggles
