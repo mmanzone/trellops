@@ -383,19 +383,30 @@ function renderMarkers() {
   let hasMarkers = false;
 
   visibleCards.forEach(card => {
-    // Skip cards without coordinates (they're in the geocoding queue)
-    if (!card.coordinates || !card.coordinates.lat || !card.coordinates.lng) {
+    // Parse coordinates if they come as a string from Trello API
+    let coords = card.coordinates;
+    if (typeof coords === 'string' && coords.trim()) {
+      const parts = coords.split(',').map(p => parseFloat(p.trim()));
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        coords = { lat: parts[0], lng: parts[1] };
+      }
+    }
+
+    // Skip cards without valid coordinates
+    if (!coords || !coords.lat || !coords.lng) {
       console.log('[Map] Card without coordinates:', card.id, card.name);
       return;
     }
 
-    console.log('[Map] Creating marker for card:', card.id, card.name, 'at', card.coordinates.lat, card.coordinates.lng);
+    console.log('[Map] Creating marker for card:', card.id, card.name, 'at', coords.lat, coords.lng);
     
-    const marker = createMarker(card);
+    // Create a card object with parsed coordinates
+    const cardWithCoords = { ...card, coordinates: coords };
+    const marker = createMarker(cardWithCoords);
     if (marker) {
       marker.addTo(appState.map);
       appState.markers.set(card.id, marker);
-      bounds.extend([card.coordinates.lat, card.coordinates.lng]);
+      bounds.extend([coords.lat, coords.lng]);
       hasMarkers = true;
     }
   });
