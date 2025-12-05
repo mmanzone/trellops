@@ -403,58 +403,73 @@ function createMarker(card) {
   }
 
   const markerConfig = getMarkerConfig(card);
-  const marker = L.marker(
-    [card.coordinates.lat, card.coordinates.lng],
-    {
-      icon: L.AwesomeMarkers.icon({
-        icon: markerConfig.icon,
-        prefix: markerConfig.prefix,
-        markerColor: markerConfig.color
-      })
-    }
-  );
+  if (!markerConfig) {
+    console.warn('[Map] markerConfig is undefined for card:', card.id, card.name);
+    return null;
+  }
 
-  marker.bindPopup(`
-    <strong>${card.name}</strong><br>
-    <small>${card.coordinates.lat.toFixed(4)}, ${card.coordinates.lng.toFixed(4)}</small>
-  `);
+  try {
+    const marker = L.marker(
+      [card.coordinates.lat, card.coordinates.lng],
+      {
+        icon: L.AwesomeMarkers.icon({
+          icon: markerConfig.icon || 'map-marker',
+          prefix: markerConfig.prefix || 'fa',
+          markerColor: markerConfig.color || 'blue'
+        })
+      }
+    );
 
-  return marker;
+    marker.bindPopup(`
+      <strong>${card.name}</strong><br>
+      <small>${card.coordinates.lat.toFixed(4)}, ${card.coordinates.lng.toFixed(4)}</small>
+    `);
+
+    return marker;
+  } catch (error) {
+    console.error('[Map] Error creating marker for card', card.id, ':', error);
+    return null;
+  }
 }
 
 function getMarkerConfig(card) {
-  // Check for specific labels in priority order
-  const labels = card.labels?.map(l => l.name) || [];
+  try {
+    // Check for specific labels in priority order
+    const labels = card.labels?.map(l => l.name) || [];
 
-  // Check for completion first
-  if (labels.includes('Completed')) {
-    return { icon: 'check-circle', color: 'green', prefix: 'fa' };
+    // Check for completion first
+    if (labels.includes('Completed')) {
+      return { icon: 'check-circle', color: 'green', prefix: 'fa' };
+    }
+
+    // Check for status labels
+    if (labels.includes('En route')) {
+      return { icon: 'truck', color: 'blue', prefix: 'fa' };
+    }
+
+    if (labels.includes('On Scene')) {
+      return { icon: 'wrench', color: 'blue', prefix: 'fa' };
+    }
+
+    // Check for priority labels
+    if (labels.includes('Priority')) {
+      return { icon: 'exclamation-triangle', color: 'red', prefix: 'fa' };
+    }
+
+    if (labels.includes('Important')) {
+      return { icon: 'exclamation-circle', color: 'orange', prefix: 'fa' };
+    }
+
+    if (labels.includes('Routine')) {
+      return { icon: 'info-circle', color: 'yellow', prefix: 'fa' };
+    }
+
+    // Default
+    return { icon: 'map-marker', color: 'blue', prefix: 'fa' };
+  } catch (error) {
+    console.error('[Map] Error in getMarkerConfig:', error, 'card:', card?.id);
+    return { icon: 'map-marker', color: 'blue', prefix: 'fa' };
   }
-
-  // Check for status labels
-  if (labels.includes('En route')) {
-    return { icon: 'truck', color: 'blue', prefix: 'fa' };
-  }
-
-  if (labels.includes('On Scene')) {
-    return { icon: 'wrench', color: 'blue', prefix: 'fa' };
-  }
-
-  // Check for priority labels
-  if (labels.includes('Priority')) {
-    return { icon: 'exclamation-triangle', color: 'red', prefix: 'fa' };
-  }
-
-  if (labels.includes('Important')) {
-    return { icon: 'exclamation-circle', color: 'orange', prefix: 'fa' };
-  }
-
-  if (labels.includes('Routine')) {
-    return { icon: 'info-circle', color: 'yellow', prefix: 'fa' };
-  }
-
-  // Default
-  return { icon: 'map-marker', color: 'blue', prefix: 'fa' };
 }
 
 // ============================================================================
