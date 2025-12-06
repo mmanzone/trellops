@@ -207,6 +207,29 @@
             color: #333;
             font-weight: 500;
         }
+        .basemap-control {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255,255,255,0.9);
+            padding: 6px 8px;
+            border-radius: 6px;
+            z-index: 1200;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            font-size: 0.9em;
+        }
+
+        .map-footer {
+            position: absolute;
+            left: 10px;
+            bottom: 6px;
+            z-index: 1200;
+            font-size: 0.8em;
+            color: #333;
+            background: rgba(255,255,255,0.85);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
 
         .block-list {
             display: flex;
@@ -457,12 +480,30 @@
 
         <!-- Map -->
         <div id="map"></div>
-        
+
+        <!-- Basemap selector -->
+        <div id="basemapControl" class="basemap-control">
+            <label for="basemapSelect">Basemap</label>
+            <select id="basemapSelect">
+                <option value="osm">OpenStreetMap</option>
+                <option value="sat">Satellite (Esri)</option>
+                <option value="dark">Dark (Carto)</option>
+            </select>
+        </div>
+
+        <!-- Copyright / attribution -->
+        <div id="mapFooter" class="map-footer">
+            <small>Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>. Data sources as required by APIs.</small>
+        </div>
+
         <!-- Status Message -->
         <div id="statusMessage" class="status-message hidden">
             <div class="status-content">
                 <div class="spinner"></div>
-                <span id="statusText">Decoding addresses...</span>
+                                <div>
+                                    <div id="statusText">Decoding addresses...</div>
+                                    <div id="statusQueue" style="margin-top:8px;max-height:120px;overflow:auto;font-size:0.85em;color:#333"></div>
+                                </div>
             </div>
         </div>
     </div>

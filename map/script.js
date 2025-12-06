@@ -73,7 +73,21 @@ function showStatusMessage(message) {
   const statusEl = document.getElementById('statusMessage');
   const statusText = document.getElementById('statusText');
   if (statusEl && statusText) {
-    statusText.textContent = message;
+    // message can be string or object { text, queue: [names] }
+    if (typeof message === 'string') {
+      statusText.textContent = message;
+      const qEl = document.getElementById('statusQueue'); if (qEl) qEl.innerHTML = '';
+    } else if (message && typeof message === 'object') {
+      statusText.textContent = message.text || '';
+      const qEl = document.getElementById('statusQueue');
+      if (qEl) {
+        if (Array.isArray(message.queue) && message.queue.length) {
+          qEl.innerHTML = '<ul style="padding-left:18px;margin:4px 0">' + message.queue.map(n => `<li>${escapeHtml(n)}</li>`).join('') + '</ul>';
+        } else {
+          qEl.innerHTML = '';
+        }
+      }
+    }
     statusEl.classList.remove('hidden');
   }
 }
@@ -83,6 +97,10 @@ function hideStatusMessage() {
   if (statusEl) {
     statusEl.classList.add('hidden');
   }
+}
+function clearStatusQueue() {
+  const qEl = document.getElementById('statusQueue');
+  if (qEl) qEl.innerHTML = '';
 }
 
 // Basic HTML escaping for popup content
@@ -210,10 +228,41 @@ function initializeMap() {
 
   appState.map = L.map('map').setView(CONFIG.MAP.DEFAULT_CENTER, CONFIG.MAP.DEFAULT_ZOOM);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // Base layers
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 19
-  }).addTo(appState.map);
+  });
+
+  const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri',
+    maxZoom: 19
+  });
+
+  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+    attribution: '&copy; CartoDB',
+    maxZoom: 19
+  });
+
+  // Default add OSM
+  osm.addTo(appState.map);
+
+  appState.baseLayers = { osm, esriSat, dark };
+
+  // Basemap control element
+  const basemapSelect = document.getElementById('basemapSelect');
+  if (basemapSelect) {
+    basemapSelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      // remove all
+      Object.values(appState.baseLayers).forEach(layer => {
+        try { appState.map.removeLayer(layer); } catch (err) {}
+      });
+      if (val === 'osm') appState.baseLayers.osm.addTo(appState.map);
+      else if (val === 'sat') appState.baseLayers.esriSat.addTo(appState.map);
+      else if (val === 'dark') appState.baseLayers.dark.addTo(appState.map);
+    });
+  }
 }
 
 // ============================================================================
@@ -587,9 +636,40 @@ function renderMarkers() {
     // Check if marker already exists
     if (appState.markers.has(card.id)) {
       const existingMarker = appState.markers.get(card.id);
+      // Update position if changed
+      try {
+        existingMarker.setLatLng([coords.lat, coords.lng]);
+      } catch (e) {
+        console.warn('[Map] Failed to set marker position for', card.id, e);
+      }
+
+      // Prepare a small metadata snapshot for comparison
+      const newMeta = {
+        id: card.id,
+        name: card.name,
+        idList: card.idList,
+        labels: (card.labels || []).map(l => (l.name || l.color || '').toLowerCase()).join(',')
+      };
+
+      // If metadata changed (label or list or name), update icon and popup
+      const oldMeta = existingMarker._cardMeta || {};
+      if (JSON.stringify(oldMeta) !== JSON.stringify(newMeta)) {
+        // Update icon
+        const markerConfig = getMarkerConfig(card);
+        const newIcon = getMarkerIcon(markerConfig);
+        existingMarker.setIcon(newIcon);
+        // Update popup
+        try {
+          existingMarker.setPopupContent(getPopupHtml(card));
+        } catch (e) {
+          console.warn('[Map] Failed to update popup for', card.id, e);
+        }
+        existingMarker._cardMeta = newMeta;
+      }
+
       bounds.extend([coords.lat, coords.lng]);
       hasMarkers = true;
-      return; // Skip creating new marker, keep existing one
+      return; // Keep existing marker
     }
 
     console.log('[Map] Creating marker for card:', card.id, card.name, 'at', coords.lat, coords.lng);
@@ -626,62 +706,8 @@ function createMarker(card) {
     console.warn('[Map] markerConfig is undefined for card:', card.id, card.name);
     return null;
   }
-
   try {
-    let markerIcon;
-    
-    // Try to use AwesomeMarkers if available, otherwise use default Leaflet marker
-    if (typeof L !== 'undefined' && L.AwesomeMarkers && L.AwesomeMarkers.icon) {
-      markerIcon = L.AwesomeMarkers.icon({
-        icon: markerConfig.icon || 'map-marker',
-        prefix: markerConfig.prefix || 'fa',
-        markerColor: markerConfig.color || 'blue'
-      });
-      console.log('[Map] Using AwesomeMarkers icon:', markerConfig.color, markerConfig.icon);
-    } else {
-      // Fallback: Create a colored SVG marker using HTML div element
-      console.log('[Map] AwesomeMarkers not available, using SVG fallback marker');
-      const colorMap = {
-        'blue': '#3388ff',
-        'red': '#ff6b6b',
-        'green': '#51cf66',
-        'orange': '#ffa94d',
-        'yellow': '#ffd43b'
-      };
-      
-      const markerColor = colorMap[markerConfig.color] || '#3388ff';
-      
-      // Map common icon names to emoji for the fallback
-      const emojiMap = {
-        'truck': '🚚',
-        'wrench': '🛠️',
-        'check-circle': '✔️',
-        'exclamation-triangle': '⚠️',
-        'exclamation-circle': '❗',
-        'info-circle': 'ℹ️',
-        'map-marker': '📍'
-      };
-      const emoji = emojiMap[markerConfig.icon] || '📍';
-
-      // Create a compact SVG pin with the emoji centered in the white circle
-      const html = `
-        <div style="width:28px;height:42px;position:relative;display:flex;align-items:flex-start;justify-content:center">
-          <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
-            <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
-            <circle cx="14" cy="11" r="5" fill="#ffffff"/>
-          </svg>
-          <div style="position:absolute;left:50%;top:22%;transform:translate(-50%,-50%);font-size:12px;line-height:12px">${emoji}</div>
-        </div>
-      `;
-
-      markerIcon = L.divIcon({
-        html: html,
-        iconSize: [28, 42],
-        iconAnchor: [14, 42],
-        popupAnchor: [0, -42],
-        className: 'custom-div-marker'
-      });
-    }
+    const markerIcon = getMarkerIcon(markerConfig);
 
     const marker = L.marker(
       [card.coordinates.lat, card.coordinates.lng],
@@ -690,20 +716,16 @@ function createMarker(card) {
       }
     );
 
-    // Build popup: card name (link), list name, description, coords
-    const listName = (appState.listMap && appState.listMap[card.idList]) ? appState.listMap[card.idList] : 'Unknown list';
-    const safeDesc = escapeHtml(card.desc || '').replace(/\n/g, '<br>');
-    const cardUrl = card.shortUrl || `https://trello.com/c/${card.id}`;
+    const popupHtml = getPopupHtml(card);
+    marker.bindPopup(popupHtml);
 
-    marker.bindPopup(`
-      <div class="popup-card">
-        <a href="${cardUrl}" target="_blank" rel="noopener noreferrer"><strong>${escapeHtml(card.name)}</strong></a>
-        <div style="font-size:0.9em;color:#666;margin-top:4px">List: ${escapeHtml(listName)}</div>
-        <hr style="margin:6px 0;opacity:0.6" />
-        <div class="popup-desc" style="max-height:200px;overflow:auto;white-space:pre-wrap">${safeDesc}</div>
-        <div style="margin-top:6px;font-size:0.85em;color:#333"><small>${card.coordinates.lat.toFixed(4)}, ${card.coordinates.lng.toFixed(4)}</small></div>
-      </div>
-    `);
+    // store a small metadata snapshot on the marker to make updates possible
+    marker._cardMeta = {
+      id: card.id,
+      name: card.name,
+      idList: card.idList,
+      labels: (card.labels || []).map(l => (l.name || l.color || '').toLowerCase()).join(',')
+    };
 
     return marker;
   } catch (error) {
@@ -712,35 +734,123 @@ function createMarker(card) {
   }
 }
 
+// Build popup HTML for a card
+function getPopupHtml(card) {
+  const listName = (appState.listMap && appState.listMap[card.idList]) ? appState.listMap[card.idList] : escapeHtml(card.idList || '');
+  const safeDesc = escapeHtml(card.desc || '').replace(/\n/g, '<br>');
+  const cardUrl = card.shortUrl || `https://trello.com/c/${card.id}`;
+
+  // Build labels HTML
+  const labelColorMap = {
+    green: '#51cf66',
+    yellow: '#ffd43b',
+    orange: '#ffa94d',
+    red: '#ff6b6b',
+    purple: '#845ef7',
+    blue: '#4dabf7',
+    sky: '#74c0fc',
+    lime: '#b8e986',
+    pink: '#ff6bcb',
+    black: '#555'
+  };
+
+  const labelsHtml = (card.labels || []).map(l => {
+    const color = labelColorMap[(l.color || '').toLowerCase()] || '#999';
+    const name = escapeHtml(l.name || '');
+    return `<span style="display:inline-block;padding:4px 8px;border-radius:12px;background:${color};color:#fff;margin-right:6px;font-size:0.8em">${name}</span>`;
+  }).join('');
+
+  return `
+    <div class="popup-card">
+      <a href="${cardUrl}" target="_blank" rel="noopener noreferrer"><strong>${escapeHtml(card.name)}</strong></a>
+      <div style="font-size:0.95em;color:#222;margin-top:6px">${escapeHtml(listName)}</div>
+      <div style="margin-top:6px">${labelsHtml}</div>
+      <hr style="margin:6px 0;opacity:0.6" />
+      <div class="popup-desc" style="max-height:200px;overflow:auto;white-space:pre-wrap">${safeDesc}</div>
+      <div style="margin-top:6px;font-size:0.85em;color:#333"><small>${card.coordinates.lat.toFixed(4)}, ${card.coordinates.lng.toFixed(4)}</small></div>
+    </div>
+  `;
+}
+
+// Create a marker icon (AwesomeMarkers if available, otherwise styled divIcon with drop shadow)
+function getMarkerIcon(markerConfig) {
+  if (typeof L !== 'undefined' && L.AwesomeMarkers && L.AwesomeMarkers.icon) {
+    return L.AwesomeMarkers.icon({
+      icon: markerConfig.icon || 'map-marker',
+      prefix: markerConfig.prefix || 'fa',
+      markerColor: markerConfig.color || 'blue'
+    });
+  }
+
+  // Fallback colored pin with emoji
+  const colorMap = {
+    'blue': '#3388ff',
+    'red': '#ff6b6b',
+    'green': '#51cf66',
+    'orange': '#ffa94d',
+    'yellow': '#ffd43b'
+  };
+  const markerColor = colorMap[markerConfig.color] || '#3388ff';
+
+  const emojiMap = {
+    'truck': '🚚',
+    'wrench': '🛠️',
+    'check-circle': '✔️',
+    'exclamation-triangle': '⚠️',
+    'exclamation-circle': '❗',
+    'info-circle': 'ℹ️',
+    'map-marker': '📍'
+  };
+  const emoji = emojiMap[markerConfig.icon] || '📍';
+
+  const html = `
+    <div style="width:28px;height:42px;position:relative;display:flex;align-items:flex-start;justify-content:center;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.35));">
+      <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
+        <circle cx="14" cy="11" r="5" fill="#ffffff"/>
+      </svg>
+      <div style="position:absolute;left:50%;top:22%;transform:translate(-50%,-50%);font-size:12px;line-height:12px">${emoji}</div>
+    </div>
+  `;
+
+  return L.divIcon({
+    html: html,
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
+    popupAnchor: [0, -42],
+    className: 'custom-div-marker'
+  });
+}
+
 function getMarkerConfig(card) {
   try {
-    // Check for specific labels in priority order
-    const labels = card.labels?.map(l => l.name) || [];
+    // Check for specific labels in priority order (case-insensitive)
+    const labels = (card.labels || []).map(l => (l.name || l.color || '').toLowerCase());
 
     // Check for completion first
-    if (labels.includes('Completed')) {
+    if (labels.includes('completed')) {
       return { icon: 'check-circle', color: 'green', prefix: 'fa' };
     }
 
     // Check for status labels
-    if (labels.includes('En route')) {
+    if (labels.includes('en route') || labels.includes('enroute') || labels.includes('en-route')) {
       return { icon: 'truck', color: 'blue', prefix: 'fa' };
     }
 
-    if (labels.includes('On Scene')) {
+    if (labels.includes('on scene') || labels.includes('on site') || labels.includes('onscene') || labels.includes('onsite')) {
       return { icon: 'wrench', color: 'blue', prefix: 'fa' };
     }
 
     // Check for priority labels
-    if (labels.includes('Priority')) {
+    if (labels.includes('priority')) {
       return { icon: 'exclamation-triangle', color: 'red', prefix: 'fa' };
     }
 
-    if (labels.includes('Important')) {
+    if (labels.includes('important')) {
       return { icon: 'exclamation-circle', color: 'orange', prefix: 'fa' };
     }
 
-    if (labels.includes('Routine')) {
+    if (labels.includes('routine')) {
       return { icon: 'info-circle', color: 'yellow', prefix: 'fa' };
     }
 
@@ -810,7 +920,10 @@ async function processGeocodingQueue() {
   }
 
   appState.isProcessingGeocodeQueue = true;
-  showStatusMessage('Decoding addresses...');
+  showStatusMessage({ text: 'Decoding addresses...', queue: appState.geocodingQueue.map(id => {
+    const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
+    return c ? c.name : id;
+  }) });
   console.log('[Map] Starting geocoding queue processing...');
 
   while (appState.geocodingQueue.length > 0) {
@@ -824,6 +937,11 @@ async function processGeocodingQueue() {
 
     try {
       console.log('[Map] Processing card for geocoding:', cardId, card.name);
+      // Update status with current processing and remaining queue
+      showStatusMessage({ text: `Decoding: ${card.name}`, queue: appState.geocodingQueue.map(id => {
+        const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
+        return c ? c.name : id;
+      }) });
       
       const address = parseAddressFromDescription(card.desc);
       console.log('[Map] Parsed address from description:', address);
@@ -875,6 +993,7 @@ async function processGeocodingQueue() {
     console.warn('[Map] renderMarkers failed after geocoding:', e);
   }
   hideStatusMessage();
+  clearStatusQueue();
   console.log('[Map] Geocoding queue processing complete');
 }
 
