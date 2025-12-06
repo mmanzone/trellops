@@ -85,6 +85,19 @@ function hideStatusMessage() {
   }
 }
 
+// Basic HTML escaping for popup content
+function escapeHtml(unsafe) {
+  return (unsafe || '').replace(/[&<>"]+/g, function(match) {
+    switch (match) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      default: return match;
+    }
+  });
+}
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
@@ -319,8 +332,8 @@ async function loadCards() {
   const boardId = appState.selectedBoardId;
 
   try {
-    // Fetch cards
-    const cardsUrl = `https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,desc,idList,labels,idLabels,pos,isTemplate&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
+    // Fetch cards (include shortUrl so we can link to the Trello card)
+    const cardsUrl = `https://api.trello.com/1/boards/${boardId}/cards?fields=id,name,desc,idList,labels,idLabels,pos,isTemplate,shortUrl&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
     
     console.log('[Map] Fetching cards...');
     
@@ -398,6 +411,22 @@ async function loadCards() {
           }
         }
       }
+    }
+
+    // Fetch board lists so we can display list name in popups
+    try {
+      const listsUrl = `https://api.trello.com/1/boards/${boardId}/lists?fields=id,name&key=${TRELLO_API_KEY}&token=${appState.userToken}`;
+      const listsResp = await fetch(listsUrl);
+      if (listsResp.ok) {
+        const lists = await listsResp.json();
+        appState.listMap = {};
+        lists.forEach(l => {
+          appState.listMap[l.id] = l.name;
+        });
+        console.log('[Map] Board lists loaded:', appState.listMap);
+      }
+    } catch (e) {
+      console.warn('[Map] Could not fetch board lists:', e);
     }
 
     // Keep a copy of the raw cards (unfiltered) so we can determine first-card per list
@@ -622,18 +651,34 @@ function createMarker(card) {
       
       const markerColor = colorMap[markerConfig.color] || '#3388ff';
       
-      // Create a custom HTML element for the marker
+      // Map common icon names to emoji for the fallback
+      const emojiMap = {
+        'truck': '🚚',
+        'wrench': '🛠️',
+        'check-circle': '✔️',
+        'exclamation-triangle': '⚠️',
+        'exclamation-circle': '❗',
+        'info-circle': 'ℹ️',
+        'map-marker': '📍'
+      };
+      const emoji = emojiMap[markerConfig.icon] || '📍';
+
+      // Create a compact SVG pin with the emoji centered in the white circle
       const html = `
-        <div class="custom-marker" style="background-color: ${markerColor}; width: 30px; height: 40px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 0 6px rgba(0,0,0,0.3); border: 2px solid white; display: flex; align-items: center; justify-content: center;">
-          <div style="transform: rotate(45deg); color: white; font-weight: bold; font-size: 16px;">📍</div>
+        <div style="width:28px;height:42px;position:relative;display:flex;align-items:flex-start;justify-content:center">
+          <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
+            <circle cx="14" cy="11" r="5" fill="#ffffff"/>
+          </svg>
+          <div style="position:absolute;left:50%;top:22%;transform:translate(-50%,-50%);font-size:12px;line-height:12px">${emoji}</div>
         </div>
       `;
-      
+
       markerIcon = L.divIcon({
         html: html,
-        iconSize: [30, 40],
-        iconAnchor: [15, 40],
-        popupAnchor: [0, -40],
+        iconSize: [28, 42],
+        iconAnchor: [14, 42],
+        popupAnchor: [0, -42],
         className: 'custom-div-marker'
       });
     }
@@ -645,9 +690,19 @@ function createMarker(card) {
       }
     );
 
+    // Build popup: card name (link), list name, description, coords
+    const listName = (appState.listMap && appState.listMap[card.idList]) ? appState.listMap[card.idList] : 'Unknown list';
+    const safeDesc = escapeHtml(card.desc || '').replace(/\n/g, '<br>');
+    const cardUrl = card.shortUrl || `https://trello.com/c/${card.id}`;
+
     marker.bindPopup(`
-      <strong>${card.name}</strong><br>
-      <small>${card.coordinates.lat.toFixed(4)}, ${card.coordinates.lng.toFixed(4)}</small>
+      <div class="popup-card">
+        <a href="${cardUrl}" target="_blank" rel="noopener noreferrer"><strong>${escapeHtml(card.name)}</strong></a>
+        <div style="font-size:0.9em;color:#666;margin-top:4px">List: ${escapeHtml(listName)}</div>
+        <hr style="margin:6px 0;opacity:0.6" />
+        <div class="popup-desc" style="max-height:200px;overflow:auto;white-space:pre-wrap">${safeDesc}</div>
+        <div style="margin-top:6px;font-size:0.85em;color:#333"><small>${card.coordinates.lat.toFixed(4)}, ${card.coordinates.lng.toFixed(4)}</small></div>
+      </div>
     `);
 
     return marker;
@@ -813,6 +868,12 @@ async function processGeocodingQueue() {
   }
 
   appState.isProcessingGeocodeQueue = false;
+  // After processing, refresh markers and then hide the status
+  try {
+    renderMarkers();
+  } catch (e) {
+    console.warn('[Map] renderMarkers failed after geocoding:', e);
+  }
   hideStatusMessage();
   console.log('[Map] Geocoding queue processing complete');
 }
