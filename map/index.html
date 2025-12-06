@@ -167,6 +167,10 @@
             animation: slideIn 0.3s ease-out;
         }
 
+        .status-message.wide {
+            max-width: 520px;
+        }
+
         .status-message.hidden {
             display: none;
         }
@@ -206,6 +210,20 @@
             font-size: 0.9em;
             color: #333;
             font-weight: 500;
+        }
+        .status-progress {
+            width: 100%;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .status-progress > .bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg,#667eea,#764ba2);
+            transition: width 0.3s ease;
         }
         .basemap-control {
             position: absolute;
@@ -491,10 +509,15 @@
             </select>
         </div>
 
-        <!-- Copyright / attribution -->
-        <div id="mapFooter" class="map-footer">
-            <small>Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>. Data sources as required by APIs.</small>
-        </div>
+                <!-- Copyright / attribution -->
+                <div id="mapFooter" class="map-footer">
+                        <div style="display:flex;gap:12px;align-items:center">
+                            <small>Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a></small>
+                            <small> | Nominatim attribution: <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noopener noreferrer">Nominatim Usage Policy</a></small>
+                            <small> | License guidelines: <a href="https://osmfoundation.org/wiki/Licence/Attribution_Guidelines" target="_blank" rel="noopener noreferrer">OSM Attribution Guidelines</a></small>
+                        </div>
+                        <div style="margin-top:4px;font-size:0.85em;color:#333">Next refresh in <span id="refreshCountdown">--</span></div>
+                </div>
 
         <!-- Status Message -->
         <div id="statusMessage" class="status-message hidden">

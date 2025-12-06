@@ -83,24 +83,52 @@ function showStatusMessage(message) {
       if (qEl) {
         if (Array.isArray(message.queue) && message.queue.length) {
           qEl.innerHTML = '<ul style="padding-left:18px;margin:4px 0">' + message.queue.map(n => `<li>${escapeHtml(n)}</li>`).join('') + '</ul>';
+          // mark wide for extra content
+          statusEl.classList.add('wide');
         } else {
           qEl.innerHTML = '';
         }
+      }
+      // Progress handling
+      const progressTotal = Number(message.total || 0);
+      const progressProcessed = Number(message.processed || 0);
+      const progressContainer = statusEl.querySelector('.status-progress') || (() => {
+        const div = document.createElement('div');
+        div.className = 'status-progress';
+        div.innerHTML = '<div class="bar" style="width:0%"></div>';
+        statusEl.querySelector('.status-content')?.appendChild(div);
+        // add percent text
+        const pct = document.createElement('div'); pct.style.fontSize = '0.85em'; pct.style.marginTop = '6px'; pct.className = 'status-percent';
+        statusEl.querySelector('.status-content')?.appendChild(pct);
+        return div;
+      })();
+      if (progressTotal > 0) {
+        const pct = Math.round((progressProcessed / progressTotal) * 100);
+        const bar = progressContainer.querySelector('.bar');
+        if (bar) bar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+        const pctEl = statusEl.querySelector('.status-percent'); if (pctEl) pctEl.textContent = `${pct}%`;
+      } else {
+        const bar = progressContainer.querySelector('.bar'); if (bar) bar.style.width = '0%';
+        const pctEl = statusEl.querySelector('.status-percent'); if (pctEl) pctEl.textContent = '';
       }
     }
     statusEl.classList.remove('hidden');
   }
 }
 
+function clearStatusQueue() {
+  const qEl = document.getElementById('statusQueue');
+  if (qEl) qEl.innerHTML = '';
+}
+
 function hideStatusMessage() {
   const statusEl = document.getElementById('statusMessage');
   if (statusEl) {
     statusEl.classList.add('hidden');
+    statusEl.classList.remove('wide');
   }
-}
-function clearStatusQueue() {
-  const qEl = document.getElementById('statusQueue');
-  if (qEl) qEl.innerHTML = '';
+  const qEl = document.getElementById('statusQueue'); if (qEl) qEl.innerHTML = '';
+  const bar = document.querySelector('#statusMessage .status-progress .bar'); if (bar) bar.style.width = '0%';
 }
 
 // Basic HTML escaping for popup content
@@ -204,6 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Start auto-refresh
+    loadRefreshInterval();
     startAutoRefresh();
 
     console.log('[Map] Initialization complete!');
@@ -307,14 +336,17 @@ function startAutoRefresh() {
   appState.refreshInterval = setInterval(async () => {
     console.log('[Map] Auto-refreshing map data...');
     try {
-      await loadCards();
-      renderMarkers();
-      startGeocodingQueue();
+      await doRefreshCycle();
     } catch (error) {
       console.error('[Map] Error during auto-refresh:', error);
     }
   }, appState.refreshIntervalMs);
-  
+
+  // countdown timer for display
+  if (appState.countdownTimer) clearInterval(appState.countdownTimer);
+  appState.nextRefreshAt = Date.now() + appState.refreshIntervalMs;
+  appState.countdownTimer = setInterval(updateRefreshCountdown, 1000);
+
   console.log('[Map] Auto-refresh started with interval:', appState.refreshIntervalMs, 'ms');
 }
 
@@ -329,13 +361,45 @@ function stopAutoRefresh() {
 async function manualRefresh() {
   console.log('[Map] Manual refresh triggered...');
   try {
-    await loadCards();
-    renderMarkers();
-    startGeocodingQueue();
+    await doRefreshCycle();
   } catch (error) {
     console.error('[Map] Error during manual refresh:', error);
     showError('Failed to refresh map data');
   }
+}
+
+async function doRefreshCycle() {
+  // perform a refresh: reload cards, render markers and start geocoding
+  await loadCards();
+  renderMarkers();
+  startGeocodingQueue();
+  // reset next refresh timestamp
+  appState.nextRefreshAt = Date.now() + appState.refreshIntervalMs;
+}
+
+function loadRefreshInterval() {
+  try {
+    const dashboardSettings = localStorage.getItem('dashboardSettings');
+    if (dashboardSettings) {
+      const settings = JSON.parse(dashboardSettings);
+      // allow refreshInterval in seconds or ms; if <1000 assume seconds
+      if (settings.refreshInterval && settings.refreshInterval > 0) {
+        let val = Number(settings.refreshInterval);
+        if (val < 1000) val = val * 1000;
+        appState.refreshIntervalMs = val;
+      }
+    }
+  } catch (e) {
+    console.warn('[Map] loadRefreshInterval failed, using default', e);
+  }
+}
+
+function updateRefreshCountdown() {
+  const el = document.getElementById('refreshCountdown');
+  if (!el) return;
+  const remaining = Math.max(0, appState.nextRefreshAt - Date.now());
+  const seconds = Math.ceil(remaining / 1000);
+  el.textContent = `${seconds}s`;
 }
 
 function getBoardData() {
@@ -920,10 +984,17 @@ async function processGeocodingQueue() {
   }
 
   appState.isProcessingGeocodeQueue = true;
-  showStatusMessage({ text: 'Decoding addresses...', queue: appState.geocodingQueue.map(id => {
-    const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
-    return c ? c.name : id;
-  }) });
+  // Only show decoding if there are items in the queue
+  const initialQueue = appState.geocodingQueue.slice();
+  let processedCount = 0;
+  const totalToProcess = initialQueue.length;
+  if (totalToProcess > 0) {
+    showStatusMessage({ text: 'Decoding addresses...', queue: initialQueue.map(id => {
+      const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
+      return c ? c.name : id;
+    }), processed: processedCount, total: totalToProcess });
+    const statusEl = document.getElementById('statusMessage'); if (statusEl) statusEl.classList.add('wide');
+  }
   console.log('[Map] Starting geocoding queue processing...');
 
   while (appState.geocodingQueue.length > 0) {
@@ -937,11 +1008,11 @@ async function processGeocodingQueue() {
 
     try {
       console.log('[Map] Processing card for geocoding:', cardId, card.name);
-      // Update status with current processing and remaining queue
+      // Update status with current processing and remaining queue (and progress)
       showStatusMessage({ text: `Decoding: ${card.name}`, queue: appState.geocodingQueue.map(id => {
         const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
         return c ? c.name : id;
-      }) });
+      }), processed: processedCount, total: totalToProcess });
       
       const address = parseAddressFromDescription(card.desc);
       console.log('[Map] Parsed address from description:', address);
@@ -980,6 +1051,14 @@ async function processGeocodingQueue() {
       // Respect rate limiting
       await sleep(CONFIG.GEOCODING.DELAY_MS);
 
+      // Update progress
+      processedCount++;
+      if (totalToProcess > 0) {
+        showStatusMessage({ text: `Decoding: ${card.name}`, queue: appState.geocodingQueue.map(id => {
+          const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
+          return c ? c.name : id;
+        }), processed: processedCount, total: totalToProcess });
+      }
     } catch (error) {
       console.error(`[Map] Error geocoding card ${cardId}:`, error);
     }
