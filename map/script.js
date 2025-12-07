@@ -767,7 +767,8 @@ function renderBlockList() {
         savePreferences();
         renderMarkers();
         updateCardCount();
-        startGeocodingQueue();
+        // Ensure any newly-visible cards without coordinates are enqueued for geocoding
+        enqueueMissingCoordinatesForVisibleCards(true);
       });
 
       const label = document.createElement('label');
@@ -1189,6 +1190,33 @@ function startGeocodingQueue() {
   console.log('[Map] Queue card IDs:', appState.geocodingQueue);
 
   processGeocodingQueue();
+}
+
+/**
+ * Ensure visible cards that lack coordinates are added to the geocoding queue.
+ * If `force` is true, ignore the `hasCardChanged` check so user actions (like
+ * re-checking a block) will trigger geocoding for those cards.
+ */
+function enqueueMissingCoordinatesForVisibleCards(force = false) {
+  const visibleCards = getVisibleCards();
+  const needIds = visibleCards.filter(card => {
+    if (card.coordinates) return false;
+    if (!card.desc || !card.desc.trim()) return false;
+    // if not forcing, respect hasCardChanged() to avoid reprocessing unchanged cards
+    if (!force && !hasCardChanged(card)) return false;
+    return true;
+  }).map(c => c.id);
+
+  // Add to queue if not already present
+  const existing = new Set(appState.geocodingQueue || []);
+  for (const id of needIds) {
+    if (!existing.has(id)) appState.geocodingQueue.push(id);
+  }
+
+  if ((needIds.length > 0)) {
+    console.log('[Map] Enqueued missing-coordinate visible cards (force=' + !!force + '):', needIds);
+    processGeocodingQueue();
+  }
 }
 
 async function processGeocodingQueue() {
