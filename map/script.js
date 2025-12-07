@@ -929,14 +929,6 @@ function renderMarkers() {
       appState.markers.set(card.id, marker);
       bounds.extend([coords.lat, coords.lng]);
       hasMarkers = true;
-      // Open popup only for new or changed cards on this refresh
-      try {
-        if (hasCardChanged(card)) {
-          marker.openPopup();
-        }
-      } catch (e) {
-        console.warn('[Map] Failed to open popup for', card.id, e);
-      }
       // Snapshot card after creating marker so it won't be re-queued
       try {
         snapshotCard(card);
@@ -948,10 +940,24 @@ function renderMarkers() {
 
   console.log('[Map] Total markers created:', appState.markers.size);
 
-  // Auto-zoom to fit all markers
-  if (hasMarkers && bounds.isValid()) {
-    console.log('[Map] Fitting bounds...');
-    appState.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+  // Auto-zoom to fit all markers (compute bounds from all current markers to ensure all are included)
+  const markerBounds = L.latLngBounds();
+  let anyMarker = false;
+  for (const [, m] of appState.markers.entries()) {
+    try {
+      const latlng = m.getLatLng();
+      if (latlng && typeof latlng.lat === 'number') {
+        markerBounds.extend(latlng);
+        anyMarker = true;
+      }
+    } catch (e) {
+      console.warn('[Map] Failed to read marker LatLng for bounds:', e);
+    }
+  }
+
+  if (anyMarker && markerBounds.isValid()) {
+    console.log('[Map] Fitting bounds to all markers...');
+    appState.map.fitBounds(markerBounds, { padding: [50, 50], maxZoom: 15 });
   } else {
     console.log('[Map] No markers to display, staying at default zoom');
   }
@@ -1250,14 +1256,8 @@ async function processGeocodingQueue() {
           marker.addTo(appState.map);
           appState.markers.set(card.id, marker);
           console.log('[Map] Marker added for card:', cardId);
-          // Open popup only for new or changed cards that were just processed
-          try {
-            if (hasCardChanged(card)) {
-              marker.openPopup();
-            }
-          } catch (e) {
-            console.warn('[Map] Failed to open popup after geocoding for', cardId, e);
-          }
+          // Snapshot so it won't be re-queued
+          try { snapshotCard(card); } catch (e) { console.warn('[Map] Failed to snapshot card after geocoding:', cardId, e); }
         }
       }
 
