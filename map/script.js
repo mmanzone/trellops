@@ -977,6 +977,7 @@ function createMarker(card) {
     return null;
   }
   try {
+    console.log('[Map] createMarker: markerConfig for', card.id, markerConfig);
     const markerIcon = getMarkerIcon(markerConfig);
 
     const marker = L.marker(
@@ -1052,7 +1053,6 @@ function getMarkerIcon(markerConfig) {
     });
   }
 
-  // Fallback colored pin with emoji
   const colorMap = {
     'blue': '#3388ff',
     'red': '#ff6b6b',
@@ -1062,48 +1062,44 @@ function getMarkerIcon(markerConfig) {
   };
   const markerColor = colorMap[markerConfig.color] || '#3388ff';
 
-  // Create an inline SVG icon for the marker center (keeps color in pin)
   let innerSvg = '';
   const icon = (markerConfig.icon || '').toLowerCase();
   if (icon === 'truck' || icon === 'delivery' || icon === 'car') {
-    // simple truck icon
     innerSvg = `<svg width="18" height="12" viewBox="0 0 24 16" xmlns="http://www.w3.org/2000/svg" fill="none">
-      <rect x="1" y="4" width="14" height="8" rx="1" fill="#333" />
-      <rect x="15" y="8" width="6" height="4" rx="1" fill="#333" />
-      <circle cx="7" cy="13" r="1.6" fill="#111" />
-      <circle cx="17" cy="13" r="1.6" fill="#111" />
+      <rect x="1" y="4" width="14" height="8" rx="1" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6" />
+      <rect x="15" y="8" width="6" height="4" rx="1" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6" />
+      <circle cx="7" cy="13" r="1.6" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6" />
+      <circle cx="17" cy="13" r="1.6" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6" />
     </svg>`;
   } else if (icon === 'wrench' || icon === 'tool' || icon === 'onsite' || icon === 'on site') {
-    // simple wrench icon
     innerSvg = `<svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none">
-      <path d="M21.7 12.3l-2-2c-.4-.4-1-.4-1.4 0l-1 1-3.3-3.3 1-1c.4-.4.4-1 0-1.4l-2-2c-.4-.4-1-.4-1.4 0L6 6.6c-2.6 2.6-2.6 6.8 0 9.4s6.8 2.6 9.4 0l4.9-4.9c.4-.4.4-1 0-1.4z" fill="#333"/>
+      <path d="M21.7 12.3l-2-2c-.4-.4-1-.4-1.4 0l-1 1-3.3-3.3 1-1c.4-.4.4-1 0-1.4l-2-2c-.4-.4-1-.4-1.4 0L6 6.6c-2.6 2.6-2.6 6.8 0 9.4s6.8 2.6 9.4 0l4.9-4.9c.4-.4.4-1 0-1.4z" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6"/>
     </svg>`;
   } else if (icon === 'check-circle') {
-    innerSvg = `<svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.2l-3.5-3.5L4 14.2 9 19.2 20 8.2 18.6 6.8z" fill="#333"/></svg>`;
+    innerSvg = `<svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.2l-3.5-3.5L4 14.2 9 19.2 20 8.2 18.6 6.8z" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6"/></svg>`;
   } else if (icon === 'exclamation-triangle' || icon === 'exclamation-circle') {
-    innerSvg = `<svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="#333"/></svg>`;
+    innerSvg = `<svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6"/></svg>`;
   } else {
-    // default pin dot
-    innerSvg = `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" fill="#333"/></svg>`;
+    innerSvg = `<svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="5" fill="#fff" stroke="#000" stroke-opacity="0.25" stroke-width="0.6"/></svg>`;
   }
 
   const html = `
     <div style="width:28px;height:42px;position:relative;display:flex;align-items:flex-start;justify-content:center;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.35));">
       <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
         <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
-        <!-- use the same marker color for the center so the glyph is not obscured by a white background -->
         <circle cx="14" cy="11" r="5" fill="${markerColor}"/>
       </svg>
       <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);line-height:1;">${innerSvg}</div>
     </div>
   `;
 
+  const safeIconClass = `custom-div-marker--${icon.replace(/[^a-z0-9_-]/g, '-')}`;
   return L.divIcon({
     html: html,
     iconSize: [28, 42],
     iconAnchor: [14, 42],
     popupAnchor: [0, -42],
-    className: 'custom-div-marker'
+    className: `custom-div-marker ${safeIconClass}`
   });
 }
 
