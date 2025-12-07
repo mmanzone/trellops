@@ -32,8 +32,6 @@ const CONFIG = {
     'Routine': { icon: 'info-circle', color: 'yellow', prefix: 'fa' },
     'Important': { icon: 'exclamation-circle', color: 'orange', prefix: 'fa' },
     'Priority': { icon: 'exclamation-triangle', color: 'red', prefix: 'fa' },
-    'En route': { icon: 'truck', color: 'blue', prefix: 'fa' },
-    'On Scene': { icon: 'wrench', color: 'blue', prefix: 'fa' },
     'Completed': { icon: 'check-circle', color: 'green', prefix: 'fa' },
   },
   STORAGE_KEYS: {
@@ -62,7 +60,8 @@ let appState = {
   userToken: null,
   userId: null,
   refreshInterval: null,
-  refreshIntervalMs: 300000 // 5 minutes default
+  refreshIntervalMs: 30000, // 30 seconds default (max 30 seconds)
+  cardSnapshots: new Map() // cardId -> {name, desc, labels, idList} for change detection
 };
 
 // ============================================================================
@@ -144,6 +143,59 @@ function escapeHtml(unsafe) {
   });
 }
 
+// Check if card content has changed compared to previous snapshot
+function hasCardChanged(card) {
+  if (!appState.cardSnapshots.has(card.id)) {
+    return true; // New card
+  }
+  const prev = appState.cardSnapshots.get(card.id);
+  const currLabels = (card.labels || []).map(l => l.name || l.color || '').sort().join('|');
+  const prevLabels = prev.labels || '';
+  return (
+    prev.name !== card.name ||
+    prev.desc !== card.desc ||
+    prev.idList !== card.idList ||
+    prevLabels !== currLabels
+  );
+}
+
+// Snapshot card for change detection
+function snapshotCard(card) {
+  const labels = (card.labels || []).map(l => l.name || l.color || '').sort().join('|');
+  appState.cardSnapshots.set(card.id, {
+    name: card.name,
+    desc: card.desc,
+    labels: labels,
+    idList: card.idList
+  });
+}
+
+// Return a Set of first-card IDs per list based on raw card positions
+function getFirstCardIds() {
+  const firstCardByList = {};
+  if (Array.isArray(appState.rawCards)) {
+    appState.rawCards.forEach(c => {
+      const listId = c.idList;
+      const pos = typeof c.pos === 'number' ? c.pos : parseFloat(c.pos || 0);
+      if (!firstCardByList[listId] || pos < firstCardByList[listId].pos) {
+        firstCardByList[listId] = { id: c.id, pos };
+      }
+    });
+  }
+  return new Set(Object.values(firstCardByList).map(x => x.id));
+}
+
+function countCardsInBlock(block) {
+  if (!block) return 0;
+  const firstCardIds = getFirstCardIds();
+  return appState.cards.filter(card => {
+    if (!block.listIds?.includes(card.idList)) return false;
+    if (!appState.showTemplates && card.isTemplate) return false;
+    if (block.ignoreFirstCard && firstCardIds.has(card.id)) return false;
+    return true;
+  }).length;
+}
+
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
@@ -152,97 +204,211 @@ document.addEventListener('DOMContentLoaded', async () => {
   waitForLibraries(async () => {
     try {
       console.log('[Map] Initializing...');
-      
       // Get board data FIRST before initializing map
       const boardData = getBoardData();
-    console.log('[Map] Board data:', boardData);
-    
-    if (!boardData) {
-      showError('No board configured. Please set up a dashboard first.');
-      return;
-    }
-
-    appState.selectedBoardId = boardData.boardId;
-    appState.selectedBoardName = boardData.boardName;
-
-    // Update sidebar header with board name
-    const headerTitle = document.querySelector('.sidebar-header h2');
-    if (headerTitle) {
-      headerTitle.textContent = `${boardData.boardName}`;
-    }
-
-    const headerSubtitle = document.querySelector('.sidebar-header p');
-    if (headerSubtitle) {
-      headerSubtitle.textContent = 'Map View - Filter by block';
-    }
-
-    // Get auth from session/URL
-    const authData = await getAuthData();
-    console.log('[Map] Auth data:', authData ? { userId: authData.userId, hasToken: !!authData.token } : null);
-    
-    if (!authData) {
-      showError('Not authenticated. Please log in from the main dashboard.');
-      return;
-    }
-
-    appState.userToken = authData.token;
-    appState.userId = authData.userId;
-
-    // Initialize Leaflet map
-    console.log('[Map] Initializing Leaflet map...');
-    initializeMap();
-
-    // Load blocks and cards
-    console.log('[Map] Loading blocks...');
-    await loadBlocks();
-    console.log('[Map] Blocks loaded:', appState.blocks);
-
-    console.log('[Map] Loading cards...');
-    await loadCards();
-    console.log('[Map] Cards loaded:', appState.cards.length, 'total cards');
-
-    // Initialize UI
-    renderBlockList();
-    updateCardCount();
-
-    // Restore saved preferences
-    restorePreferences();
-    console.log('[Map] Visible blocks:', Array.from(appState.visibleBlocks));
-
-    // Render markers
-    console.log('[Map] Rendering markers...');
-    renderMarkers();
-
-    // Start geocoding queue for cards that need it
-    console.log('[Map] Starting geocoding queue...');
-    startGeocodingQueue();
-
-    // Load auto-refresh interval from dashboard settings
-    try {
-      const dashboardSettings = localStorage.getItem('dashboardSettings');
-      if (dashboardSettings) {
-        const settings = JSON.parse(dashboardSettings);
-        if (settings.refreshInterval && settings.refreshInterval > 0) {
-          appState.refreshIntervalMs = settings.refreshInterval * 1000; // Convert to ms
-          console.log('[Map] Using refresh interval from settings:', appState.refreshIntervalMs, 'ms');
-        }
+      console.log('[Map] Board data:', boardData);
+      if (!boardData) {
+        showError('No board configured. Please set up a dashboard first.');
+        return;
       }
-    } catch (e) {
-      console.log('[Map] Could not load refresh interval from settings, using default');
+      appState.selectedBoardId = boardData.boardId;
+      appState.selectedBoardName = boardData.boardName;
+      // Update sidebar header with board name
+      const headerTitle = document.querySelector('.sidebar-header h2');
+      if (headerTitle) headerTitle.textContent = `${boardData.boardName}`;
+      const headerSubtitle = document.querySelector('.sidebar-header p');
+      if (headerSubtitle) headerSubtitle.textContent = 'Map View - Filter by block';
+      // Get auth from session/URL
+      const authData = await getAuthData();
+      console.log('[Map] Auth data:', authData ? { userId: authData.userId, hasToken: !!authData.token } : null);
+      if (!authData) {
+        showError('Not authenticated. Please log in from the main dashboard.');
+        return;
+      }
+      appState.userToken = authData.token;
+      appState.userId = authData.userId;
+      // Initialize Leaflet map
+      console.log('[Map] Initializing Leaflet map...');
+      initializeMap();
+      // Update header with board name
+      const boardTitle = document.getElementById('mapBoardTitle');
+      if (boardTitle) boardTitle.textContent = boardData.boardName;
+      // Load blocks and cards
+      console.log('[Map] Loading blocks...');
+      await loadBlocks();
+      console.log('[Map] Blocks loaded:', appState.blocks);
+      console.log('[Map] Loading cards...');
+      // Show progress bar for card loading
+      showStatusMessage({ text: 'Loading cards...', processed: 0, total: 1 });
+      await loadCards();
+      showStatusMessage({ text: 'Parsing cards...', processed: 0, total: appState.cards.length });
+      // Always show all cards matching block lists (do not snapshot here — snapshot after markers rendered)
+      appState.cards.forEach((card, idx) => {
+        showStatusMessage({ text: `Parsing: ${card.name.substring(0, 40)}...`, processed: idx + 1, total: appState.cards.length });
+      });
+      // Initialize UI
+      renderBlockList();
+      updateCardCount();
+      // Initialize clock if enabled
+      initializeClockDisplay();
+      // Restore saved preferences
+      restorePreferences();
+      console.log('[Map] Visible blocks:', Array.from(appState.visibleBlocks));
+      // Render markers for all cards matching block lists
+      console.log('[Map] Rendering markers...');
+      renderMarkers();
+      // Start geocoding queue for cards that need it
+      console.log('[Map] Starting geocoding queue...');
+      startGeocodingQueue();
+      // Load auto-refresh interval from dashboard settings
+      try {
+        const dashboardSettings = localStorage.getItem('dashboardSettings');
+        if (dashboardSettings) {
+          const settings = JSON.parse(dashboardSettings);
+          if (settings.refreshInterval && settings.refreshInterval > 0) {
+            appState.refreshIntervalMs = settings.refreshInterval * 1000; // Convert to ms
+            console.log('[Map] Using refresh interval from settings:', appState.refreshIntervalMs, 'ms');
+          }
+        }
+      } catch (e) {
+        console.log('[Map] Could not load refresh interval from settings, using default');
+      }
+      // Start auto-refresh
+      loadRefreshInterval();
+      startAutoRefresh();
+      hideStatusMessage();
+      console.log('[Map] Initialization complete!');
+
+      // ============================================================================
+      // EVENT HANDLERS (added inside DOMContentLoaded to ensure DOM is ready)
+      // ============================================================================
+
+      // Dashboard button (footer) - open in new window
+      const dashboardBtnFooter = document.getElementById('dashboardBtnFooter');
+      if (dashboardBtnFooter) {
+        dashboardBtnFooter.addEventListener('click', () => { window.open('/', '_blank'); });
+      }
+
+      // Settings button (footer) - redirect to dashboard settings
+      const footerSettingsBtn = document.getElementById('footerSettingsBtn');
+      if (footerSettingsBtn) {
+        footerSettingsBtn.addEventListener('click', () => {
+          // Store flag to open settings on dashboard
+          localStorage.setItem('openSettingsOnLoad', 'true');
+          window.location.href = '/';
+        });
+      }
+
+      // Logout button
+      const logoutBtn = document.getElementById('logoutBtnFooter');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+          if (confirm('Are you sure you want to log out?')) {
+            // Clear session
+            const storedUserId = localStorage.getItem('trelloCurrentUser');
+            if (storedUserId) {
+              const allUserData = JSON.parse(localStorage.getItem('trelloUserData')) || {};
+              delete allUserData[storedUserId];
+              localStorage.setItem('trelloUserData', JSON.stringify(allUserData));
+            }
+            localStorage.removeItem('trelloCurrentUser');
+            window.location.href = '/';
+          }
+        });
+      }
+
+      // Select/Clear All buttons
+      const selectAllBtnEl = document.getElementById('selectAllBtn');
+      if (selectAllBtnEl) {
+        selectAllBtnEl.addEventListener('click', () => {
+          appState.visibleBlocks.clear();
+          appState.blocks.forEach(block => appState.visibleBlocks.add(block.id));
+          savePreferences();
+          renderBlockList();
+          renderMarkers();
+          updateCardCount();
+          startGeocodingQueue();
+          appState.geocodingQueue = [];
+        });
+      }
+
+      const clearAllBtnEl = document.getElementById('clearAllBtn');
+      if (clearAllBtnEl) {
+        clearAllBtnEl.addEventListener('click', () => {
+          appState.visibleBlocks.clear();
+          savePreferences();
+          renderBlockList();
+          renderMarkers();
+          updateCardCount();
+          appState.geocodingQueue = [];
+        });
+      }
+
+      // Toggle listeners
+      document.getElementById('showCompletedToggle')?.addEventListener('change', (e) => {
+        appState.showCompleted = e.target.checked;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_COMPLETED, appState.showCompleted ? 'true' : 'false');
+      });
+
+      document.getElementById('showTemplatesToggle')?.addEventListener('change', (e) => {
+        appState.showTemplates = e.target.checked;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_TEMPLATES, appState.showTemplates ? 'true' : 'false');
+      });
+
+      // Modal click handler
+      document.getElementById('settingsModal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('settingsModal')) {
+          document.getElementById('settingsModal').classList.remove('active');
+        }
+      });
+    } catch (error) {
+      console.error('[Map] Initialization error:', error);
+      showError(`Failed to initialize map: ${error.message}`);
     }
-
-    // Start auto-refresh
-    loadRefreshInterval();
-    startAutoRefresh();
-
-    console.log('[Map] Initialization complete!');
-
-  } catch (error) {
-    console.error('[Map] Initialization error:', error);
-    showError(`Failed to initialize map: ${error.message}`);
-  }
   });
 });
+
+// ============================================================================
+// CLOCK DISPLAY
+// ============================================================================
+
+function initializeClockDisplay() {
+  try {
+    const boardId = appState.selectedBoardId;
+    if (!boardId) return;
+    
+    // Check if clock is enabled in dashboard settings for this board
+    const clockEnabled = localStorage.getItem(`dashboardClockSetting_${boardId}`) !== 'false';
+    const clockEl = document.getElementById('mapHeaderClock');
+    
+    if (!clockEl) return;
+    
+    if (!clockEnabled) {
+      clockEl.classList.add('hidden');
+      return;
+    }
+    
+    clockEl.classList.remove('hidden');
+    updateClockDisplay();
+    
+    // Update clock every second
+    if (appState.clockInterval) clearInterval(appState.clockInterval);
+    appState.clockInterval = setInterval(updateClockDisplay, 1000);
+  } catch (e) {
+    console.warn('[Map] Failed to initialize clock display:', e);
+  }
+}
+
+function updateClockDisplay() {
+  const clockEl = document.getElementById('mapHeaderClock');
+  if (!clockEl) return;
+  
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+}
 
 // ============================================================================
 // MAP INITIALIZATION
@@ -268,8 +434,8 @@ function initializeMap() {
     maxZoom: 19
   });
 
-  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
-    attribution: '&copy; CartoDB',
+  const dark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri',
     maxZoom: 19
   });
 
@@ -386,6 +552,8 @@ function loadRefreshInterval() {
       if (settings.refreshInterval && settings.refreshInterval > 0) {
         let val = Number(settings.refreshInterval);
         if (val < 1000) val = val * 1000;
+        // Cap at 30 seconds maximum
+        val = Math.min(val, 30000);
         appState.refreshIntervalMs = val;
       }
     }
@@ -577,45 +745,45 @@ async function loadCards() {
 // ============================================================================
 
 function renderBlockList() {
-  const blockListEl = document.getElementById('blockList');
-  blockListEl.innerHTML = '';
+  // Render blocks in the header
+  const headerList = document.getElementById('blockListHeader');
+  if (headerList) headerList.innerHTML = '';
 
   appState.blocks.forEach(block => {
-    const cardsInBlock = appState.cards.filter(c => block.listIds?.includes(c.idList)).length;
-    
-    const blockEl = document.createElement('div');
-    blockEl.className = 'block-item';
+    const cardsInBlock = countCardsInBlock(block);
 
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.id = `block-${block.id}`;
-    checkbox.checked = appState.visibleBlocks.has(block.id);
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) {
-        appState.visibleBlocks.add(block.id);
-      } else {
-        appState.visibleBlocks.delete(block.id);
-      }
-      savePreferences();
-      renderMarkers();
-      updateCardCount();
-      // When visibility changes, re-evaluate geocoding for newly visible cards
-      startGeocodingQueue();
-    });
+    // Header block list item
+    if (headerList) {
+      const blockEl = document.createElement('div');
+      blockEl.className = 'block-item';
 
-    const label = document.createElement('label');
-    label.htmlFor = `block-${block.id}`;
-    label.textContent = block.name;
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = `block-${block.id}`;
+      checkbox.checked = appState.visibleBlocks.has(block.id);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) appState.visibleBlocks.add(block.id);
+        else appState.visibleBlocks.delete(block.id);
+        savePreferences();
+        renderMarkers();
+        updateCardCount();
+        startGeocodingQueue();
+      });
 
-    const count = document.createElement('span');
-    count.className = 'block-count';
-    count.textContent = cardsInBlock;
+      const label = document.createElement('label');
+      label.htmlFor = `block-${block.id}`;
+      label.textContent = block.name;
 
-    blockEl.appendChild(checkbox);
-    blockEl.appendChild(label);
-    blockEl.appendChild(count);
+      const count = document.createElement('span');
+      count.className = 'block-count';
+      count.textContent = cardsInBlock;
 
-    blockListEl.appendChild(blockEl);
+      blockEl.appendChild(checkbox);
+      blockEl.appendChild(label);
+      blockEl.appendChild(count);
+
+      headerList.appendChild(blockEl);
+    }
   });
 }
 
@@ -650,14 +818,22 @@ function renderBlockSettingsModal() {
 
 function updateCardCount() {
   const visibleCards = getVisibleCards();
-  const indicator = document.getElementById('cardCountIndicator');
-  indicator.textContent = `${visibleCards.length} cards`;
+  const indicator = document.getElementById('mapCardCount');
+  if (indicator) {
+    indicator.textContent = `${visibleCards.length} cards`;
+  }
 }
 
 function getVisibleCards() {
+  const firstCardIds = getFirstCardIds();
   return appState.cards.filter(card => {
     const block = appState.blocks.find(b => b.listIds?.includes(card.idList));
-    return block && appState.visibleBlocks.has(block.id);
+    if (!block || !appState.visibleBlocks.has(block.id)) return false;
+    // Exclude template cards when showTemplates is false
+    if (!appState.showTemplates && card.isTemplate) return false;
+    // Exclude first card of list when the block requests it
+    if (block.ignoreFirstCard && firstCardIds.has(card.id)) return false;
+    return true;
   });
 }
 
@@ -731,6 +907,13 @@ function renderMarkers() {
         existingMarker._cardMeta = newMeta;
       }
 
+      // Snapshot card after ensuring marker/meta is up to date
+      try {
+        snapshotCard(card);
+      } catch (e) {
+        console.warn('[Map] Failed to snapshot card after updating marker:', card.id, e);
+      }
+
       bounds.extend([coords.lat, coords.lng]);
       hasMarkers = true;
       return; // Keep existing marker
@@ -746,6 +929,20 @@ function renderMarkers() {
       appState.markers.set(card.id, marker);
       bounds.extend([coords.lat, coords.lng]);
       hasMarkers = true;
+      // Open popup only for new or changed cards on this refresh
+      try {
+        if (hasCardChanged(card)) {
+          marker.openPopup();
+        }
+      } catch (e) {
+        console.warn('[Map] Failed to open popup for', card.id, e);
+      }
+      // Snapshot card after creating marker so it won't be re-queued
+      try {
+        snapshotCard(card);
+      } catch (e) {
+        console.warn('[Map] Failed to snapshot card after creating marker:', card.id, e);
+      }
     }
   });
 
@@ -865,6 +1062,7 @@ function getMarkerIcon(markerConfig) {
     'info-circle': 'ℹ️',
     'map-marker': '📍'
   };
+  
   const emoji = emojiMap[markerConfig.icon] || '📍';
 
   const html = `
@@ -873,7 +1071,7 @@ function getMarkerIcon(markerConfig) {
         <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
         <circle cx="14" cy="11" r="5" fill="#ffffff"/>
       </svg>
-      <div style="position:absolute;left:50%;top:22%;transform:translate(-50%,-50%);font-size:12px;line-height:12px">${emoji}</div>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:14px;line-height:14px;">${emoji}</div>
     </div>
   `;
 
@@ -891,35 +1089,29 @@ function getMarkerConfig(card) {
     // Check for specific labels in priority order (case-insensitive)
     const labels = (card.labels || []).map(l => (l.name || l.color || '').toLowerCase());
 
-    // Check for completion first
-    if (labels.includes('completed')) {
-      return { icon: 'check-circle', color: 'green', prefix: 'fa' };
-    }
-
-    // Check for status labels
+    // Determine icon based on status labels (En route = truck, On Site = wrench)
+    let icon = 'map-marker';
     if (labels.includes('en route') || labels.includes('enroute') || labels.includes('en-route')) {
-      return { icon: 'truck', color: 'blue', prefix: 'fa' };
+      icon = 'truck';
+    } else if (labels.includes('on scene') || labels.includes('on site') || labels.includes('onscene') || labels.includes('onsite')) {
+      icon = 'wrench';
+    } else if (labels.includes('completed')) {
+      icon = 'check-circle';
     }
 
-    if (labels.includes('on scene') || labels.includes('on site') || labels.includes('onscene') || labels.includes('onsite')) {
-      return { icon: 'wrench', color: 'blue', prefix: 'fa' };
-    }
-
-    // Check for priority labels
+    // Determine color based on priority labels
+    let color = 'blue'; // default
     if (labels.includes('priority')) {
-      return { icon: 'exclamation-triangle', color: 'red', prefix: 'fa' };
+      color = 'red';
+    } else if (labels.includes('important')) {
+      color = 'orange';
+    } else if (labels.includes('routine')) {
+      color = 'yellow';
+    } else if (labels.includes('completed')) {
+      color = 'green';
     }
 
-    if (labels.includes('important')) {
-      return { icon: 'exclamation-circle', color: 'orange', prefix: 'fa' };
-    }
-
-    if (labels.includes('routine')) {
-      return { icon: 'info-circle', color: 'yellow', prefix: 'fa' };
-    }
-
-    // Default
-    return { icon: 'map-marker', color: 'blue', prefix: 'fa' };
+    return { icon: icon, color: color, prefix: 'fa' };
   } catch (error) {
     console.error('[Map] Error in getMarkerConfig:', error, 'card:', card?.id);
     return { icon: 'map-marker', color: 'blue', prefix: 'fa' };
@@ -948,7 +1140,7 @@ function startGeocodingQueue() {
   // Use rawCards (unfiltered) to include all cards, even if they were just made visible
   const cardsToCheck = appState.rawCards || appState.cards;
 
-  // Add only cards from visible blocks that need geocoding to the queue
+  // Add only cards from visible blocks that have changed and need geocoding to the queue
   appState.geocodingQueue = cardsToCheck.filter(card => {
     // Must have no coordinates
     if (card.coordinates) return false;
@@ -968,6 +1160,9 @@ function startGeocodingQueue() {
     // If the block has ignoreFirstCard, skip the list's first card
     if (block.ignoreFirstCard && firstCardIds.has(card.id)) return false;
 
+    // Only geocode if card content has changed since last run (on initial load or on updates)
+    if (!hasCardChanged(card)) return false;
+
     return true;
   }).map(card => card.id);
 
@@ -984,16 +1179,13 @@ async function processGeocodingQueue() {
   }
 
   appState.isProcessingGeocodeQueue = true;
-  // Only show decoding if there are items in the queue
   const initialQueue = appState.geocodingQueue.slice();
   let processedCount = 0;
   const totalToProcess = initialQueue.length;
+  
+  // Only show decoding if there are items in the queue
   if (totalToProcess > 0) {
-    showStatusMessage({ text: 'Decoding addresses...', queue: initialQueue.map(id => {
-      const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
-      return c ? c.name : id;
-    }), processed: processedCount, total: totalToProcess });
-    const statusEl = document.getElementById('statusMessage'); if (statusEl) statusEl.classList.add('wide');
+    showStatusMessage({ text: 'Geocoding in progress...', processed: processedCount, total: totalToProcess });
   }
   console.log('[Map] Starting geocoding queue processing...');
 
@@ -1003,22 +1195,30 @@ async function processGeocodingQueue() {
 
     if (!card || !card.desc) {
       console.log('[Map] Skipping card', cardId, '- no card or description found');
+      processedCount++;
+      if (totalToProcess > 0) {
+        showStatusMessage({ text: `Geocoding in progress...`, processed: processedCount, total: totalToProcess });
+      }
       continue;
     }
 
     try {
       console.log('[Map] Processing card for geocoding:', cardId, card.name);
-      // Update status with current processing and remaining queue (and progress)
-      showStatusMessage({ text: `Decoding: ${card.name}`, queue: appState.geocodingQueue.map(id => {
-        const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
-        return c ? c.name : id;
-      }), processed: processedCount, total: totalToProcess });
+      // Update status with current card being processed
+      if (totalToProcess > 0) {
+        showStatusMessage({ text: `Geocoding: ${card.name.substring(0, 40)}...`, processed: processedCount, total: totalToProcess });
+      }
       
       const address = parseAddressFromDescription(card.desc);
       console.log('[Map] Parsed address from description:', address);
       
       if (!address) {
         console.log('[Map] No address found in description for card', cardId);
+        processedCount++;
+        if (totalToProcess > 0) {
+          showStatusMessage({ text: `Geocoding in progress...`, processed: processedCount, total: totalToProcess });
+        }
+        snapshotCard(card);
         continue;
       }
 
@@ -1027,6 +1227,11 @@ async function processGeocodingQueue() {
       
       if (!coordinates) {
         console.log('[Map] Geocoding failed for address:', address);
+        processedCount++;
+        if (totalToProcess > 0) {
+          showStatusMessage({ text: `Geocoding in progress...`, processed: processedCount, total: totalToProcess });
+        }
+        snapshotCard(card);
         continue;
       }
 
@@ -1045,8 +1250,19 @@ async function processGeocodingQueue() {
           marker.addTo(appState.map);
           appState.markers.set(card.id, marker);
           console.log('[Map] Marker added for card:', cardId);
+          // Open popup only for new or changed cards that were just processed
+          try {
+            if (hasCardChanged(card)) {
+              marker.openPopup();
+            }
+          } catch (e) {
+            console.warn('[Map] Failed to open popup after geocoding for', cardId, e);
+          }
         }
       }
+
+      // Snapshot card after successful processing
+      snapshotCard(card);
 
       // Respect rate limiting
       await sleep(CONFIG.GEOCODING.DELAY_MS);
@@ -1054,13 +1270,15 @@ async function processGeocodingQueue() {
       // Update progress
       processedCount++;
       if (totalToProcess > 0) {
-        showStatusMessage({ text: `Decoding: ${card.name}`, queue: appState.geocodingQueue.map(id => {
-          const c = appState.rawCards.find(rc => rc.id === id) || appState.cards.find(rc => rc.id === id);
-          return c ? c.name : id;
-        }), processed: processedCount, total: totalToProcess });
+        showStatusMessage({ text: `Geocoding in progress...`, processed: processedCount, total: totalToProcess });
       }
     } catch (error) {
       console.error(`[Map] Error geocoding card ${cardId}:`, error);
+      processedCount++;
+      if (totalToProcess > 0) {
+        showStatusMessage({ text: `Geocoding in progress...`, processed: processedCount, total: totalToProcess });
+      }
+      snapshotCard(card);
     }
   }
 
@@ -1209,61 +1427,6 @@ async function updateCardCoordinates(cardId, coordinates) {
     throw error;
   }
 }
-
-// ============================================================================
-// EVENT HANDLERS
-// ============================================================================
-
-document.getElementById('selectAllBtn').addEventListener('click', () => {
-  appState.visibleBlocks.clear();
-  appState.blocks.forEach(block => appState.visibleBlocks.add(block.id));
-  savePreferences();
-  renderBlockList();
-  renderMarkers();
-  updateCardCount();
-  startGeocodingQueue();
-});
-
-document.getElementById('clearAllBtn').addEventListener('click', () => {
-  appState.visibleBlocks.clear();
-  savePreferences();
-  renderBlockList();
-  renderMarkers();
-  updateCardCount();
-  // Clearing visibility means no geocoding needed
-  appState.geocodingQueue = [];
-});
-
-document.getElementById('dashboardBtn').addEventListener('click', () => {
-  window.location.href = '/';
-});
-
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  renderBlockSettingsModal();
-  document.getElementById('settingsModal').classList.add('active');
-});
-
-document.getElementById('closeSettingsBtn').addEventListener('click', () => {
-  document.getElementById('settingsModal').classList.remove('active');
-});
-
-document.getElementById('showCompletedToggle').addEventListener('change', (e) => {
-  appState.showCompleted = e.target.checked;
-  localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_COMPLETED, appState.showCompleted ? 'true' : 'false');
-  // Would need to reload cards to apply this filter
-});
-
-document.getElementById('showTemplatesToggle').addEventListener('change', (e) => {
-  appState.showTemplates = e.target.checked;
-  localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_TEMPLATES, appState.showTemplates ? 'true' : 'false');
-  // Would need to reload cards to apply this filter
-});
-
-document.getElementById('settingsModal').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('settingsModal')) {
-    document.getElementById('settingsModal').classList.remove('active');
-  }
-});
 
 // ============================================================================
 // PREFERENCE MANAGEMENT

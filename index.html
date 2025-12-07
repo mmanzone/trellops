@@ -1176,7 +1176,7 @@
                     isCollapsed: s.isCollapsed || false,
                     ignoreFirstCard: s.ignoreFirstCard || false,
                     displayFirstCardDescription: s.displayFirstCardDescription !== false, // Default to true
-                    includeOnMap: s.includeOnMap !== false // Default to true
+                    includeOnMap: s.includeOnMap === true // Default to false
                 }));
             } catch (e) {
                 console.error("Error parsing dashboard layout:", e);
@@ -1398,6 +1398,15 @@
             // --- Block Management State ---
             const [blocks, setBlocks] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
             const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
+            const [enableMapView, setEnableMapView] = useState(() => {
+                const stored = localStorage.getItem('ENABLE_MAP_VIEW');
+                return stored === 'true';
+            });
+                        // Handler for global map view toggle
+                        const handleToggleEnableMapView = (isChecked) => {
+                            setEnableMapView(isChecked);
+                            localStorage.setItem('ENABLE_MAP_VIEW', isChecked ? 'true' : 'false');
+                        };
             const [newBlockName, setNewBlockName] = useState('');
             const [showMoreOptions, setShowMoreOptions] = useState(false);
             
@@ -2065,7 +2074,7 @@
                                                 <label>
                                                     <input 
                                                         type="checkbox" 
-                                                        checked={block.includeOnMap !== false}
+                                                        checked={block.includeOnMap === true}
                                                         onChange={e => handleToggleIncludeOnMap(block.id, e.target.checked)}
                                                     />
                                                     Include this block on Map
@@ -2085,62 +2094,75 @@
                                 These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommmended 30 seconds for live displays. The digital clock appears in the top-left corner for the screen and follows the local computer time format. Template Cards in Trello can be exceluded from the count (recommended)
                             </p>
                             <div className="three-column">
-                                <div className="settings-row">
-                                    <label>Auto-Refresh:</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        value={refreshValue}
-                                        onChange={e => handleRefreshChange(e.target.value)}
-                                        style={{width: '60px'}}
-                                    />
-                                    <select 
-                                        value={refreshUnit} 
-                                        onChange={e => handleRefreshChange(refreshValue, e.target.value)}
-                                    >
-                                        <option value="seconds">Seconds</option>
-                                        <option value="minutes">Minutes</option>
-                                        <option value="hours">Hours</option>
-                                    </select>
-                                </div>
-                                
-                                <div className="settings-row">
-                                    <label className="switch">
-                                        <input 
-                                            type="checkbox" 
-                                            id="show-clock-check"
-                                            checked={showClockSetting}
-                                            onChange={e => handleToggleClock(e.target.checked)}
+                                <div className="settings-row" style={{display:'flex',gap:'24px',flexWrap:'wrap'}}>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label className="switch">
+                                            <input 
+                                                type="checkbox" 
+                                                id="show-clock-check"
+                                                checked={showClockSetting}
+                                                onChange={e => handleToggleClock(e.target.checked)}
+                                            />
+                                            <span className="slider round"></span>
+                                        </label>
+                                        <label htmlFor="show-clock-check">Show Digital Clock</label>
+                                    </span>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label>Auto-Refresh:</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={refreshValue}
+                                            onChange={e => handleRefreshChange(e.target.value)}
+                                            style={{width: '60px'}}
                                         />
-                                        <span className="slider round"></span>
-                                    </label>
-                                    <label htmlFor="show-clock-check">Show Digital Clock</label>
+                                        <select 
+                                            value={refreshUnit} 
+                                            onChange={e => handleRefreshChange(refreshValue, e.target.value)}
+                                        >
+                                            <option value="seconds">Seconds</option>
+                                            <option value="minutes">Minutes</option>
+                                            <option value="hours">Hours</option>
+                                        </select>
+                                    </span>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label htmlFor="theme-select">Theme:</label>
+                                        <select 
+                                            id="theme-select"
+                                            value={theme} 
+                                            onChange={(e) => toggleTheme(e.target.value)} 
+                                        >
+                                            <option value="system">System</option>
+                                            <option value="light">Light</option>
+                                            <option value="dark">Dark</option>
+                                        </select>
+                                    </span>
                                 </div>
-
-                                <div className="settings-row">
-                                    <label className="switch">
-                                        <input 
-                                            type="checkbox" 
-                                            id="ignore-templates-check"
-                                            checked={ignoreTemplateCards}
-                                            onChange={e => handleToggleIgnoreTemplateCards(e.target.checked)}
-                                        />
-                                        <span className="slider round"></span>
-                                    </label>
-                                    <label htmlFor="ignore-templates-check">Ignore Template Cards</label>
-                                </div>
-                                
-                                <div className="settings-row">
-                                    <label htmlFor="theme-select">Theme:</label>
-                                    <select 
-                                        id="theme-select"
-                                        value={theme} 
-                                        onChange={(e) => toggleTheme(e.target.value)} 
-                                    >
-                                        <option value="system">System</option>
-                                        <option value="light">Light</option>
-                                        <option value="dark">Dark</option>
-                                    </select>
+                                <div className="settings-row" style={{display:'flex',gap:'24px',flexWrap:'wrap',marginTop:'8px'}}>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label className="switch">
+                                            <input 
+                                                type="checkbox" 
+                                                id="ignore-templates-check"
+                                                checked={ignoreTemplateCards}
+                                                onChange={e => handleToggleIgnoreTemplateCards(e.target.checked)}
+                                            />
+                                            <span className="slider round"></span>
+                                        </label>
+                                        <label htmlFor="ignore-templates-check">Ignore Template Cards</label>
+                                    </span>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label className="switch">
+                                            <input 
+                                                type="checkbox" 
+                                                id="enable-map-view-check"
+                                                checked={enableMapView}
+                                                onChange={e => handleToggleEnableMapView(e.target.checked)}
+                                            />
+                                            <span className="slider round"></span>
+                                        </label>
+                                        <label htmlFor="enable-map-view-check">Enable Map View</label>
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -2221,7 +2243,16 @@
             const [error, setError] = useState('');
             const [countdown, setCountdown] = useState(30);
             const [timeFilter, setTimeFilter] = useState('all'); 
+            const [enableMapView, setEnableMapView] = useState(() => {
+                const stored = localStorage.getItem('ENABLE_MAP_VIEW');
+                return stored === 'true';
+            });
             const timerRef = useRef(null);
+            // Handler for global map view toggle
+            const handleToggleEnableMapView = (isChecked) => {
+                setEnableMapView(isChecked);
+                localStorage.setItem('ENABLE_MAP_VIEW', isChecked ? 'true' : 'false');
+            };
 
             const buildNumber = (() => {
                 const now = new Date();
@@ -2479,12 +2510,13 @@
                                     <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
                                 ))}
                             </select>
-                            
-                            
+
                             {/* Theme Toggle Button */}
                             <button className="theme-toggle-button" onClick={() => toggleTheme()}>
                                 {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
                             </button>
+
+
                         </div>
                     </div>
 
@@ -2584,7 +2616,9 @@
                         <span className="version">v.3</span>
                         <span className="countdown">Next refresh in {countdown}s</span>
                         <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
-                        <button className="settings-button" onClick={() => window.open('/map', '_blank')}>Map View</button>
+                        {enableMapView && (
+                            <button className="settings-button" onClick={() => window.open('/map', '_blank')}>Map View</button>
+                        )}
                         <button className="settings-button" onClick={onShowSettings}>Settings</button>
                         <button className="logout-button" onClick={onLogout}>Log Out</button>
                     </div>
@@ -2625,6 +2659,14 @@
                     }
                 }
             }, []);
+
+            // Check if settings should be opened on load (from map view)
+            useEffect(() => {
+                if (view === 'dashboard' && localStorage.getItem('openSettingsOnLoad') === 'true') {
+                    localStorage.removeItem('openSettingsOnLoad');
+                    setView('settings');
+                }
+            }, [view]);
 
             const handleLoginSuccess = async (token) => {
                 setLoading(true);
