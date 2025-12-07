@@ -899,6 +899,7 @@ function renderMarkers() {
         const markerConfig = getMarkerConfig(card);
         const newIcon = getMarkerIcon(markerConfig);
         existingMarker.setIcon(newIcon);
+        console.log('[Map] Updated marker icon for card:', card.id, 'icon:', markerConfig.icon, 'color:', markerConfig.color);
         // Update popup
         try {
           existingMarker.setPopupContent(getPopupHtml(card));
@@ -928,6 +929,7 @@ function renderMarkers() {
     if (marker) {
       marker.addTo(appState.map);
       appState.markers.set(card.id, marker);
+      console.log('[Map] Created marker and set icon for card:', card.id);
       bounds.extend([coords.lat, coords.lng]);
       hasMarkers = true;
       // Snapshot card after creating marker so it won't be re-queued
@@ -1089,7 +1091,8 @@ function getMarkerIcon(markerConfig) {
     <div style="width:28px;height:42px;position:relative;display:flex;align-items:flex-start;justify-content:center;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.35));">
       <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
         <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
-        <circle cx="14" cy="11" r="5" fill="#ffffff"/>
+        <!-- use the same marker color for the center so the glyph is not obscured by a white background -->
+        <circle cx="14" cy="11" r="5" fill="${markerColor}"/>
       </svg>
       <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);line-height:1;">${innerSvg}</div>
     </div>
