@@ -977,7 +977,7 @@ function createMarker(card) {
     return null;
   }
   try {
-    console.log('[Map] createMarker: markerConfig for', card.id, markerConfig);
+    console.log('[Map] createMarker: card.id=' + card.id + ', card.labels=', card.labels, ', markerConfig=', markerConfig);
     const markerIcon = getMarkerIcon(markerConfig);
 
     const marker = L.marker(
@@ -1107,6 +1107,7 @@ function getMarkerConfig(card) {
   try {
     // Check for specific labels in priority order (case-insensitive)
     const labels = (card.labels || []).map(l => (l.name || l.color || '').toLowerCase());
+    console.log('[Map] getMarkerConfig: card.id=' + card.id + ', labels from API=', card.labels, ', labels lowercase=', labels);
 
     // Determine icon based on status labels (En route = truck, On Site = wrench)
     let icon = 'map-marker';
@@ -1130,6 +1131,7 @@ function getMarkerConfig(card) {
       color = 'green';
     }
 
+    console.log('[Map] getMarkerConfig result: icon=' + icon + ', color=' + color);
     return { icon: icon, color: color, prefix: 'fa' };
   } catch (error) {
     console.error('[Map] Error in getMarkerConfig:', error, 'card:', card?.id);
