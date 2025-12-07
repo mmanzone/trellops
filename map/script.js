@@ -1067,28 +1067,40 @@ function getMarkerIcon(markerConfig) {
   const icon = (markerConfig.icon || '').toLowerCase();
   
   if (icon === 'truck' || icon === 'delivery' || icon === 'car') {
-    // Truck icon inside the pin
+    // Steering wheel icon inside the pin - larger and bolder with black outline
     iconSvg = `
       <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
         <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
-        <!-- Truck: cargo box -->
-        <rect x="6" y="7" width="12" height="6" rx="0.5" fill="#fff" stroke="#222" stroke-width="0.8" />
-        <!-- Truck: cabin -->
-        <rect x="19" y="9" width="4" height="4" rx="0.5" fill="#fff" stroke="#222" stroke-width="0.8" />
-        <!-- Wheels -->
-        <circle cx="9" cy="14" r="1" fill="#222" />
-        <circle cx="20" cy="14" r="1" fill="#222" />
+        <!-- Steering wheel: outer circle with black outline -->
+        <circle cx="14" cy="11" r="6" fill="none" stroke="#222" stroke-width="2.8" />
+        <circle cx="14" cy="11" r="6" fill="none" stroke="#fff" stroke-width="2" />
+        <!-- Steering wheel: center hub with outline -->
+        <circle cx="14" cy="11" r="2.2" fill="#222" />
+        <circle cx="14" cy="11" r="1.8" fill="#fff" />
+        <!-- Steering wheel: spokes (thicker) with black outline -->
+        <line x1="14" y1="5.5" x2="14" y2="7" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
+        <line x1="14" y1="5.5" x2="14" y2="7" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
+        <line x1="14" y1="15" x2="14" y2="16.5" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
+        <line x1="14" y1="15" x2="14" y2="16.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
+        <line x1="8.5" y1="11" x2="10" y2="11" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
+        <line x1="8.5" y1="11" x2="10" y2="11" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
+        <line x1="18" y1="11" x2="19.5" y2="11" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
+        <line x1="18" y1="11" x2="19.5" y2="11" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
       </svg>
     `;
   } else if (icon === 'wrench' || icon === 'tool' || icon === 'onsite' || icon === 'on site') {
-    // Wrench icon inside the pin
+    // Safety cone icon inside the pin - larger and bolder
     iconSvg = `
       <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
         <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
-        <!-- Wrench: handle -->
-        <line x1="7" y1="15" x2="18" y2="5" stroke="#fff" stroke-width="2" stroke-linecap="round" />
-        <!-- Wrench: head -->
-        <ellipse cx="18" cy="5" rx="2.5" ry="3" fill="#fff" stroke="#222" stroke-width="0.8" />
+        <!-- Safety cone: main cone body -->
+        <polygon points="14,4 9,14 19,14" fill="#fff" stroke="#222" stroke-width="1.2" />
+        <!-- Safety cone: stripe 1 (bolder) -->
+        <line x1="11.5" y1="7.5" x2="16.5" y2="7.5" stroke="#222" stroke-width="1.2" stroke-linecap="round" />
+        <!-- Safety cone: stripe 2 (bolder) -->
+        <line x1="10" y1="10.5" x2="18" y2="10.5" stroke="#222" stroke-width="1.2" stroke-linecap="round" />
+        <!-- Safety cone: base shadow -->
+        <ellipse cx="14" cy="14.5" rx="5" ry="1.5" fill="#222" opacity="0.4" />
       </svg>
     `;
   } else if (icon === 'check-circle') {
