@@ -64,6 +64,43 @@ let appState = {
   cardSnapshots: new Map() // cardId -> {name, desc, labels, idList} for change detection
 };
 
+// ---------------------------------------------------------------------------
+// Geocoding helpers: per-board mode and local cache
+// ---------------------------------------------------------------------------
+function getGeocodeMode(boardId) {
+  try {
+    const key = `MAP_GEOCODING_MODE_${boardId}`;
+    const val = localStorage.getItem(key);
+    return val === 'update' ? 'update' : 'store'; // default to 'store'
+  } catch (e) {
+    return 'store';
+  }
+}
+
+function saveLocalGeocode(boardId, cardId, coordinates) {
+  try {
+    const key = `MAP_GEOCODING_CACHE_${boardId}`;
+    const raw = localStorage.getItem(key);
+    const cache = raw ? JSON.parse(raw) : {};
+    cache[cardId] = { lat: coordinates.lat, lng: coordinates.lng };
+    localStorage.setItem(key, JSON.stringify(cache));
+  } catch (e) {
+    console.warn('[Map] Failed to save local geocode cache', e);
+  }
+}
+
+function getLocalGeocode(boardId, cardId) {
+  try {
+    const key = `MAP_GEOCODING_CACHE_${boardId}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    return cache[cardId] || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // ============================================================================
 // UI HELPERS
 // ============================================================================
@@ -755,6 +792,22 @@ async function loadCards() {
 
     // Work on a filtered set for display and geocoding decisions
     appState.cards = appState.rawCards.slice();
+    // Apply any locally-stored geocoded coordinates for this board (do not overwrite Trello fields)
+    try {
+      const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
+      const rawCache = localStorage.getItem(cacheKey);
+      const cache = rawCache ? JSON.parse(rawCache) : {};
+      if (Object.keys(cache).length > 0) {
+        appState.cards.forEach(c => {
+          if ((!c.coordinates || !c.coordinates.lat || !c.coordinates.lng) && cache[c.id]) {
+            const v = cache[c.id];
+            c.coordinates = { lat: Number(v.lat), lng: Number(v.lng) };
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('[Map] Failed to apply local geocode cache', e);
+    }
     console.log('[Map] Total cards (raw):', appState.rawCards.length);
     console.log('[Map] Cards with coordinates (raw):', appState.rawCards.filter(c => c.coordinates).length);
     console.log('[Map] Cards with description (raw):', appState.rawCards.filter(c => c.desc).length);
@@ -1372,9 +1425,15 @@ async function processGeocodingQueue() {
       // Update card locally
       card.coordinates = coordinates;
 
-      // Update in Trello via API
-      console.log('[Map] Updating Trello card with coordinates...');
-      await updateCardCoordinates(cardId, coordinates);
+      // Decide whether to persist to Trello or keep in local cache based on per-board setting
+      const mode = getGeocodeMode(appState.selectedBoardId);
+      if (mode === 'update') {
+        console.log('[Map] Updating Trello card with coordinates...');
+        await updateCardCoordinates(cardId, coordinates);
+      } else {
+        console.log('[Map] Storing geocoded coordinates in browser cache (no Trello update) for', cardId);
+        try { saveLocalGeocode(appState.selectedBoardId, cardId, coordinates); } catch (e) { console.warn('[Map] Failed to save local geocode', e); }
+      }
 
       // Render marker if card is visible
       const block = appState.blocks.find(b => b.listIds?.includes(card.idList));

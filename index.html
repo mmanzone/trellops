@@ -1403,6 +1403,11 @@
                 const stored = localStorage.getItem(storageKey);
                 return stored === 'true'; // Default to false (disabled) if not set
             });
+            const [mapGeocodeMode, setMapGeocodeMode] = useState(() => {
+                const key = `MAP_GEOCODING_MODE_${initialSettings.boardId}`;
+                const stored = localStorage.getItem(key);
+                return stored || 'store'; // 'store' (default) or 'update'
+            });
                         // Handler for per-board map view toggle
                         const handleToggleEnableMapView = (isChecked) => {
                             setEnableMapView(isChecked);
@@ -1851,6 +1856,20 @@
                     selectedLists: Array.from(selectedListsMap.values())
                 };
 
+                // Persist per-board Map View settings
+                try {
+                    const geoKey = `MAP_GEOCODING_MODE_${selectedBoardId}`;
+                    localStorage.setItem(geoKey, mapGeocodeMode || 'store');
+                } catch (e) {
+                    console.warn('Failed to persist MAP_GEOCODING_MODE', e);
+                }
+                try {
+                    const mapKey = `ENABLE_MAP_VIEW_${selectedBoardId}`;
+                    localStorage.setItem(mapKey, enableMapView ? 'true' : 'false');
+                } catch (e) {
+                    console.warn('Failed to persist ENABLE_MAP_VIEW', e);
+                }
+
                 setUserData(user.id, 'settings', finalSettings);
                 onSave(finalSettings);
             };
@@ -2141,34 +2160,62 @@
                                     </span>
                                 </div>
                                 <div className="settings-row" style={{display:'flex',gap:'24px',flexWrap:'wrap',marginTop:'8px'}}>
-                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                                        <label className="switch">
-                                            <input 
-                                                type="checkbox" 
-                                                id="ignore-templates-check"
-                                                checked={ignoreTemplateCards}
-                                                onChange={e => handleToggleIgnoreTemplateCards(e.target.checked)}
-                                            />
-                                            <span className="slider round"></span>
-                                        </label>
-                                        <label htmlFor="ignore-templates-check">Ignore Template Cards</label>
-                                    </span>
-                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                                        <label className="switch">
-                                            <input 
-                                                type="checkbox" 
-                                                id="enable-map-view-check"
-                                                checked={enableMapView}
-                                                onChange={e => handleToggleEnableMapView(e.target.checked)}
-                                            />
-                                            <span className="slider round"></span>
-                                        </label>
-                                        <label htmlFor="enable-map-view-check">Enable Map View</label>
-                                    </span>
-                                </div>
+                                            <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                                <label className="switch">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        id="ignore-templates-check"
+                                                        checked={ignoreTemplateCards}
+                                                        onChange={e => handleToggleIgnoreTemplateCards(e.target.checked)}
+                                                    />
+                                                    <span className="slider round"></span>
+                                                </label>
+                                                <label htmlFor="ignore-templates-check">Ignore Template Cards</label>
+                                            </span>
+                                        </div>
                             </div>
                         </div>
                     )}
+
+                            {selectedBoard && (
+                                <div className="admin-section">
+                                    <h3>5. Map View for "{selectedBoard.name}"</h3>
+                                    <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                        Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
+                                    </p>
+                                    <div className="settings-row" style={{display:'flex',gap:'24px',flexWrap:'wrap',marginTop:'8px'}}>
+                                        <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                            <label className="switch">
+                                                <input 
+                                                    type="checkbox" 
+                                                    id="enable-map-view-check"
+                                                    checked={enableMapView}
+                                                    onChange={e => handleToggleEnableMapView(e.target.checked)}
+                                                />
+                                                <span className="slider round"></span>
+                                            </label>
+                                            <label htmlFor="enable-map-view-check">Enable Map View</label>
+                                        </span>
+                                    </div>
+
+                                    <div style={{marginTop:'12px'}}>
+                                        <label style={{fontWeight:600,display:'block',marginBottom:'6px'}}>Geocoding behavior</label>
+                                        <label style={{display:'block',marginBottom:'6px'}}>
+                                            <input type="radio" name="mapGeocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={() => setMapGeocodeMode('store')} />
+                                            <span style={{marginLeft:'8px'}}>Store geolocation data locally (default)</span>
+                                        </label>
+                                        <label style={{display:'block',marginBottom:'6px'}}>
+                                            <input type="radio" name="mapGeocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={() => setMapGeocodeMode('update')} />
+                                            <span style={{marginLeft:'8px'}}>Update the Trello card coordinates</span>
+                                        </label>
+                                        {mapGeocodeMode === 'update' && (
+                                            <div style={{marginTop:'8px',padding:'8px',background:'#fff3f0',border:'1px solid #ffd6cc',color:'#7a1f00',borderRadius:'6px'}}>
+                                                <strong>Warning:</strong> Using this option will update the Trello card on "{selectedBoard.name}" with lat/long coordinates.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                     
                     {error && <div className="error">{error}</div>}
                     
@@ -2246,15 +2293,34 @@
             const [countdown, setCountdown] = useState(30);
             const [timeFilter, setTimeFilter] = useState('all'); 
             const [enableMapView, setEnableMapView] = useState(() => {
-                const stored = localStorage.getItem('ENABLE_MAP_VIEW');
+                const boardIdLocal = settings?.boardId;
+                if (!boardIdLocal) return false;
+                const stored = localStorage.getItem(`ENABLE_MAP_VIEW_${boardIdLocal}`);
                 return stored === 'true';
             });
             const timerRef = useRef(null);
-            // Handler for global map view toggle
+            // Handler for per-board map view toggle
             const handleToggleEnableMapView = (isChecked) => {
+                const boardIdLocal = settings?.boardId;
                 setEnableMapView(isChecked);
-                localStorage.setItem('ENABLE_MAP_VIEW', isChecked ? 'true' : 'false');
+                try {
+                    if (boardIdLocal) localStorage.setItem(`ENABLE_MAP_VIEW_${boardIdLocal}`, isChecked ? 'true' : 'false');
+                } catch (e) {
+                    console.warn('[Dashboard] Failed to persist ENABLE_MAP_VIEW', e);
+                }
             };
+
+            // Update enableMapView when selected board changes
+            useEffect(() => {
+                const boardIdLocal = settings?.boardId;
+                if (!boardIdLocal) return;
+                try {
+                    const stored = localStorage.getItem(`ENABLE_MAP_VIEW_${boardIdLocal}`);
+                    setEnableMapView(stored === 'true');
+                } catch (e) {
+                    // ignore
+                }
+            }, [settings?.boardId]);
 
             const buildNumber = (() => {
                 const now = new Date();
