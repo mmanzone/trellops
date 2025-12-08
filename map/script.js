@@ -221,13 +221,37 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Get auth from session/URL
       const authData = await getAuthData();
       console.log('[Map] Auth data:', authData ? { userId: authData.userId, hasToken: !!authData.token } : null);
+      // If not authenticated, redirect to homepage so user can login
       if (!authData) {
-        showError('Not authenticated. Please log in from the main dashboard.');
+        console.warn('[Map] No auth data - redirecting to / for login');
+        window.location.href = '/';
         return;
       }
       appState.userToken = authData.token;
       appState.userId = authData.userId;
       // Initialize Leaflet map
+      // Check whether Map View is enabled in dashboard settings for this board
+      if (!isMapViewEnabled(appState.selectedBoardId)) {
+        // Show a friendly message and link to settings
+        const container = document.getElementById('blockList') || document.body;
+        const msg = document.createElement('div');
+        msg.style.padding = '24px';
+        msg.style.textAlign = 'center';
+        msg.innerHTML = `
+          <h2>Map view is disabled for this board</h2>
+          <p>The Map View has been turned off in the dashboard settings for this board. Enable it in Settings to view the map.</p>
+          <button id="openSettingsFromMap" style="padding:10px 14px;border-radius:6px;background:#1f6feb;color:#fff;border:none;cursor:pointer">Open Settings</button>
+        `;
+        if (container) container.innerHTML = '';
+        if (container) container.appendChild(msg);
+        document.getElementById('openSettingsFromMap')?.addEventListener('click', () => {
+          localStorage.setItem('openSettingsOnLoad', 'true');
+          window.location.href = '/';
+        });
+        console.log('[Map] Map view is disabled for this board - initialization aborted');
+        return;
+      }
+
       console.log('[Map] Initializing Leaflet map...');
       initializeMap();
       // Update header with board name
@@ -587,6 +611,25 @@ function getBoardData() {
   }
 
   return null;
+}
+
+/**
+ * Determine whether the Map View is enabled globally (controls all boards).
+ * Checks the global ENABLE_MAP_VIEW setting from localStorage.
+ */
+function isMapViewEnabled(boardId) {
+  try {
+    const enableMapViewStr = localStorage.getItem('ENABLE_MAP_VIEW');
+    if (enableMapViewStr === null) {
+      // If not set, default to true (allow by default)
+      return true;
+    }
+    // Check if explicitly set to 'false' (string)
+    return enableMapViewStr !== 'false';
+  } catch (e) {
+    console.warn('[Map] isMapViewEnabled: failed to check ENABLE_MAP_VIEW', e);
+    return true;
+  }
 }
 
 async function loadBlocks() {
