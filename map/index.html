@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trellops Map View</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    
+    <!-- FontAwesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- Leaflet AwesomeMarkers CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-awesome-markers/2.0.2/leaflet.awesome-markers.css" />
+
+    <style>
+        @import url('https://fonts.cdnfonts.com/css/digital-7-mono');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #f7f8fa;
+            height: 100vh;
+            overflow: hidden;
+            color: #222;
+        }
+
+        /* Theme Variables */
+        :root {
+            --bg-primary: #f7f8fa;
+            --bg-secondary: #ffffff;
+            --text-color: #222222;
+            --text-secondary: #555555;
+            --border-color: #e0e0e0;
+            --primary-color: #ced7de;
+            --primary-hover-color: #b0b9c0;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1c1c1e;
+            --bg-secondary: #2c2c2e;
+            --text-color: #e0e0e0;
+            --text-secondary: #aaaaaa;
+            --border-color: #444;
+            --primary-color: #5a646b;
+            --primary-hover-color: #707980;
+            --shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .map-container {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        /* Header - matches dashboard */
+        .map-header {
+            display: flex;
+            align-items: center;
+            padding: 15px 40px;
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
+            z-index: 100;
+            gap: 20px;
+        }
+
+        .map-header-title-area {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .map-header-clock {
+            font-family: 'Digital-7 Mono', monospace;
+            font-size: 2.5em;
+            font-weight: 900;
+            color: var(--text-color);
+            letter-spacing: 2px;
+            flex-shrink: 0;
+            min-width: 155px;
+            text-align: right;
+        }
+
+        .map-header-clock.hidden {
+            display: none;
+        }
+
+        .map-header h1 {
+            font-size: 2em;
+            margin: 0;
+            color: var(--text-color);
+            flex-shrink: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #blockListHeader {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .map-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .map-card-count {
+            font-size: 0.95em;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        #basemapSelect {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+
+        #themeSelect {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+
+        #basemapSelect:hover, #themeSelect:hover {
+            border-color: var(--primary-hover-color);
+        }
+
+        #map {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: 100%;
+            height: auto;
+            max-height: 200px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: none;
+            flex-direction: row;
+            align-items: stretch;
+            box-shadow: 0 1px 4px var(--shadow-color);
+            z-index: 90;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .sidebar-header {
+            padding: 12px 20px;
+            border-right: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-color);
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.1em;
+            margin-bottom: 4px;
+            display: none;
+        }
+
+        .sidebar-header p {
+            font-size: 0.8em;
+            opacity: 0.9;
+        }
+
+        .sidebar-header .dashboard-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.2s;
+            display: none;
+        }
+
+        .sidebar-header .dashboard-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            border-color: white;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .sidebar-controls {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 15px;
+            min-width: fit-content;
+            padding-right: 15px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar-controls h3 {
+            font-size: 0.95em;
+            color: var(--text-color);
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        button, .settings-button, .dashboard-btn, .logout-button {
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 34px;
+            box-sizing: border-box;
+        }
+
+        button:hover, .settings-button:hover, .dashboard-btn:hover, .logout-button:hover {
+            background-color: var(--primary-hover-color);
+            transform: translateY(-1px);
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        /* Footer - matches dashboard */
+        .map-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 40px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 10px var(--shadow-color);
+            z-index: 900;
+            height: auto;
+            box-sizing: border-box;
+            color: var(--text-color);
+        }
+
+        .map-footer-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            flex: 1;
+        }
+
+        .map-footer-left a {
+            color: #0057d9;
+            text-decoration: none;
+        }
+
+        .map-footer-left a:hover {
+            text-decoration: underline;
+        }
+
+        [data-theme="dark"] .map-footer-left a {
+            color: #66b3ff;
+        }
+
+        .map-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .map-footer-countdown {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-right: 10px;
+            white-space: nowrap;
+        }
+
+        .status-message {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: var(--bg-secondary);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            max-width: 300px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .status-message.wide {
+            max-width: 520px;
+        }
+
+        .status-message.hidden {
+            display: none;
+        }
+
+        .status-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        #statusText {
+            font-size: 0.9em;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+        .status-progress {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .status-progress > .bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg,#667eea,#764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .block-list {
+            display: flex;
+            flex-direction: row;
+            gap: 12px;
+            align-items: center;
+            min-width: fit-content;
+        }
+
+        .block-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--primary-color);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            color: var(--text-color);
+            font-size: 0.9em;
+        }
+
+        .block-item:hover {
+            background: var(--primary-hover-color);
+            border-color: var(--text-secondary);
+        }
+
+        .block-item input[type="checkbox"] {
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .block-item label {
+            cursor: pointer;
+            font-size: 0.9em;
+            margin: 0;
+        }
+
+        .block-count {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-left: 4px;
+            background: var(--border-color);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .sidebar-footer {
+            padding: 0 15px;
+            border-left: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            min-width: fit-content;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.3em;
+            color: #333;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-group h4 {
+            font-size: 0.95em;
+            color: #555;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            margin-bottom: 8px;
+        }
+
+        .settings-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .settings-item label {
+            flex: 1;
+            cursor: pointer;
+            margin: 0;
+            font-size: 0.95em;
+            color: #333;
+        }
+
+        .status-indicator {
+            font-size: 0.85em;
+            padding: 6px 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .status-indicator.loading {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-indicator.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-indicator.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #667eea;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-height: 50vh;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .map-container {
+                flex-direction: column;
+            }
+
+            #map {
+                height: 50vh;
+            }
+
+            .map-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .map-header-title-area {
+                width: 100%;
+            }
+
+            .map-footer {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .map-footer-right {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="map-container">
+        <!-- Header - matches dashboard -->
+        <div class="map-header">
+            <div class="map-header-title-area">
+                <!-- Large Clock (if enabled) -->
+                <div class="map-header-clock hidden" id="mapHeaderClock"></div>
+                <!-- Board Name -->
+                <h1 id="mapBoardTitle">Map View</h1>
+                <!-- Block List (moved to header) -->
+                <div class="block-list" id="blockListHeader" style="margin-left: 30px; font-size: 0.9em;">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Header Actions (Right side) -->
+            <div class="map-header-actions">
+                <div class="map-card-count" id="mapCardCount">0 cards</div>
+                <label for="basemapSelect" style="font-size:0.95em;">Basemap:</label>
+                <select id="basemapSelect">
+                    <option value="topo">Topographic (Esri)</option>
+                    <option value="osm">OpenStreetMap</option>
+                    <option value="osmhotspot">OpenStreetMap Hotspot</option>
+                    <option value="osmtransport">OpenStreetMap Transport</option>
+                    <option value="sat">Satellite (Esri)</option>
+                    <option value="dark">Dark (Esri)</option>
+                </select>
+                <label for="themeSelect" style="font-size:0.95em; margin-left: 10px;">Theme:</label>
+                <select id="themeSelect">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Sidebar removed - blocks now in header -->
+
+        <!-- Map -->
+        <div id="map"></div>
+
+        <!-- Footer - matches dashboard -->
+        <div class="map-footer">
+            <!-- Left: Credits and attributions -->
+            <div class="map-footer-left">
+                <span>Map tiles © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer">OpenStreetMap</a></span>
+                <span>| Geocoding: <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noopener noreferrer">Nominatim</a></span>
+            </div>
+            
+            <!-- Right: Countdown, Dashboard, Settings, Logout -->
+            <div class="map-footer-right">
+                <div class="map-footer-countdown">Next refresh in <span id="refreshCountdown">--</span></div>
+                <button class="dashboard-btn" id="dashboardBtnFooter">Dashboard view</button>
+                <button class="settings-button" id="clearCacheBtn">Clear Geocode Cache</button>
+                <button class="settings-button" id="footerSettingsBtn">Settings</button>
+                <button class="logout-button" id="logoutBtnFooter">Log Out</button>
+            </div>
+        </div>
+
+        <!-- Status Message -->
+        <div id="statusMessage" class="status-message hidden">
+            <div class="status-content">
+                <div class="spinner"></div>
+                                <div>
+                                    <div id="statusText">Decoding addresses...</div>
+                                    <div class="status-progress" style="margin-top:8px;"><div class="bar" style="width:0%"></div></div>
+                                    <div class="status-percent" style="font-size:0.85em;margin-top:4px;text-align:center;"></div>
+                                    <div id="statusQueue" style="margin-top:8px;max-height:120px;overflow:auto;font-size:0.85em;color:#333"></div>
+                                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Map Settings</h3>
+                <button class="modal-close" id="closeSettingsBtn">&times;</button>
+            </div>
+
+            <div class="settings-group">
+                <h4>Display Options</h4>
+                <div class="settings-item">
+                    <input type="checkbox" id="showCompletedToggle" checked>
+                    <label for="showCompletedToggle">Show Completed Cards</label>
+                </div>
+                <div class="settings-item">
+                    <input type="checkbox" id="showTemplatesToggle" checked>
+                    <label for="showTemplatesToggle">Show Template Cards</label>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h4>Block-Specific Settings</h4>
+                <div id="blockSettingsContainer">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+
+            <div id="statusIndicator" class="status-indicator" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+    <!-- Leaflet AwesomeMarkers JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+
+    <!-- App Script -->
+    <script src="/map/script.js"></script>
+</body>
+</html>
