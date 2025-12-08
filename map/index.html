@@ -137,6 +137,20 @@
             cursor: pointer;
         }
 
+        #themeSelect {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+
+        #basemapSelect:hover, #themeSelect:hover {
+            border-color: var(--primary-hover-color);
+        }
+
         #map {
             flex: 1;
             position: relative;
@@ -281,6 +295,7 @@
             z-index: 900;
             height: auto;
             box-sizing: border-box;
+            color: var(--text-color);
         }
 
         .map-footer-left {
@@ -299,6 +314,10 @@
 
         .map-footer-left a:hover {
             text-decoration: underline;
+        }
+
+        [data-theme="dark"] .map-footer-left a {
+            color: #66b3ff;
         }
 
         .map-footer-right {
@@ -642,9 +661,18 @@
                 <div class="map-card-count" id="mapCardCount">0 cards</div>
                 <label for="basemapSelect" style="font-size:0.95em;">Basemap:</label>
                 <select id="basemapSelect">
+                    <option value="topo">Topographic (Esri)</option>
                     <option value="osm">OpenStreetMap</option>
+                    <option value="osmhotspot">OpenStreetMap Hotspot</option>
+                    <option value="osmtransport">OpenStreetMap Transport</option>
                     <option value="sat">Satellite (Esri)</option>
                     <option value="dark">Dark (Esri)</option>
+                </select>
+                <label for="themeSelect" style="font-size:0.95em; margin-left: 10px;">Theme:</label>
+                <select id="themeSelect">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
                 </select>
             </div>
         </div>
@@ -666,6 +694,7 @@
             <div class="map-footer-right">
                 <div class="map-footer-countdown">Next refresh in <span id="refreshCountdown">--</span></div>
                 <button class="dashboard-btn" id="dashboardBtnFooter">Dashboard view</button>
+                <button class="settings-button" id="clearCacheBtn">Clear Geocode Cache</button>
                 <button class="settings-button" id="footerSettingsBtn">Settings</button>
                 <button class="logout-button" id="logoutBtnFooter">Log Out</button>
             </div>

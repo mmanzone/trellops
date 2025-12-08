@@ -61,7 +61,8 @@ let appState = {
   userId: null,
   refreshInterval: null,
   refreshIntervalMs: 30000, // 30 seconds default (max 30 seconds)
-  cardSnapshots: new Map() // cardId -> {name, desc, labels, idList} for change detection
+  cardSnapshots: new Map(), // cardId -> {name, desc, labels, idList} for change detection
+  initialCoordinates: new Map() // cardId -> {lat,lng} from Trello at load time
 };
 
 // ---------------------------------------------------------------------------
@@ -378,6 +379,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
 
+      // Clear Geocode Cache button
+      const clearCacheBtn = document.getElementById('clearCacheBtn');
+      if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+          if (!confirm('Clear local geocode cache for this board? This will re-run geocoding for cards without Trello coordinates.')) return;
+          try {
+            const key = `MAP_GEOCODING_CACHE_${appState.selectedBoardId}`;
+            localStorage.removeItem(key);
+
+            // Restore coordinates from initial Trello data where available; otherwise remove
+            appState.cards.forEach(c => {
+              const orig = appState.initialCoordinates && appState.initialCoordinates.get(c.id);
+              if (orig) {
+                c.coordinates = { lat: Number(orig.lat), lng: Number(orig.lng) };
+              } else {
+                delete c.coordinates;
+              }
+            });
+
+            // Remove current markers and clear map marker state
+            for (const [id, m] of appState.markers.entries()) {
+              try { appState.map.removeLayer(m); } catch (e) {}
+            }
+            appState.markers.clear();
+
+            // Re-render markers based on restored coordinates and re-enqueue missing coords
+            renderMarkers();
+            enqueueMissingCoordinatesForVisibleCards(true);
+
+            alert('Local geocode cache cleared. Re-geocoding will start for visible cards without coordinates.');
+          } catch (e) {
+            console.warn('[Map] Failed to clear geocode cache', e);
+            alert('Failed to clear local geocode cache. See console for details.');
+          }
+        });
+      }
+
       // Select/Clear All buttons
       const selectAllBtnEl = document.getElementById('selectAllBtn');
       if (selectAllBtnEl) {
@@ -490,6 +528,16 @@ function initializeMap() {
     maxZoom: 19
   });
 
+  const osmHotspot = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors (Humanitarian Style)',
+    maxZoom: 19
+  });
+
+  const osmTransport = L.tileLayer('https://{s}.tile.openstreetmap.de/tiles/osmde/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors (Transport)',
+    maxZoom: 19
+  });
+
   const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles © Esri',
     maxZoom: 19
@@ -500,10 +548,15 @@ function initializeMap() {
     maxZoom: 19
   });
 
-  // Default add OSM
-  osm.addTo(appState.map);
+  const topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri',
+    maxZoom: 19
+  });
 
-  appState.baseLayers = { osm, esriSat, dark };
+  // Default add Topographic
+  topo.addTo(appState.map);
+
+  appState.baseLayers = { osm, osmHotspot, osmTransport, esriSat, dark, topo };
 
   // Basemap control element
   const basemapSelect = document.getElementById('basemapSelect');
@@ -515,9 +568,45 @@ function initializeMap() {
         try { appState.map.removeLayer(layer); } catch (err) {}
       });
       if (val === 'osm') appState.baseLayers.osm.addTo(appState.map);
+      else if (val === 'osmhotspot') appState.baseLayers.osmHotspot.addTo(appState.map);
+      else if (val === 'osmhumanitaire') appState.baseLayers.osmHumanitaire.addTo(appState.map);
+      else if (val === 'osmtransport') appState.baseLayers.osmTransport.addTo(appState.map);
       else if (val === 'sat') appState.baseLayers.esriSat.addTo(appState.map);
       else if (val === 'dark') appState.baseLayers.dark.addTo(appState.map);
+      else if (val === 'topo') appState.baseLayers.topo.addTo(appState.map);
     });
+  }
+
+  // Theme selector
+  const themeSelect = document.getElementById('themeSelect');
+  if (themeSelect) {
+    // Load saved theme preference
+    try {
+      const savedTheme = localStorage.getItem('mapTheme') || 'system';
+      themeSelect.value = savedTheme;
+      applyTheme(savedTheme);
+    } catch (e) {
+      console.warn('[Map] Failed to load theme preference', e);
+    }
+
+    themeSelect.addEventListener('change', (e) => {
+      const theme = e.target.value;
+      try {
+        localStorage.setItem('mapTheme', theme);
+        applyTheme(theme);
+      } catch (e) {
+        console.warn('[Map] Failed to save theme preference', e);
+      }
+    });
+  }
+
+  function applyTheme(theme) {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const resolvedTheme = 
+      theme === 'system' 
+        ? (mediaQuery.matches ? 'dark' : 'light')
+        : theme;
+    document.documentElement.setAttribute('data-theme', resolvedTheme);
   }
 }
 
@@ -789,6 +878,28 @@ async function loadCards() {
 
     // Keep a copy of the raw cards (unfiltered) so we can determine first-card per list
     appState.rawCards = cards || [];
+
+    // Build initialCoordinates map and seed local cache with Trello-provided coordinates
+    appState.initialCoordinates = new Map();
+    appState.rawCards.forEach(c => {
+      if (c.coordinates) {
+        let coords = c.coordinates;
+        if (typeof coords === 'string' && coords.trim()) {
+          const parts = coords.split(',').map(p => parseFloat(p.trim()));
+          if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            coords = { lat: parts[0], lng: parts[1] };
+          }
+        }
+        if (coords && coords.lat && coords.lng) {
+          const normalized = { lat: Number(coords.lat), lng: Number(coords.lng) };
+          appState.initialCoordinates.set(c.id, normalized);
+          // persist into local cache for consistency (non-destructive)
+          try { saveLocalGeocode(boardId, c.id, normalized); } catch (e) { /* ignore */ }
+          // normalize the card.coordinates so subsequent logic sees an object
+          c.coordinates = normalized;
+        }
+      }
+    });
 
     // Work on a filtered set for display and geocoding decisions
     appState.cards = appState.rawCards.slice();
@@ -1164,21 +1275,21 @@ function getMarkerIcon(markerConfig) {
     iconSvg = `
       <svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg">
         <path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>
-        <!-- Steering wheel: outer circle with black outline -->
-        <circle cx="14" cy="11" r="6" fill="none" stroke="#222" stroke-width="2.8" />
-        <circle cx="14" cy="11" r="6" fill="none" stroke="#fff" stroke-width="2" />
+        <!-- Steering wheel: outer circle with black outline (thicker) -->
+        <circle cx="14" cy="11" r="6" fill="none" stroke="#222" stroke-width="3.2" />
+        <circle cx="14" cy="11" r="6" fill="none" stroke="#fff" stroke-width="2.4" />
         <!-- Steering wheel: center hub with outline -->
         <circle cx="14" cy="11" r="2.2" fill="#222" />
         <circle cx="14" cy="11" r="1.8" fill="#fff" />
         <!-- Steering wheel: spokes (thicker) with black outline -->
-        <line x1="14" y1="5.5" x2="14" y2="7" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
-        <line x1="14" y1="5.5" x2="14" y2="7" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
-        <line x1="14" y1="15" x2="14" y2="16.5" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
-        <line x1="14" y1="15" x2="14" y2="16.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
-        <line x1="8.5" y1="11" x2="10" y2="11" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
-        <line x1="8.5" y1="11" x2="10" y2="11" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
-        <line x1="18" y1="11" x2="19.5" y2="11" stroke="#222" stroke-width="2.4" stroke-linecap="round" />
-        <line x1="18" y1="11" x2="19.5" y2="11" stroke="#fff" stroke-width="1.8" stroke-linecap="round" />
+        <line x1="14" y1="5.5" x2="14" y2="7" stroke="#222" stroke-width="2.8" stroke-linecap="round" />
+        <line x1="14" y1="5.5" x2="14" y2="7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" />
+        <line x1="14" y1="15" x2="14" y2="16.5" stroke="#222" stroke-width="2.8" stroke-linecap="round" />
+        <line x1="14" y1="15" x2="14" y2="16.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" />
+        <line x1="8.5" y1="11" x2="10" y2="11" stroke="#222" stroke-width="2.8" stroke-linecap="round" />
+        <line x1="8.5" y1="11" x2="10" y2="11" stroke="#fff" stroke-width="2.2" stroke-linecap="round" />
+        <line x1="18" y1="11" x2="19.5" y2="11" stroke="#222" stroke-width="2.8" stroke-linecap="round" />
+        <line x1="18" y1="11" x2="19.5" y2="11" stroke="#fff" stroke-width="2.2" stroke-linecap="round" />
       </svg>
     `;
   } else if (icon === 'wrench' || icon === 'tool' || icon === 'onsite' || icon === 'on site') {
@@ -1425,14 +1536,16 @@ async function processGeocodingQueue() {
       // Update card locally
       card.coordinates = coordinates;
 
-      // Decide whether to persist to Trello or keep in local cache based on per-board setting
+      // Decide how to persist based on per-board mode
       const mode = getGeocodeMode(appState.selectedBoardId);
       if (mode === 'update') {
-        console.log('[Map] Updating Trello card with coordinates...');
+        console.log('[Map] Updating Trello card with coordinates (per-board mode = update)...');
         await updateCardCoordinates(cardId, coordinates);
+        // also persist a copy in the local cache for consistency
+        try { saveLocalGeocode(appState.selectedBoardId, cardId, coordinates); } catch (e) {}
       } else {
-        console.log('[Map] Storing geocoded coordinates in browser cache (no Trello update) for', cardId);
-        try { saveLocalGeocode(appState.selectedBoardId, cardId, coordinates); } catch (e) { console.warn('[Map] Failed to save local geocode', e); }
+        console.log('[Map] Storing geocoded coordinates in local cache (per-board mode = store). Not updating Trello.');
+        try { saveLocalGeocode(appState.selectedBoardId, cardId, coordinates); } catch (e) {}
       }
 
       // Render marker if card is visible

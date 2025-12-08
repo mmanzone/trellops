@@ -2092,14 +2092,16 @@
                                                         Display the first card as tile description
                                                     </label>
                                                 )}
-                                                <label>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={block.includeOnMap === true}
-                                                        onChange={e => handleToggleIncludeOnMap(block.id, e.target.checked)}
-                                                    />
-                                                    Include this block on Map
-                                                </label>
+                                                {enableMapView && (
+                                                    <label>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={block.includeOnMap === true}
+                                                            onChange={e => handleToggleIncludeOnMap(block.id, e.target.checked)}
+                                                        />
+                                                        Show this block on the Map
+                                                    </label>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -2198,22 +2200,24 @@
                                         </span>
                                     </div>
 
-                                    <div style={{marginTop:'12px'}}>
-                                        <label style={{fontWeight:600,display:'block',marginBottom:'6px'}}>Geocoding behavior</label>
-                                        <label style={{display:'block',marginBottom:'6px'}}>
-                                            <input type="radio" name="mapGeocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={() => setMapGeocodeMode('store')} />
-                                            <span style={{marginLeft:'8px'}}>Store geolocation data locally (default)</span>
-                                        </label>
-                                        <label style={{display:'block',marginBottom:'6px'}}>
-                                            <input type="radio" name="mapGeocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={() => setMapGeocodeMode('update')} />
-                                            <span style={{marginLeft:'8px'}}>Update the Trello card coordinates</span>
-                                        </label>
-                                        {mapGeocodeMode === 'update' && (
-                                            <div style={{marginTop:'8px',padding:'8px',background:'#fff3f0',border:'1px solid #ffd6cc',color:'#7a1f00',borderRadius:'6px'}}>
-                                                <strong>Warning:</strong> Using this option will update the Trello card on "{selectedBoard.name}" with lat/long coordinates.
-                                            </div>
-                                        )}
-                                    </div>
+                                    {enableMapView && (
+                                        <div style={{marginTop:'12px'}}>
+                                            <label style={{fontWeight:600,display:'block',marginBottom:'6px'}}>Geocoding behavior</label>
+                                            <label style={{display:'block',marginBottom:'6px'}}>
+                                                <input type="radio" name="mapGeocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={() => setMapGeocodeMode('store')} />
+                                                <span style={{marginLeft:'8px'}}>Store geolocation data locally (default)</span>
+                                            </label>
+                                            <label style={{display:'block',marginBottom:'6px'}}>
+                                                <input type="radio" name="mapGeocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={() => setMapGeocodeMode('update')} />
+                                                <span style={{marginLeft:'8px'}}>Update the Trello card coordinates</span>
+                                            </label>
+                                            {mapGeocodeMode === 'update' && (
+                                                <div style={{marginTop:'8px',padding:'8px',background:'#fff3f0',border:'1px solid #ffd6cc',color:'#7a1f00',borderRadius:'6px'}}>
+                                                    <strong>Warning:</strong> Using this option will update the Trello card on "{selectedBoard.name}" with lat/long coordinates.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                     
