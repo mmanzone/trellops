@@ -619,16 +619,13 @@ function getBoardData() {
  */
 function isMapViewEnabled(boardId) {
   try {
-    const enableMapViewStr = localStorage.getItem('ENABLE_MAP_VIEW');
-    if (enableMapViewStr === null) {
-      // If not set, default to true (allow by default)
-      return true;
-    }
-    // Check if explicitly set to 'false' (string)
-    return enableMapViewStr !== 'false';
+    const storageKey = `ENABLE_MAP_VIEW_${boardId}`;
+    const enableMapViewStr = localStorage.getItem(storageKey);
+    // Default to false (disabled) if not explicitly set to 'true'
+    return enableMapViewStr === 'true';
   } catch (e) {
-    console.warn('[Map] isMapViewEnabled: failed to check ENABLE_MAP_VIEW', e);
-    return true;
+    console.warn('[Map] isMapViewEnabled: failed to check per-board Map View setting', e);
+    return false; // Default to disabled on error
   }
 }
 

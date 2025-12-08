@@ -1399,13 +1399,15 @@
             const [blocks, setBlocks] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
             const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
             const [enableMapView, setEnableMapView] = useState(() => {
-                const stored = localStorage.getItem('ENABLE_MAP_VIEW');
-                return stored === 'true';
+                const storageKey = `ENABLE_MAP_VIEW_${initialSettings.boardId}`;
+                const stored = localStorage.getItem(storageKey);
+                return stored === 'true'; // Default to false (disabled) if not set
             });
-                        // Handler for global map view toggle
+                        // Handler for per-board map view toggle
                         const handleToggleEnableMapView = (isChecked) => {
                             setEnableMapView(isChecked);
-                            localStorage.setItem('ENABLE_MAP_VIEW', isChecked ? 'true' : 'false');
+                            const storageKey = `ENABLE_MAP_VIEW_${initialSettings.boardId}`;
+                            localStorage.setItem(storageKey, isChecked ? 'true' : 'false');
                         };
             const [newBlockName, setNewBlockName] = useState('');
             const [showMoreOptions, setShowMoreOptions] = useState(false);
