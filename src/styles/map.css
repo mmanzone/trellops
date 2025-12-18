@@ -1,0 +1,212 @@
+/* Map View Styles */
+
+.map-container {
+    display: flex;
+    height: 100vh;
+    flex-direction: column;
+}
+
+#map {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    width: 100%;
+}
+
+.map-header {
+    display: flex;
+    align-items: center;
+    padding: 15px 40px;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    z-index: 100;
+    gap: 20px;
+    height: 70px;
+    /* Fixed height for consistency */
+}
+
+.map-header-title-area {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 1;
+}
+
+.map-header-clock {
+    font-family: monospace;
+    /* Fallback */
+    font-size: 2.0em;
+    font-weight: 900;
+    color: var(--text-color);
+    letter-spacing: 2px;
+    flex-shrink: 0;
+    min-width: 140px;
+    text-align: right;
+}
+
+.map-header h1 {
+    font-size: 1.8em;
+    margin: 0;
+    color: var(--text-color);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.map-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+.map-card-count {
+    font-size: 0.95em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.map-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 40px;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -2px 10px var(--shadow-color);
+    z-index: 900;
+    height: 60px;
+    color: var(--text-color);
+}
+
+.map-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.map-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Status Message Overlay */
+.status-message {
+    position: fixed;
+    bottom: 80px;
+    right: 30px;
+    background: var(--bg-secondary);
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 1000;
+    max-width: 300px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.status-message.hidden {
+    display: none;
+}
+
+.status-content {
+    width: 100%;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.status-progress {
+    width: 100%;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.status-progress>.bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.3s ease;
+}
+
+/* Markers */
+.custom-div-marker {
+    background: transparent;
+    border: none;
+}
+
+/* Popup Styles */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.leaflet-popup-content {
+    margin: 12px;
+    line-height: 1.5;
+}
+
+.popup-card a {
+    color: #0057d9;
+    text-decoration: none;
+    font-size: 1.1em;
+}
+
+.popup-desc {
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 0.9em;
+    color: #444;
+    background: #f9f9f9;
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 6px;
+}
+
+/* Map specific overrides for dark mode if needed (inherits vars from index.css) */

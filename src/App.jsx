@@ -6,21 +6,26 @@ import { DarkModeProvider } from './context/DarkModeContext';
 import LandingPage from './components/common/LandingPage';
 import Dashboard from './components/Dashboard';
 import SettingsScreen from './components/SettingsScreen';
+import MapView from './components/MapView';
 
 const App = () => {
     const [user, setUser] = useState(null);
     const [settings, setSettings] = useState(null);
-    const [view, setView] = useState('landing'); // 'landing', 'settings', 'dashboard'
+    const [view, setView] = useState('landing'); // 'landing', 'settings', 'dashboard', 'map'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Check for token in URL on initial load or existing session
+    // Check for token in URL or existing session
     useEffect(() => {
+        // 1. Check for Map route first
+        if (window.location.pathname === '/map') {
+            setView('map');
+        }
+
         const tokenFromUrl = trelloAuth.getTokenFromUrl();
         if (tokenFromUrl) {
             handleLoginSuccess(tokenFromUrl);
         } else {
-            // If no token in URL, check if a user is already logged in
             const loggedInUserId = getCurrentUser();
             if (loggedInUserId) {
                 const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA)) || {};
@@ -28,17 +33,17 @@ const App = () => {
                 if (userSession && userSession.token) {
                     handleLoginSuccess(userSession.token);
                 } else {
-                    setView('landing');
+                    if (window.location.pathname !== '/map') setView('landing');
                     setLoading(false);
                 }
             } else {
-                setView('landing');
+                if (window.location.pathname !== '/map') setView('landing');
                 setLoading(false);
             }
         }
     }, []);
 
-    // Check if settings should be opened on load (from map view)
+    // Check if settings should be opened on load
     useEffect(() => {
         if (view === 'dashboard' && localStorage.getItem('openSettingsOnLoad') === 'true') {
             localStorage.removeItem('openSettingsOnLoad');
@@ -61,16 +66,23 @@ const App = () => {
             setUser(userData);
 
             const savedSettings = getUserData(member.id, 'settings');
-            if (savedSettings && savedSettings.boardId) {
-                setSettings(savedSettings);
-                setView('dashboard');
+            // Only switch to dashboard if we aren't already on map view
+            if (window.location.pathname !== '/map') {
+                if (savedSettings && savedSettings.boardId) {
+                    setSettings(savedSettings);
+                    setView('dashboard');
+                } else {
+                    setView('settings');
+                }
             } else {
-                setView('settings');
+                // If on map view, ensure settings are loaded
+                // We don't change view, just state
+                if (savedSettings) setSettings(savedSettings);
             }
         } catch (e) {
             console.error("Login validation failed:", e);
             setError("Failed to validate Trello session. Please log in again.");
-            setCurrentUser(null); // Clear invalid user session
+            setCurrentUser(null);
             setView('landing');
         } finally {
             setLoading(false);
@@ -79,7 +91,7 @@ const App = () => {
 
     const handleLogout = () => {
         if (user) {
-            setUserData(user.id, 'token', null); // Invalidate the stored token
+            setUserData(user.id, 'token', null);
         }
         setCurrentUser(null);
         setUser(null);
@@ -89,10 +101,9 @@ const App = () => {
     };
 
     const handleSaveSettings = (newSettings) => {
-        // If settings are cleared (optional feature), handle gracefully
         if (!newSettings) {
             setSettings(null);
-            setView('dashboard'); // Will likely redirect or show empty state if not handled in Dashboard
+            setView('dashboard');
             return;
         }
         setSettings(newSettings);
@@ -111,6 +122,18 @@ const App = () => {
                     <button className="settings-button" onClick={() => { setError(''); setView('landing'); }}>Go to Login</button>
                 </div>
             </div>
+        );
+    }
+
+    if (view === 'map') {
+        return (
+            <MapView
+                user={user}
+                onClose={() => {
+                    setView('dashboard');
+                    window.history.pushState({}, '', '/');
+                }}
+            />
         );
     }
 
