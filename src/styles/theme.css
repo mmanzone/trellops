@@ -1,0 +1,35 @@
+/* ------------------------------------------------ */
+/* --- DIGITAL-7 FONT LOAD (FIXED MONO FONT) --- */
+/* ------------------------------------------------ */
+@import url('https://fonts.cdnfonts.com/css/digital-7-mono');
+
+/* ------------------------------------------------ */
+/* --- Modern & Minimalist Theme --- */
+/* ------------------------------------------------ */
+:root {
+    --bg-primary: #f7f8fa;
+    --bg-secondary: #ffffff;
+    --text-color: #222222;
+    --text-secondary: #555555;
+    --border-color: #e0e0e0;
+    --primary-color: #ced7de;
+    --primary-hover-color: #b0b9c0;
+    --danger-color: #dc3545;
+    --danger-hover-color: #c82333;
+    --shadow-color: rgba(0, 0, 0, 0.05);
+    --label-border-color: #555555;
+}
+
+[data-theme="dark"] {
+    --bg-primary: #1c1c1e;
+    --bg-secondary: #2c2c2e;
+    --text-color: #e0e0e0;
+    --text-secondary: #aaaaaa;
+    --border-color: #444;
+    --primary-color: #5a646b;
+    --primary-hover-color: #707980;
+    --danger-color: #dc3545;
+    --danger-hover-color: #e06c75;
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --label-border-color: #ffffff;
+}

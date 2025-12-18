@@ -1,0 +1,2829 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <title>Trellops - Your Trello board, visualised</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <style>
+        /* ------------------------------------------------ */
+        /* --- DIGITAL-7 FONT LOAD (FIXED MONO FONT) --- */
+        /* ------------------------------------------------ */
+        @import url('https://fonts.cdnfonts.com/css/digital-7-mono');
+
+        /* ------------------------------------------------ */
+        /* --- Modern & Minimalist Theme --- */
+        /* ------------------------------------------------ */
+        :root {
+            --bg-primary: #f7f8fa;
+            --bg-secondary: #ffffff;
+            --text-color: #222222;
+            --text-secondary: #555555;
+            --border-color: #e0e0e0;
+            --primary-color: #ced7de;
+            --primary-hover-color: #b0b9c0;
+            --danger-color: #dc3545;
+            --danger-hover-color: #c82333;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --label-border-color: #555555;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1c1c1e;
+            --bg-secondary: #2c2c2e;
+            --text-color: #e0e0e0;
+            --text-secondary: #aaaaaa;
+            --border-color: #444;
+            --primary-color: #5a646b;
+            --primary-hover-color: #707980;
+            --danger-color: #dc3545;
+            --danger-hover-color: #e06c75;
+            --shadow-color: rgba(0, 0, 0, 0.2);
+            --label-border-color: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0 0 80px 0;
+            background-color: var(--bg-primary);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .container {
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* --- Typography --- */
+        h1, h2, h3, h4 {
+            font-weight: 600;
+            color: var(--text-color);
+            margin-top: 0;
+        }
+
+        /* --- Buttons --- */
+        button, .settings-button, .logout-button, .save-layout-button, .refresh-button, label.settings-button {
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 34px; /* Consistent height */
+            box-sizing: border-box;
+        }
+
+        button:hover, .settings-button:hover, .logout-button:hover, .save-layout-button:hover, .refresh-button:hover, label.settings-button:hover {
+            background-color: var(--primary-hover-color);
+            transform: translateY(-1px);
+        }
+
+        button:disabled, .settings-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+        .button-danger:hover {
+            background-color: var(--danger-hover-color);
+        }
+        
+        .error {
+            background-color: #dc3545; /* A standard danger red */
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+            border: 1px solid #c82333;
+        }
+
+        .button-secondary {
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .button-secondary:hover {
+            background-color: var(--bg-primary);
+        }
+
+        /* --- Header/Navigation --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+        .header-title-area {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            max-width: 70%; 
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .large-clock {
+            font-family: 'Digital-7 Mono', monospace;
+            font-size: 2.5em;
+            font-weight: 900; 
+            color: var(--text-color);
+            letter-spacing: 2px;
+            margin-right: 20px;
+            flex-shrink: 0;
+            min-width: 155px; 
+            text-align: right;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        /* Subtle help link shown next to the settings header */
+        .subtle-help-link {
+            margin-left: 12px;
+            font-size: 0.82em;
+            color: #2a8dff; /* subtle blue */
+            text-decoration: none;
+            padding: 4px 6px;
+            border-radius: 6px;
+            display: inline-block;
+            font-weight: 500;
+        }
+        .subtle-help-link:hover {
+            color: #1a73e8;
+            background-color: rgba(42,141,255,0.06);
+            text-decoration: underline;
+        }
+        .countdown {
+            margin-right: 15px;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+        
+        /* NEW: Time Filter & Theme Toggle */
+        .time-filter-select, .theme-toggle-button {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-secondary);
+            color: var(--text-color);
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+        .theme-toggle-button {
+            cursor: pointer;
+        }
+
+        /* NEW: Fixed Footer Action Bar */
+        .footer-action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 15px 40px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            box-shadow: 0 -2px 10px var(--shadow-color);
+            z-index: 9000;
+        }
+        .footer-action-bar .version {
+            margin-right: auto; 
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+        .footer-action-bar > * {
+            margin-left: 10px;
+        }
+
+        /* --- Dashboard Grid Layout --- */
+        .dashboard-block {
+            padding: 20px;
+            background-color: transparent;
+        }
+        .block-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .block-header {
+            font-size: 1.8em;
+            font-weight: 700;
+        }
+        .collapse-toggle {
+            cursor: pointer;
+            font-size: 1.5em;
+            color: var(--text-secondary);
+            padding: 5px;
+            background: none;
+            border: none;
+            transition: color 0.2s;
+        }
+        .collapse-toggle:hover {
+            color: var(--primary-color);
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        /* --- Tile Styles --- */
+        .dashboard-tile {
+            min-height: 160px;
+            border-radius: 12px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: none;
+            color: white;
+        }
+        .dashboard-tile:hover {
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
+        }
+        .card-count {
+            font-size: 5em;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .list-name {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+        .card-description {
+            font-size: 0.9em;
+            font-weight: 400;
+            opacity: 0.9;
+            max-width: 90%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            margin-top: 5px;
+        }
+
+        /* --- Forms & Settings --- */
+        .form-card {
+            background-color: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            max-width: 95%;
+            margin: 20px auto;
+            position: relative;
+        }
+        .form-card label {
+            margin-bottom: 10px;
+            font-weight: 500;
+            display: block;
+            color: var(--text-secondary);
+        }
+        .form-card input[type="text"],
+        .form-card input[type="number"],
+        .form-card select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            box-sizing: border-box;
+            background-color: var(--bg-primary);
+            color: var(--text-color);
+        }
+        .list-config-item {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+            padding: 8x;
+            background: var(--bg-primary); 
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            justify-content: space-between; 
+        }
+        
+        .list-config-item > span:first-child {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            width: 50%;
+            padding-right: 10px;
+        }
+        .list-config-item > div:last-child {
+             display: flex;
+             align-items: center;
+        }
+        
+        .order-buttons button, .block-order-buttons button {
+            background: var(--bg-secondary);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            margin: 0 2px;
+        }
+        .order-buttons button:hover, .block-order-buttons button:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* --- Layout Configuration --- */
+        .layout-config-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .layout-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-basis: 100%;
+        }
+        @media (min-width: 768px) {
+            .layout-column:first-child {
+                flex-basis: 40%;
+            }
+            .layout-column:last-child {
+                flex-basis: calc(60% - 20px);
+            }
+        }
+        .layout-block-box {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .layout-list-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 8px;
+        }
+        
+        /* --- Modal Display --- */
+        .modal-overlay {
+            position: fixed; 
+            top: 0;
+            left: 0;
+            width: 100%; 
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .modal-content {
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh; 
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            font-size: 1.5em;
+        }
+        .card-label {
+            font-size: 0.75em;
+            font-weight: 500;
+            padding: 3px 6px;
+            border-radius: 4px;
+            margin-right: 5px;
+            border: 1px solid var(--label-border-color);
+        }
+        .card-list-item {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-list-item a {
+            color: var(--text-color);
+            text-decoration: none;
+            flex-grow: 1; 
+        }
+
+        .admin-section {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            background-color: var(--bg-secondary);
+        }
+
+        .admin-section h3 {
+            margin-top: 0;
+        }
+
+        .actions-container {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .section-options {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .section-options label {
+            font-weight: normal;
+            font-size: 0.9em;
+            margin: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .sub-option {
+            margin-left: 0;
+        }
+
+        .modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .modal-actions button, .modal-actions label {
+            width: 100%;
+        }
+        .modal-actions label.settings-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .settings-row label {
+            margin-bottom: 0;
+            flex-shrink: 0;
+        }
+        .settings-row select, .settings-row input {
+            margin-top: 0;
+            width: auto;
+            flex-grow: 1;
+        }
+        .options-row > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .three-column {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 30px;
+            height: 17px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 13px;
+            width: 13px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(13px);
+            -ms-transform: translateX(13px);
+            transform: translateX(13px);
+        }
+
+        .slider.round {
+            border-radius: 17px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        /* --- Landing Page Styles --- */
+        .landing-page {
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+        .landing-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .hero-section {
+            padding: 80px 0;
+        }
+
+        .hero-section .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        .hero-section h1 {
+            font-size: 4em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .hero-section p {
+            font-size: 1.5em;
+            color: #aaaaaa;
+            margin-bottom: 30px;
+        }
+
+        .hero-section .cta-button {
+            background-color: #00c6ff;
+            color: #121212;
+            font-size: 1.2em;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .hero-section .cta-button:hover {
+            background-color: #2a8dff;
+            transform: translateY(-2px);
+        }
+
+        .hero-section .tagline {
+            margin-top: 30px;
+            font-size: 1.1em;
+            color: #999;
+        }
+
+        .value-prop-section {
+            background-color: #1e1e1e;
+            padding: 80px 0;
+        }
+
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .value-item {
+            padding: 20px;
+        }
+
+        .value-item .icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .value-item h3 {
+            font-size: 1.5em;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .value-item p {
+            color: #aaaaaa;
+        }
+
+        .features-section {
+            padding: 80px 0;
+        }
+
+        .features-section h2 {
+            font-size: 2.5em;
+            margin-bottom: 50px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            text-align: left;
+        }
+
+        .feature-item {
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+        }
+
+        .feature-item h4 {
+            font-size: 1.3em;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .feature-item p {
+            color: #aaaaaa;
+        }
+
+        .final-cta-section {
+            background-color: #007aff;
+            color: white;
+            padding: 60px 20px;
+        }
+
+        .final-cta-section p {
+            font-size: 1.5em;
+            font-weight: 500;
+            margin-bottom: 30px;
+        }
+
+        .final-cta-section .cta-button {
+            background-color: #ffffff;
+            color: #007aff;
+            font-size: 1.2em;
+            padding: 15px 30px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .hero-section h1 {
+                font-size: 2em;
+            }
+
+            .value-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* Dashboard responsive styles */
+            .dashboard-block {
+                padding: 15px;
+            }
+
+            .block-header {
+                font-size: 1.4em;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .dashboard-tile {
+                min-height: 140px;
+            }
+
+            .card-count {
+                font-size: 3.5em;
+            }
+
+            .list-name {
+                font-size: 1em;
+            }
+
+            /* Form and settings responsive */
+            .form-card {
+                padding: 20px;
+                margin: 10px auto;
+            }
+
+            /* Buttons and controls */
+            button, .settings-button, .logout-button, .save-layout-button, .refresh-button, label.settings-button {
+                padding: 10px 16px;
+                font-size: 0.95em;
+                min-height: 44px; /* Touch-friendly size */
+            }
+
+            /* Header and navigation */
+            .header-row {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .header-row > * {
+                flex: 1 1 auto;
+            }
+
+            /* Modal responsive */
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+                max-height: 95vh;
+            }
+
+            /* Layout columns */
+            .layout-column {
+                flex-basis: 100% !important;
+            }
+
+            /* Typography adjustments */
+            h1 {
+                font-size: 1.8em;
+            }
+
+            h2 {
+                font-size: 1.4em;
+            }
+
+            h3 {
+                font-size: 1.2em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            .dashboard-block {
+                padding: 10px;
+            }
+
+            .block-header {
+                font-size: 1.2em;
+            }
+
+            .card-count {
+                font-size: 3em;
+            }
+
+            .form-card {
+                padding: 15px;
+            }
+
+            .hero-section h1 {
+                font-size: 1.5em;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef, useContext, createContext } = React;
+        const ReactDOM = window.ReactDOM;
+
+        // IMPORTANT: Replace with your Trello API Key
+        const TRELLO_API_KEY = "558e200650487a28cf1cc0b33561cd82"; 
+
+        // --- Trello OAuth Integration ---
+        const trelloAuth = {
+            login: () => {
+                const appName = "Trello Stats Dashboard";
+                const returnUrl = window.location.href.split('#')[0]; // Remove any existing hash
+                const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=read&response_type=token&key=${TRELLO_API_KEY}&return_url=${encodeURIComponent(returnUrl)}`;
+                window.location.href = authUrl;
+            },
+            getTokenFromUrl: () => {
+                const hash = window.location.hash.substring(1);
+                if (hash.startsWith('token=')) {
+                    const token = hash.substring(6);
+                    // Clean the URL
+                    history.pushState("", document.title, window.location.pathname + window.location.search);
+                    return token;
+                }
+                return null;
+            },
+            logout: (setCurrentUser) => {
+                // For OAuth, logout is primarily a client-side action
+                setCurrentUser(null); 
+                // No specific token to clear globally, it's per user
+            }
+        };
+
+
+        const TRELLO_API_BASE = "https://api.trello.com/1";
+        const REFRESH_INTERVAL_SECONDS = 30;
+
+        // --- Public Sound Files (REMOVED) ---
+        const NOTIFICATION_SOUNDS = {
+            'none': { label: 'None', url: '' }
+        };
+
+
+        // --- Local Storage Keys ---
+        const STORAGE_KEYS = {
+            CURRENT_USER: 'trelloCurrentUser',
+            USER_DATA: 'trelloUserData',
+            THEME: 'dashboardTheme',
+            CLOCK_SETTING: 'dashboardClockSetting_',
+            REFRESH_INTERVAL: 'dashboardRefreshInterval_',
+            IGNORE_TEMPLATE_CARDS: 'dashboardIgnoreTemplateCards_',
+            RANDOM_COLORS_CACHE: 'dashboardRandomColors'
+        };
+        
+        // --- User-Specific Storage Helpers ---
+        const getCurrentUser = () => {
+            return localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+        };
+
+        const setCurrentUser = (userId) => {
+            if (userId) {
+                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, userId);
+            } else {
+                localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+            }
+        };
+
+        const getUserData = (userId, key) => {
+            if (!userId) return null;
+            const allUserData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA)) || {};
+            const userData = allUserData[userId] || {};
+            return userData[key];
+        };
+
+        const setUserData = (userId, key, value) => {
+            if (!userId) return;
+            const allUserData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA)) || {};
+            if (!allUserData[userId]) {
+                allUserData[userId] = {};
+            }
+            allUserData[userId][key] = value;
+            localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(allUserData));
+        };
+        
+        // --- Filter Options Mapping ---
+        const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const now = new Date();
+        
+        const calcCalendarFilter = (key) => {
+            let start, end;
+            if (key === 'last_month') {
+                start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                end = new Date(now.getFullYear(), now.getMonth(), 0);
+                const monthName = MONTH_NAMES[start.getMonth()];
+                return { start, end, label: `Last month (${monthName} ${start.getFullYear()})`, titleSuffix: `${monthName} ${start.getFullYear()}` };
+            } else if (key === 'this_month') {
+                start = new Date(now.getFullYear(), now.getMonth(), 1);
+                end = now;
+                const monthName = MONTH_NAMES[now.getMonth()];
+                return { start, end, label: `This month (${monthName} ${now.getFullYear()})`, titleSuffix: `${monthName} ${now.getFullYear()}` };
+            } else if (key === 'this_week') {
+                const dayOfWeek = now.getDay(); 
+                const daysToSubtract = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+                
+                start = new Date(now);
+                start.setDate(now.getDate() - daysToSubtract);
+                start.setHours(0, 0, 0, 0); 
+                
+                end = now; 
+                return { start, end, label: `This week (Mon-Sun)`, titleSuffix: `This Week` };
+            } else if (key === 'last_week') {
+                const dayOfWeek = now.getDay();
+                const daysToSubtract = (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + 7;
+                
+                start = new Date(now);
+                start.setDate(now.getDate() - daysToSubtract);
+                start.setHours(0, 0, 0, 0); 
+                
+                end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+                return { start, end, label: `Last week (Mon-Sun)`, titleSuffix: `Last Week` };
+            }
+        };
+
+        const TIME_FILTERS = {
+            'all': { label: 'All Time', minutes: 0, titleSuffix: 'All Time', type: 'absolute' },
+            '24h': { label: 'Last 24h', minutes: 60 * 24, titleSuffix: 'Last 24h', type: 'relative' },
+            '48h': { label: 'Last 48h', minutes: 60 * 48, titleSuffix: 'Last 48h', type: 'relative' },
+            '72h': { label: 'Last 72h', minutes: 60 * 72, titleSuffix: 'Last 72h', type: 'relative' },
+            '7d': { label: 'Last 7 days', minutes: 60 * 24 * 7, titleSuffix: 'Last 7 Days', type: 'relative' },
+            
+            'this_week': { ...calcCalendarFilter('this_week'), type: 'calendar' },
+            'last_week': { ...calcCalendarFilter('last_week'), type: 'calendar' },
+            
+            'last_30d': { label: 'Last 30 days', minutes: 60 * 24 * 30, titleSuffix: 'Last 30 Days', type: 'relative' },
+            'this_month': { ...calcCalendarFilter('this_month'), type: 'calendar' },
+            'last_month': { ...calcCalendarFilter('last_month'), type: 'calendar' },
+        };
+
+        // --- Dark Mode Context ---
+        const DarkModeContext = createContext();
+
+        const useDarkMode = () => {
+            const [theme, setTheme] = useState(() => localStorage.getItem(STORAGE_KEYS.THEME) || 'system');
+
+            useEffect(() => {
+                const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                
+                const applyTheme = (currentTheme) => {
+                    const resolvedTheme = 
+                        currentTheme === 'system' 
+                            ? (mediaQuery.matches ? 'dark' : 'light')
+                            : currentTheme;
+                    document.documentElement.setAttribute('data-theme', resolvedTheme);
+                };
+                
+                applyTheme(theme);
+                
+                const handleChange = () => applyTheme(theme);
+                mediaQuery.addEventListener('change', handleChange);
+                
+                return () => mediaQuery.removeEventListener('change', handleChange);
+            }, [theme]);
+            
+            const toggleTheme = (newTheme) => {
+                const resolvedTheme = newTheme || (theme === 'light' ? 'dark' : 'light');
+                setTheme(resolvedTheme);
+                localStorage.setItem(STORAGE_KEYS.THEME, resolvedTheme);
+            };
+
+            return { theme, toggleTheme };
+        };
+
+        const DarkModeProvider = ({ children }) => {
+            const darkMode = useDarkMode();
+            return (
+                <DarkModeContext.Provider value={darkMode}>
+                    {children}
+                </DarkModeContext.Provider>
+            );
+        };
+        // ------------------------------------------------
+
+
+        // --- Utility Functions (continued) ---
+        
+        // FIX: Hoisted to global scope to resolve ReferenceError
+        const calculateDateFilter = (filterKey) => {
+            const filter = TIME_FILTERS[filterKey];
+            let params = '';
+
+            if (filter.type === 'relative' && filterKey !== 'all') {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - filter.minutes);
+                params = `&since=${now.toISOString()}`;
+            } else if (filter.type === 'calendar') {
+                const { start, end } = filter;
+                
+                if (start) {
+                    params += `&since=${start.toISOString()}`;
+                }
+                if (end && filterKey !== 'this_month' && filterKey !== 'this_week') {
+                    params += `&before=${end.toISOString()}`;
+                }
+            }
+
+            return params;
+        };
+        
+        // Helper to convert units to seconds for validation
+        const convertIntervalToSeconds = (value, unit) => {
+            const numValue = parseInt(value) || 0;
+            if (unit === 'seconds') return numValue;
+            if (unit === 'minutes') return numValue * 60;
+            if (unit === 'hours') return numValue * 3600;
+            return 30; // Default if invalid
+        };
+        
+        // Helper to convert units to milliseconds for setInterval
+        const convertIntervalToMilliseconds = (value, unit) => {
+            return convertIntervalToSeconds(value, unit) * 1000;
+        };
+        // ------------------------------------------------
+
+
+        const getOrGenerateRandomColor = (listId, existingColors) => {
+            let cache = JSON.parse(localStorage.getItem(STORAGE_KEYS.RANDOM_COLORS_CACHE)) || {};
+            let color = cache[listId];
+            
+            const DEFAULT_FALLBACK_COLOR = '#dcdcdc'; 
+
+            if (!color) {
+                let r, g, b;
+                do {
+                    r = Math.floor(Math.random() * 101);
+                    g = Math.floor(Math.random() * 101);
+                    b = Math.floor(Math.random() * 101);
+                    color = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
+                } while (existingColors.has(color)); 
+                
+                cache[listId] = color;
+                localStorage.setItem(STORAGE_KEYS.RANDOM_COLORS_CACHE, JSON.stringify(cache));
+            }
+            return color || DEFAULT_FALLBACK_COLOR; 
+        };
+        
+        const trelloFetch = async (path, token) => {
+            if (!token) {
+                throw new Error("Trello authentication token not provided.");
+            }
+            const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${TRELLO_API_KEY}&token=${token}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = errorText;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson && errorJson.message) {
+                        errorMessage = errorJson.message;
+                    }
+                } catch (e) {
+                    // Not a JSON response, just use the raw text.
+                }
+
+                // Check specifically for Rate Limit error (429)
+                if (response.status === 429) {
+                     throw new Error(`Rate limit exceeded (429): Trello API requests too fast/frequent.`);
+                }
+                // Handle invalid token error (401)
+                if (response.status === 401) {
+                    throw new Error(`Invalid or expired token. Please log in again. (Details: ${errorMessage})`);
+                }
+                throw new Error(errorMessage || `Trello API error: ${response.status}`);
+            }
+            return response.json();
+        };
+
+        // --- Persistent Storage Management ---
+        const getPersistentColors = (userId) => {
+            try {
+                return getUserData(userId, 'listColors') || {};
+            } catch (e) { return {}; }
+        };
+        const setPersistentColor = (userId, boardId, listId, color) => {
+            const colors = getPersistentColors(userId);
+            if (!colors[boardId]) { colors[boardId] = {}; }
+            colors[boardId][listId] = color;
+            setUserData(userId, 'listColors', colors);
+        };
+        
+        // Alert Persistence (REMOVED)
+        const getPersistentSelections = (userId, boardId) => {
+            try {
+                const allSelections = getUserData(userId, 'listSelections') || {};
+                return new Set(allSelections[boardId] || []);
+            } catch (e) { return new Set(); }
+        };
+        const setPersistentSelections = (userId, boardId, listIds) => {
+            try {
+                const allSelections = getUserData(userId, 'listSelections') || {};
+                allSelections[boardId] = Array.from(listIds);
+                setUserData(userId, 'listSelections', allSelections);
+            } catch (e) { console.error("Error saving list selections to cache:", e); }
+        };
+
+        // Dashboard Layout Management
+        const DEFAULT_LAYOUT = [{ id: 'all', name: 'Default', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];
+
+        const getPersistentLayout = (userId, boardId) => {
+            try {
+                const layout = getUserData(userId, 'dashboardLayout') || {};
+                const savedLayout = layout[boardId] || DEFAULT_LAYOUT;
+                return savedLayout.map(s => ({
+                    ...s,
+                    isCollapsed: s.isCollapsed || false,
+                    ignoreFirstCard: s.ignoreFirstCard || false,
+                    displayFirstCardDescription: s.displayFirstCardDescription !== false, // Default to true
+                    includeOnMap: s.includeOnMap === true // Default to false
+                }));
+            } catch (e) {
+                console.error("Error parsing dashboard layout:", e);
+                return DEFAULT_LAYOUT;
+            }
+        };
+
+        const setPersistentLayout = (userId, boardId, layout) => {
+            try {
+                const allLayouts = getUserData(userId, 'dashboardLayout') || {};
+                allLayouts[boardId] = layout;
+                setUserData(userId, 'dashboardLayout', allLayouts);
+            } catch (e) {
+                console.error("Error saving dashboard layout:", e);
+            }
+        };
+        // ------------------------------------------------
+
+        // --- Component: Clock ---
+        const DigitalClock = ({ boardId }) => {
+            const [time, setTime] = useState('');
+            const [showClock, setShowClock] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false');
+
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    const now = new Date();
+                    setTime(now.toLocaleTimeString(undefined, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                }, 1000);
+                return () => clearInterval(timer);
+            }, []);
+            
+            useEffect(() => {
+                const savedSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId);
+                if (savedSetting === null) {
+                    localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + boardId, 'true');
+                }
+                setShowClock(savedSetting !== 'false');
+            }, [boardId]);
+
+            if (!showClock) return null;
+
+            return (
+                <div className="large-clock">
+                    {time || '--:--:--'}
+                </div>
+            );
+        };
+
+        // --- Component: Card Details Modal ---
+        const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLayout, ignoreTemplateCards }) => {
+            const [cards, setCards] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const { theme } = useContext(DarkModeContext);
+            
+            // Determine if the first card should be ignored based on block settings
+            const section = sectionsLayout.find(s => s.listIds.includes(listId));
+            const shouldIgnoreFirst = section?.ignoreFirstCard || false;
+
+
+            useEffect(() => {
+                setLoading(true);
+                setError('');
+                trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels,isTemplate`, token) 
+                    .then(data => {
+                        let cardsToDisplay = data;
+                        if (ignoreTemplateCards) {
+                             cardsToDisplay = cardsToDisplay.filter(card => !card.isTemplate);
+                        }
+                        // Conditionally filter the first card based on setting
+                        const filteredCards = shouldIgnoreFirst ? cardsToDisplay.slice(1) : cardsToDisplay;
+                        setCards(filteredCards);
+                    })
+                    .catch(e => {
+                        console.error("Card fetch error:", e);
+                        setError(`Failed to load cards for this list: ${e.message}`);
+                    })
+                    .finally(() => setLoading(false));
+            }, [listId, token, shouldIgnoreFirst, ignoreTemplateCards]);
+
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <span className="modal-close" onClick={onClose}>&times;</span>
+                        <h3 style={{color: color, borderColor: color}}>Cards in: {listName} ({cards.length})</h3>
+
+                        {loading && <p>Loading cards...</p>}
+                        {error && <p className="error">{error}</p>}
+
+                        {!loading && cards.length === 0 && <p>No cards found in this list.</p>}
+
+                        {!loading && cards.length > 0 && (
+                            <div>
+                                {cards.map(card => (
+                                    <div key={card.id} className="card-list-item">
+                                        {/* Display Trello Labels */}
+                                        {/* FIX: Use optional chaining to prevent crash if labels is null/undefined */}
+                                        {card.labels?.map(label => (
+                                            <span 
+                                                key={label.id} 
+                                                className="card-label"
+                                                style={{
+                                                    backgroundColor: label.color || '#999',
+                                                    color: getLabelTextColor(theme)
+                                                }}
+                                            >
+                                                {label.name || label.color}
+                                            </span>
+                                        ))}
+
+                                        <a href={card.shortUrl} target="_blank" rel="noopener noreferrer" title={card.name}>
+                                            {card.name}
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+        
+        const getLabelTextColor = (theme) => {
+            const resolvedTheme = 
+                theme === 'system' 
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : theme;
+            return resolvedTheme === 'dark' ? '#ffffff' : '#222222';
+        };
+
+        const LandingPage = () => {
+            const handleLogin = () => {
+                trelloAuth.login();
+            };
+
+            return (
+                <div className="landing-page">
+                    <div className="hero-section">
+                        <div className="landing-container">
+                            <img src="powerupicon2.png" alt="Trellops Logo" className="logo" />
+                            <h1>Trellops</h1>
+                            <p>Transform Your Trello Boards into Real-Time Operational Dashboards.</p>
+                            <a href="#" className="cta-button" onClick={handleLogin}>Try Trellops Now!</a>
+                            <p className="tagline">Simple. Powerful. Visible.</p>
+                        </div>
+                    </div>
+
+                    <div className="value-prop-section">
+                        <div className="landing-container">
+                            <div className="value-grid">
+                                <div className="value-item">
+                                    <div className="icon">📊</div>
+                                    <h3>Real-Time Wallboard</h3>
+                                    <p>See instant, close-to-realtime workload metrics for any Trello list. Perfect for wall screens and command centers.</p>
+                                </div>
+                                <div className="value-item">
+                                    <div className="icon">✨</div>
+                                    <h3>Uncluttered Simplicity</h3>
+                                    <p>Go beyond cluttered lists. Display only essential card counts in a clean, customizable tile-based interface.</p>
+                                </div>
+                                <div className="value-item">
+                                    <div className="icon">🔒</div>
+                                    <h3>Secure & Private</h3>
+                                    <p>We only require READ access to your Trello boards. All your layout settings are stored locally on your computer.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="features-section">
+                        <div className="landing-container">
+                            <h2 style={{ color: '#ffffff' }}>Your Trello Data, Your Rules</h2>
+                            <div className="features-grid">
+                                <div className="feature-item">
+                                    <h4>Custom Tile Sections</h4>
+                                    <p>Group lists into collapsible Sections to organize your dashboard and focus on what matters most.</p>
+                                </div>
+                                <div className="feature-item">
+                                    <h4>Time Filtered Counts</h4>
+                                    <p>Filter card totals based on creation date to see trends and monitor recent activity.</p>
+                                </div>
+                                <div className="feature-item">
+                                    <h4>Skip Description Cards</h4>
+                                    <p>Automatically exclude the first card in a list from the total, so you can use it for instructions without skewing your metrics.</p>
+                                </div>
+                                <div className="feature-item">
+                                    <h4>Effortless Sharing</h4>
+                                    <p>Easily export and import dashboard layouts to share your setup with your team or across different computers.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="final-cta-section">
+                        <div className="landing-container">
+                            <p>Ready to level up your operational visibility? Trellops is the dedicated Trello dashboard you've been waiting for.</p>
+                            <a href="#" className="cta-button" onClick={handleLogin}>Login with Trello</a>
+                            <p style={{ fontSize: '0.8em', marginTop: '30px' }}>
+                                <a href="privacy.html" style={{ color: 'white' }}>Privacy Disclaimer</a>
+                                &nbsp;&nbsp;|&nbsp;&nbsp;
+                                <a href="help.html" style={{ color: 'white' }}>Trellops Use Guide</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. Settings Screen
+        const SettingsScreen = ({ user, onSave, onBack, onLogout }) => {
+            const initialSettings = getUserData(user.id, 'settings') || {};
+            const [boards, setBoards] = useState([]);
+            const [selectedBoardId, setSelectedBoardId] = useState(initialSettings.boardId || '');
+            const [allBoardLists, setAllBoardLists] = useState([]);
+            
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            // --- Block Management State ---
+            const [blocks, setBlocks] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
+            const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
+            const [enableMapView, setEnableMapView] = useState(() => {
+                const storageKey = `ENABLE_MAP_VIEW_${initialSettings.boardId}`;
+                const stored = localStorage.getItem(storageKey);
+                return stored === 'true'; // Default to false (disabled) if not set
+            });
+            const [mapGeocodeMode, setMapGeocodeMode] = useState(() => {
+                const key = `MAP_GEOCODING_MODE_${initialSettings.boardId}`;
+                const stored = localStorage.getItem(key);
+                return stored || 'store'; // 'store' (default) or 'update'
+            });
+                        // Handler for per-board map view toggle
+                        const handleToggleEnableMapView = (isChecked) => {
+                            setEnableMapView(isChecked);
+                            const storageKey = `ENABLE_MAP_VIEW_${initialSettings.boardId}`;
+                            localStorage.setItem(storageKey, isChecked ? 'true' : 'false');
+                        };
+            const [newBlockName, setNewBlockName] = useState('');
+            const [showMoreOptions, setShowMoreOptions] = useState(false);
+            
+            // Clock setting state for settings screen
+            const [showClockSetting, setShowClockSetting] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + initialSettings.boardId) !== 'false');
+             // NEW: Ignore Template Cards setting
+            const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(() => localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + initialSettings.boardId) !== 'false');
+            
+            // Theme setting from Context
+            const { theme, toggleTheme } = useContext(DarkModeContext);
+
+            // NEW: Refresh Interval State
+            const defaultRefreshSetting = { value: 1, unit: 'minutes' };
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + initialSettings.boardId);
+            const [refreshValue, setRefreshValue] = useState(savedRefresh ? JSON.parse(savedRefresh).value : 1);
+            const [refreshUnit, setRefreshUnit] = useState(savedRefresh ? JSON.parse(savedRefresh).unit : 'minutes');
+
+
+            const selectedBoard = boards.find(b => b.id === selectedBoardId);
+
+            // --- Export/Import Handlers ---
+            const handleExportConfig = () => {
+                if (!selectedBoardId) {
+                    setError("Please select a board before exporting.");
+                    return;
+                }
+
+                const configData = {
+                    theme: localStorage.getItem(STORAGE_KEYS.THEME),
+                    clockSetting: localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId),
+                    refreshInterval: localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId),
+                    layout: getPersistentLayout(user.id, selectedBoardId),
+                    colors: getPersistentColors(user.id)[selectedBoardId],
+                    // NOTE: API Key and Token are EXCLUDED for security
+                    boardName: selectedBoard?.name || 'UnknownBoard'
+                };
+
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(configData, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", `trellops_${configData.boardName.replace(/\s/g, '_')}_configuration.json`);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            };
+
+            const handleImportConfig = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedConfig = JSON.parse(e.target.result);
+                        if (!selectedBoardId) {
+                            setError("Please select the target Trello board first.");
+                            return;
+                        }
+                        
+                        // 1. Update Theme
+                        if (importedConfig.theme) {
+                            toggleTheme(importedConfig.theme);
+                        }
+                        // 2. Update Refresh Rate
+                        if (importedConfig.refreshInterval) {
+                            localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, importedConfig.refreshInterval);
+                            const { value: rValue, unit: rUnit } = JSON.parse(importedConfig.refreshInterval);
+                            setRefreshValue(rValue);
+                            setRefreshUnit(rUnit);
+                        }
+                        // 3. Update Clock Setting
+                        if (importedConfig.clockSetting !== undefined) {
+                            localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, importedConfig.clockSetting);
+                            setShowClockSetting(importedConfig.clockSetting !== 'false');
+                        }
+                        // 4. Update Layout (Blocks)
+                        if (importedConfig.layout) {
+                            setPersistentLayout(user.id, selectedBoardId, importedConfig.layout);
+                            setBlocks(getPersistentLayout(user.id, selectedBoardId));
+                        }
+                        // 5. Update Colors
+                        if (importedConfig.colors) {
+                            const allColors = getPersistentColors(user.id);
+                            allColors[selectedBoardId] = importedConfig.colors;
+                            setUserData(user.id, 'listColors', allColors);
+                            setListColors(importedConfig.colors);
+                        }
+
+                        alert(`Configuration successfully imported for board ${selectedBoardId}.`);
+                        // Force full settings refresh to apply changes
+                        onSave({ boardId: selectedBoardId, boardName: importedConfig.boardName || 'Imported Board', selectedLists: [] });
+
+                    } catch (err) {
+                        setError("Invalid configuration file format.");
+                        console.error("Import error:", err);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            // NEW: Handle Clearing Board Configuration
+            const handleClearBoardConfig = () => {
+                if (!selectedBoardId) {
+                    setError("Please select a board to clear configuration.");
+                    return;
+                }
+                
+                const boardName = boards.find(b => b.id === selectedBoardId)?.name || 'this board';
+
+                if (window.confirm(`Are you sure you want to reset the layout for the board: "${boardName}"? This cannot be undone.`)) {
+                    // 1. Clear Layout
+                    const allLayouts = getUserData(user.id, 'dashboardLayout') || {};
+                    delete allLayouts[selectedBoardId];
+                    setUserData(user.id, 'dashboardLayout', allLayouts);
+            
+                    // 2. Clear Colors
+                    const allColors = getPersistentColors(user.id);
+                    delete allColors[selectedBoardId];
+                    setUserData(user.id, 'listColors', allColors);
+            
+                    // 3. Clear other per-board settings
+                    localStorage.removeItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId);
+                    localStorage.removeItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
+                    localStorage.removeItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId);
+            
+                    // 4. Clear the main settings if it's the current board
+                    const currentSettings = getUserData(user.id, 'settings');
+                    if (currentSettings && currentSettings.boardId === selectedBoardId) {
+                        setUserData(user.id, 'settings', null);
+                    }
+            
+                    // 5. Reset component state to default values
+                    setBlocks(DEFAULT_LAYOUT);
+                    setListColors({});
+                    setRefreshValue(defaultRefreshSetting.value);
+                    setRefreshUnit(defaultRefreshSetting.unit);
+                    setIgnoreTemplateCards(true); // Reset to default
+                    
+                    alert(`Layout cleared for "${boardName}". The dashboard will now reset.`);
+                    
+                    // Force a re-save and switch to dashboard (which will prompt re-setup)
+                    onSave(null);
+                }
+            };
+
+
+            // Fetch Boards on load
+            useEffect(() => {
+                setLoading(true);
+                trelloFetch('/members/me/boards', user.token)
+                    .then(data => {
+                        setBoards(data);
+                        if (data.length > 0 && !selectedBoardId) {
+                            setSelectedBoardId(data[0].id);
+                        }
+                    })
+                    .catch(e => setError(e.message))
+                    .finally(() => setLoading(false));
+            }, [user.token]);
+
+            // Fetch Lists and initialize states when selectedBoardId changes
+            useEffect(() => {
+                if (!selectedBoardId) return;
+                setLoading(true);
+                setError('');
+
+                const boardPersistentColors = getPersistentColors(user.id)[selectedBoardId] || {};
+                const boardLayout = getPersistentLayout(user.id, selectedBoardId);
+                const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId) !== 'false';
+                const ignoreTemplates = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId) !== 'false';
+                
+                // Read refresh setting
+                const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
+                const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+
+
+                trelloFetch(`/boards/${selectedBoardId}/lists?cards=none&fields=id,name`, user.token)
+                    .then(data => {
+                        setAllBoardLists(data);
+                        setListColors(boardPersistentColors);
+                        setBlocks(boardLayout);
+                        setShowClockSetting(clockSetting);
+                        setIgnoreTemplateCards(ignoreTemplates);
+                        setRefreshValue(rValue);
+                        setRefreshUnit(rUnit);
+                    })
+                    .catch(e => setError(e.message))
+                    .finally(() => setLoading(false));
+            }, [selectedBoardId, user.token]);
+
+            // --- HANDLERS ---
+
+            const handleBoardChange = (e) => {
+                const newId = e.target.value;
+                setSelectedBoardId(newId);
+                // Reset blocks/colors/clock, will be reloaded by useEffect
+                setBlocks(getPersistentLayout(user.id, newId));
+                setListColors(getPersistentColors(user.id)[newId] || {});
+                setAllBoardLists([]);
+                setShowClockSetting(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + newId) !== 'false');
+                setIgnoreTemplateCards(localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + newId) !== 'false');
+
+                const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + newId);
+                const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+                setRefreshValue(rValue);
+                setRefreshUnit(rUnit);
+            };
+
+            const handleAddBlock = () => {
+                if (!newBlockName.trim()) return;
+                const newBlock = {
+                    id: Date.now().toString(),
+                    name: newBlockName.trim(),
+                    listIds: [],
+                    ignoreFirstCard: false,
+                    displayFirstCardDescription: true,
+                    isCollapsed: false
+                };
+                const newLayout = [...blocks, newBlock];
+                setBlocks(newLayout);
+                setNewBlockName('');
+                setPersistentLayout(user.id, selectedBoardId, newLayout);
+            };
+
+            const handleRemoveBlock = (blockId) => {
+                const blockToRemove = blocks.find(s => s.id === blockId);
+                if (!blockToRemove) return;
+
+                const listIdsToMoveBack = blockToRemove.listIds;
+
+                // Add lists from the removed block back to the 'Default' block
+                const newBlocks = blocks
+                    .filter(s => s.id !== blockId)
+                    .map(s => {
+                        if (s.id === 'all') {
+                             return { ...s, listIds: [...s.listIds, ...listIdsToMoveBack] };
+                        }
+                        return s;
+                    });
+
+                // Ensure 'Default' block exists if it was somehow deleted
+                if (!newBlocks.some(s => s.id === 'all')) {
+                    newBlocks.unshift({ id: 'all', name: 'Default', listIds: listIdsToMoveBack, ignoreFirstCard: false, isCollapsed: false });
+                }
+
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+            };
+            
+            // Handler for re-ordering blocks
+            const handleReorderBlock = (blockId, direction) => {
+                const currentBlocks = [...blocks];
+                const index = currentBlocks.findIndex(s => s.id === blockId);
+                if (index === -1) return;
+
+                const newIndex = direction === 'up' ? index - 1 : index + 1;
+                
+                // Only allow swap if the new index is valid and not swapping 'all' (index 0) with any other element
+                if (newIndex > 0 && newIndex < currentBlocks.length && currentBlocks[newIndex].id !== 'all') 
+                {
+                    [currentBlocks[index], currentBlocks[newIndex]] = [currentBlocks[newIndex], currentBlocks[index]];
+
+                    setBlocks(currentBlocks);
+                    setPersistentLayout(user.id, selectedBoardId, currentBlocks);
+                }
+            };
+
+
+            // Allows renaming of all blocks, including 'all'
+            const handleRenameBlock = (blockId, newName) => {
+                if (!newName.trim()) return;
+                const newBlocks = blocks.map(s => s.id === blockId ? { ...s, name: newName } : s);
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+            };
+
+            // Handler for the 'Use first card as description' checkbox
+            const handleToggleIgnoreCard = (blockId, isChecked) => {
+                const newBlocks = blocks.map(s => 
+                    s.id === blockId ? { ...s, ignoreFirstCard: isChecked } : s
+                );
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+            };
+
+            // Handler for the 'Display first card as description' checkbox
+            const handleToggleDisplayDescription = (blockId, isChecked) => {
+                const newBlocks = blocks.map(s => 
+                    s.id === blockId ? { ...s, displayFirstCardDescription: isChecked } : s
+                );
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+            };
+
+            // NEW: Handler for 'Include on Map' checkbox
+            const handleToggleIncludeOnMap = (blockId, isChecked) => {
+                const newBlocks = blocks.map(s => 
+                    s.id === blockId ? { ...s, includeOnMap: isChecked } : s
+                );
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+            };
+            
+            // Handler for the Clock checkbox
+            const handleToggleClock = (isChecked) => {
+                setShowClockSetting(isChecked);
+                localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, isChecked ? 'true' : 'false');
+            };
+
+            // NEW: Handler for Ignore Template Cards checkbox
+            const handleToggleIgnoreTemplateCards = (isChecked) => {
+                setIgnoreTemplateCards(isChecked);
+                localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, isChecked ? 'true' : 'false');
+            };
+            
+            // Alert Handler (REMOVED)
+            const handleToggleAlert = (listId) => { /* No Op */ };
+            const handleSoundChange = (e) => { /* No Op */ };
+            const testSound = () => { /* No Op */ };
+
+
+            // Handler for re-ordering tiles
+            const handleReorderList = (blockId, listId, direction) => {
+                const newBlocks = blocks.map(block => {
+                    if (block.id !== blockId) return block;
+
+                    const listIds = [...block.listIds];
+                    const index = listIds.indexOf(listId);
+
+                    if (index === -1) return block;
+
+                    const newIndex = direction === 'up' ? index - 1 : index + 1;
+
+                    if (newIndex >= 0 && newIndex < listIds.length) {
+                        // Swap elements
+                        [listIds[index], listIds[newIndex]] = [listIds[newIndex], listIds[index]];
+                        return { ...block, listIds };
+                    }
+                    return block;
+                });
+
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+            };
+
+
+            const handleMoveList = (listId, fromBlockId, toBlockId) => {
+                const newBlocks = blocks.map(block => {
+                    if (block.id === fromBlockId) {
+                        return { ...block, listIds: block.listIds.filter(id => id !== listId) };
+                    }
+                    if (block.id === toBlockId) {
+                        return { ...block, listIds: [...block.listIds, listId] };
+                    }
+                    return block;
+                });
+                
+                // Handle move to pool ("Unassigned Lists")
+                if (toBlockId === 'pool') {
+                    const updatedBlocks = newBlocks.map(s => 
+                       ({ ...s, listIds: s.listIds.filter(id => id !== listId) })
+                    );
+                    
+                    const allSelectedIds = updatedBlocks.flatMap(s => s.listIds);
+                    setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
+                    setBlocks(updatedBlocks);
+                    setPersistentLayout(user.id, selectedBoardId, updatedBlocks);
+                    return;
+                }
+                
+                setBlocks(newBlocks);
+                setPersistentLayout(user.id, selectedBoardId, newBlocks);
+
+                // Update persistent selections cache (add listId)
+                const allSelectedIds = newBlocks.flatMap(s => s.listIds);
+                setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
+            };
+
+            const handleColorChange = (listId, color) => {
+                const newColors = { ...listColors, [listId]: color };
+                setListColors(newColors);
+                setPersistentColor(user.id, selectedBoardId, listId, color);
+            };
+            
+            // Handle Refresh Rate Change
+            const handleRefreshChange = (value, unit) => {
+                const newValue = parseInt(value) || 0;
+                setRefreshValue(newValue);
+                if (unit) setRefreshUnit(unit);
+                
+                // Save immediately
+                localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({
+                    value: newValue,
+                    unit: unit || refreshUnit
+                }));
+            };
+
+
+            const handleSave = () => {
+                const selectedBoard = boards.find(b => b.id === selectedBoardId);
+                if (!selectedBoard) {
+                    setError('Please select a board.');
+                    return;
+                }
+                
+                // Final validation before saving settings/returning
+                const intervalInSeconds = convertIntervalToSeconds(refreshValue, refreshUnit);
+                if (intervalInSeconds < 10) {
+                    setError('Minimum refresh rate is 10 seconds.');
+                    return;
+                }
+                if (intervalInSeconds > 86400) { // 24 hours = 86400 seconds
+                    setError('Maximum refresh rate is 24 hours.');
+                    return;
+                }
+                // Save final refresh setting
+                localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({
+                    value: refreshValue,
+                    unit: refreshUnit
+                }));
+
+
+                // Gather all lists that are currently assigned to ANY block
+                const selectedListsMap = new Map();
+                blocks.flatMap(s => s.listIds).forEach(listId => {
+                    const listData = allBoardLists.find(l => l.id === listId);
+                    if (listData) {
+                        selectedListsMap.set(listId, {
+                            id: listId,
+                            name: listData.name,
+                            color: listColors[listId] || ''
+                        });
+                    }
+                });
+
+                // Update the main SETTINGS cache for dashboard initialization
+                const finalSettings = {
+                    boardId: selectedBoardId,
+                    boardName: selectedBoard.name,
+                    selectedLists: Array.from(selectedListsMap.values())
+                };
+
+                // Persist per-board Map View settings
+                try {
+                    const geoKey = `MAP_GEOCODING_MODE_${selectedBoardId}`;
+                    localStorage.setItem(geoKey, mapGeocodeMode || 'store');
+                } catch (e) {
+                    console.warn('Failed to persist MAP_GEOCODING_MODE', e);
+                }
+                try {
+                    const mapKey = `ENABLE_MAP_VIEW_${selectedBoardId}`;
+                    localStorage.setItem(mapKey, enableMapView ? 'true' : 'false');
+                } catch (e) {
+                    console.warn('Failed to persist ENABLE_MAP_VIEW', e);
+                }
+
+                setUserData(user.id, 'settings', finalSettings);
+                onSave(finalSettings);
+            };
+
+            // Derive list pool: Trello lists not currently assigned to any block
+            const assignedListIds = new Set(blocks.flatMap(s => s.listIds));
+            const listPool = allBoardLists
+                .filter(list => !assignedListIds.has(list.id))
+                .map(list => ({ id: list.id, name: list.name }));
+            
+            // Get the ID of the first block for the default move action
+            const firstBlockId = blocks[0].id;
+
+            if (loading) return <div className="form-card settings">Loading Boards...</div>;
+
+            return (
+                <div className="form-card settings">
+                     <div style={{position: 'absolute', top: '10px', right: '10px'}}>
+                        <button className="logout-button" onClick={onLogout} style={{margin: 0}}>Log Out</button>
+                    </div>
+                    <h2 style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                        <span>Trellops Dashboard Setup</span>
+                        <a href="help.html" target="_blank" rel="noopener noreferrer" className="subtle-help-link">First time user? Check out our user guide</a>
+                    </h2>
+
+                    <div className="admin-section">
+                        <h3>1. Choose your Trello Board</h3>
+                        <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                            Boards are pulled directly from your Trello account, across all workspaces.
+                        </p>
+                        <div className="settings-row">
+                            <label htmlFor="board-select">Your Trello board:</label>
+                            <select id="board-select" value={selectedBoardId} onChange={handleBoardChange}>
+                                <option value="">-- Select a Board --</option>
+                                {boards.map(board => (
+                                    <option key={board.id} value={board.id}>{board.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {selectedBoard && (
+                        <div className="admin-section">
+                            <h3>2. Manage your Trellops Blocks</h3>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
+                            </p>
+                            <div className="block-management">
+                                <input
+                                    type="text"
+                                    placeholder="New Block Name"
+                                    value={newBlockName}
+                                    onChange={e => setNewBlockName(e.target.value)}
+                                    className="block-title-input"
+                                    style={{width: '200px', marginRight: '10px'}}
+                                />
+                                <button className="settings-button" onClick={handleAddBlock} disabled={!newBlockName.trim()}>
+                                    Add Block
+                                </button>
+                            </div>
+
+                            {blocks.map((block, blockIndex) => (
+                                <div key={block.id} className="layout-block-box" style={{flexGrow: 1, maxWidth: '100%', marginTop: '20px', padding: '15px'}}>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', flexGrow: 1}}>
+                                            <div className="order-buttons" style={{marginRight: '15px'}}>
+                                                <button 
+                                                    onClick={() => handleReorderBlock(block.id, 'up')}
+                                                    disabled={blockIndex === 0} 
+                                                    title="Move Block Up"
+                                                >
+                                                    ▲
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleReorderBlock(block.id, 'down')}
+                                                    disabled={blockIndex === blocks.length - 1}
+                                                    title="Move Block Down"
+                                                >
+                                                    ▼
+                                                </button>
+                                            </div>
+                                            
+                                            <input
+                                                type="text"
+                                                value={block.name}
+                                                onChange={e => handleRenameBlock(block.id, e.target.value)}
+                                                className="block-title-input"
+                                                style={{width: 'calc(100% - 15px)'}}
+                                            />
+                                        </div>
+
+                                        {block.id !== 'all' && (
+                                            <button
+                                                className="remove-block-button"
+                                                onClick={() => handleRemoveBlock(block.id)}
+                                                title="Delete block and move lists to 'Default'"
+                                            >
+                                                &times;
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {selectedBoard && (
+                        <div className="admin-section">
+                            <h3>3. Assign Tiles to your Blocks</h3>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left,  the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
+                            </p>
+                            <div className="layout-config-container">
+                                <div className="layout-column">
+                                    <div className="layout-block-box">
+                                        <h4 style={{marginBottom: '10px', color: '#6b778c'}}>Pool of Unassigned Trello Lists ({listPool.length})</h4>
+                                        <div className="list-pool" style={{minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                            {listPool.map(list => (
+                                                <div key={list.id} className="layout-list-item" style={{justifyContent: 'flex-start', flexWrap: 'wrap', gap: '10px', flexBasis: 'auto', flexGrow: 0}}>
+                                                    <span style={{flexGrow: 1, flexBasis: '100%'}}>{list.name}</span>
+                                                    <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%'}}>
+                                                        {blocks.map(block => (
+                                                            <button 
+                                                                key={block.id}
+                                                                className="move-button-pool" 
+                                                                onClick={() => handleMoveList(list.id, 'pool', block.id)}
+                                                                title={`Move to ${block.name}`}
+                                                            >
+                                                                {block.name} &raquo;
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {listPool.length === 0 && <p style={{fontSize: '0.9em', color: '#6b778c'}}>All lists assigned.</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="layout-column">
+                                    {blocks.map((block) => (
+                                        <div key={block.id} className="layout-block-box" style={{flexGrow: 1, maxWidth: '100%'}}>
+                                            <h4 style={{marginBottom: '10px'}}>{block.name}</h4>
+                                            {block.listIds.length > 0 ? (
+                                                block.listIds.map((listId, index) => {
+                                                    const listData = allBoardLists.find(l => l.id === listId);
+                                                    if (!listData) return null;
+
+                                                    return (
+                                                        <div key={listId} className="list-config-item">
+                                                            <div className="order-buttons">
+                                                                <button 
+                                                                    onClick={() => handleReorderList(block.id, listId, 'up')}
+                                                                    disabled={index === 0}
+                                                                    title="Move Up"
+                                                                >
+                                                                    ▲
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleReorderList(block.id, listId, 'down')}
+                                                                    disabled={index === block.listIds.length - 1}
+                                                                    title="Move Down"
+                                                                >
+                                                                    ▼
+                                                                </button>
+                                                            </div>
+                                                            <span style={{
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis', 
+                                                                width: '50%' 
+                                                            }}>
+                                                                {listData.name}
+                                                            </span>
+                                                            <div style={{display: 'flex', alignItems: 'center'}}>
+                                                                <input
+                                                                    type="color"
+                                                                    value={listColors[listId] || '#cccccc'}
+                                                                    onChange={e => handleColorChange(listId, e.target.value)}
+                                                                    title="Choose Tile Color"
+                                                                    style={{marginLeft: '10px'}}
+                                                                />
+                                                                <select
+                                                                    onChange={e => handleMoveList(listId, block.id, e.target.value)}
+                                                                    style={{marginLeft: '10px', padding: '5px', fontSize: '0.8em', width: '85px'}}
+                                                                    value={block.id}
+                                                                >
+                                                                    <option value={block.id}>Move...</option>
+                                                                    <optgroup label="Blocks">
+                                                                        {blocks.map(s => (
+                                                                            s.id !== block.id && <option key={s.id} value={s.id}>{s.name}</option>
+                                                                    ))}
+                                                                    </optgroup>
+                                                                    <optgroup label="Unassigned">
+                                                                        <option value="pool">Move to Pool</option>
+                                                                    </optgroup>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <p style={{fontSize: '0.9em', color: '#6b778c'}}>Move lists here.</p>
+                                            )}
+                                            
+                                            <div className="section-options">
+                                                <label>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={block.ignoreFirstCard}
+                                                        onChange={e => handleToggleIgnoreCard(block.id, e.target.checked)}
+                                                    />
+                                                    Do not count the first card in the total
+                                                </label>
+                                                {block.ignoreFirstCard && (
+                                                    <label className="sub-option">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={block.displayFirstCardDescription}
+                                                            onChange={e => handleToggleDisplayDescription(block.id, e.target.checked)}
+                                                        />
+                                                        Display the first card as tile description
+                                                    </label>
+                                                )}
+                                                {enableMapView && (
+                                                    <label>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={block.includeOnMap === true}
+                                                            onChange={e => handleToggleIncludeOnMap(block.id, e.target.checked)}
+                                                        />
+                                                        Show this block on the Map
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {selectedBoard && (
+                        <div className="admin-section">
+                            <h3>4. Other Dashboard Settings for "{selectedBoard.name}"</h3>
+                            <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommmended 30 seconds for live displays. The digital clock appears in the top-left corner for the screen and follows the local computer time format. Template Cards in Trello can be exceluded from the count (recommended)
+                            </p>
+                            <div className="three-column">
+                                <div className="settings-row" style={{display:'flex',gap:'24px',flexWrap:'wrap'}}>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label className="switch">
+                                            <input 
+                                                type="checkbox" 
+                                                id="show-clock-check"
+                                                checked={showClockSetting}
+                                                onChange={e => handleToggleClock(e.target.checked)}
+                                            />
+                                            <span className="slider round"></span>
+                                        </label>
+                                        <label htmlFor="show-clock-check">Show Digital Clock</label>
+                                    </span>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label>Auto-Refresh:</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={refreshValue}
+                                            onChange={e => handleRefreshChange(e.target.value)}
+                                            style={{width: '60px'}}
+                                        />
+                                        <select 
+                                            value={refreshUnit} 
+                                            onChange={e => handleRefreshChange(refreshValue, e.target.value)}
+                                        >
+                                            <option value="seconds">Seconds</option>
+                                            <option value="minutes">Minutes</option>
+                                            <option value="hours">Hours</option>
+                                        </select>
+                                    </span>
+                                    <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                        <label htmlFor="theme-select">Theme:</label>
+                                        <select 
+                                            id="theme-select"
+                                            value={theme} 
+                                            onChange={(e) => toggleTheme(e.target.value)} 
+                                        >
+                                            <option value="system">System</option>
+                                            <option value="light">Light</option>
+                                            <option value="dark">Dark</option>
+                                        </select>
+                                    </span>
+                                </div>
+                                <div className="settings-row" style={{display:'flex',gap:'24px',flexWrap:'wrap',marginTop:'8px'}}>
+                                            <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                                <label className="switch">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        id="ignore-templates-check"
+                                                        checked={ignoreTemplateCards}
+                                                        onChange={e => handleToggleIgnoreTemplateCards(e.target.checked)}
+                                                    />
+                                                    <span className="slider round"></span>
+                                                </label>
+                                                <label htmlFor="ignore-templates-check">Ignore Template Cards</label>
+                                            </span>
+                                        </div>
+                            </div>
+                        </div>
+                    )}
+
+                            {selectedBoard && (
+                                <div className="admin-section">
+                                    <h3>5. Map View for "{selectedBoard.name}"</h3>
+                                    <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                        Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
+                                    </p>
+                                    <div className="settings-row" style={{display:'flex',gap:'24px',flexWrap:'wrap',marginTop:'8px'}}>
+                                        <span style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                            <label className="switch">
+                                                <input 
+                                                    type="checkbox" 
+                                                    id="enable-map-view-check"
+                                                    checked={enableMapView}
+                                                    onChange={e => handleToggleEnableMapView(e.target.checked)}
+                                                />
+                                                <span className="slider round"></span>
+                                            </label>
+                                            <label htmlFor="enable-map-view-check">Enable Map View</label>
+                                        </span>
+                                    </div>
+
+                                    {enableMapView && (
+                                        <div style={{marginTop:'12px'}}>
+                                            <label style={{fontWeight:600,display:'block',marginBottom:'6px'}}>Geocoding behavior</label>
+                                            <label style={{display:'block',marginBottom:'6px'}}>
+                                                <input type="radio" name="mapGeocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={() => setMapGeocodeMode('store')} />
+                                                <span style={{marginLeft:'8px'}}>Store geolocation data locally (default)</span>
+                                            </label>
+                                            <label style={{display:'block',marginBottom:'6px'}}>
+                                                <input type="radio" name="mapGeocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={() => setMapGeocodeMode('update')} />
+                                                <span style={{marginLeft:'8px'}}>Update the Trello card coordinates</span>
+                                            </label>
+                                            {mapGeocodeMode === 'update' && (
+                                                <div style={{marginTop:'8px',padding:'8px',background:'#fff3f0',border:'1px solid #ffd6cc',color:'#7a1f00',borderRadius:'6px'}}>
+                                                    <strong>Warning:</strong> Using this option will update the Trello card on "{selectedBoard.name}" with lat/long coordinates.
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                    
+                    {error && <div className="error">{error}</div>}
+                    
+                    {/* Global Notification Settings (REMOVED) */}
+
+                    <div className="actions-container">
+                        <button className="save-layout-button" onClick={handleSave}> 
+                            Save Layout & View Dashboard
+                        </button>
+                        <button className="button-secondary" onClick={onBack}>
+                            Cancel changes
+                        </button>
+                        <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>
+                            More options...
+                        </button>
+                    </div>
+
+                    {showMoreOptions && (
+                        <MoreOptionsModal
+                            onClose={() => setShowMoreOptions(false)}
+                            onExport={handleExportConfig}
+                            onImport={handleImportConfig}
+                            onReset={handleClearBoardConfig}
+                            boardName={boards.find(b => b.id === selectedBoardId)?.name || ''}
+                            selectedBoardId={selectedBoardId}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        const MoreOptionsModal = ({ onClose, onExport, onImport, onReset, boardName, selectedBoardId }) => {
+            return (
+                <div className="modal-overlay" onClick={onClose}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <span className="modal-close" onClick={onClose}>&times;</span>
+                        <h3>More Options</h3>
+                        <div className="modal-actions">
+                            <button 
+                                className="settings-button" 
+                                onClick={onExport}
+                                disabled={!selectedBoardId}
+                            >
+                                Export Dashboard configuration for {boardName}
+                            </button>
+
+                            <label htmlFor="import-file-input" className="settings-button">
+                                Import a configuration file for {boardName}
+                                <input 
+                                    type="file" 
+                                    id="import-file-input" 
+                                    accept=".json" 
+                                    onChange={onImport} 
+                                    style={{display: 'none'}}
+                                />
+                            </label>
+                            <button 
+                                className="button-danger" 
+                                onClick={onReset}
+                                disabled={!selectedBoardId}
+                            >
+                                Reset the layout for the {boardName}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 3. Dashboard View
+        const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
+            const [counts, setCounts] = useState(new Map());
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+            const [countdown, setCountdown] = useState(30);
+            const [timeFilter, setTimeFilter] = useState('all'); 
+            const [enableMapView, setEnableMapView] = useState(() => {
+                const boardIdLocal = settings?.boardId;
+                if (!boardIdLocal) return false;
+                const stored = localStorage.getItem(`ENABLE_MAP_VIEW_${boardIdLocal}`);
+                return stored === 'true';
+            });
+            const timerRef = useRef(null);
+            // Handler for per-board map view toggle
+            const handleToggleEnableMapView = (isChecked) => {
+                const boardIdLocal = settings?.boardId;
+                setEnableMapView(isChecked);
+                try {
+                    if (boardIdLocal) localStorage.setItem(`ENABLE_MAP_VIEW_${boardIdLocal}`, isChecked ? 'true' : 'false');
+                } catch (e) {
+                    console.warn('[Dashboard] Failed to persist ENABLE_MAP_VIEW', e);
+                }
+            };
+
+            // Update enableMapView when selected board changes
+            useEffect(() => {
+                const boardIdLocal = settings?.boardId;
+                if (!boardIdLocal) return;
+                try {
+                    const stored = localStorage.getItem(`ENABLE_MAP_VIEW_${boardIdLocal}`);
+                    setEnableMapView(stored === 'true');
+                } catch (e) {
+                    // ignore
+                }
+            }, [settings?.boardId]);
+
+            const buildNumber = (() => {
+                const now = new Date();
+                const year = now.getFullYear().toString().slice(-2);
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                return `3.2.${year}${month}${day}${hours}${minutes}`;
+            })();
+
+            const [modalList, setModalList] = useState(null);
+
+            const boardId = settings?.boardId;
+            const boardName = settings?.boardName;
+            const listsFromSettings = settings?.selectedLists || [];
+
+            const sectionsLayout = boardId ? getPersistentLayout(user.id, boardId) : DEFAULT_LAYOUT;
+            
+            const allListsMap = new Map(listsFromSettings.map(list => [list.id, list]));
+                       const persistentColors = getPersistentColors(user.id);
+            // Removed listAlerts reading
+
+            // Removed alertSoundKey/Url
+
+            // Removed usePrevious hook
+
+            // Define blocksMap for rendering/lookup
+            const blocksMap = new Map(sectionsLayout.map(s => [s.id, s]));
+
+            // Toggle block collapse state
+            const handleToggleCollapse = (blockId) => {
+                const newLayout = sectionsLayout.map(s => 
+                    s.id === blockId ? { ...s, isCollapsed: !s.isCollapsed } : s
+                );
+                setPersistentLayout(user.id, boardId, newLayout);
+                fetchListCounts(true);
+            };
+            
+            // Get theme context for toggle button
+            const { theme, toggleTheme } = useContext(DarkModeContext);
+            
+            // NEW: Get refresh interval setting
+            const defaultRefreshSetting = { value: 1, unit: 'minutes' };
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
+            const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+            const refreshIntervalMs = convertIntervalToMilliseconds(refreshSetting.value, refreshSetting.unit);
+            const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+
+
+            const fetchListCounts = useCallback(async (manual = false) => {
+                if (manual || loading) {
+                    setLoading(true);
+                }
+                setError('');
+
+                const persistentColorsCopy = getPersistentColors(user.id); 
+                const currentLayout = getPersistentLayout(user.id, boardId);
+                const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
+                const dateFilterParam = calculateDateFilter(timeFilter);
+                const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
+                const ignoreTemplateCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+
+
+                if (uniqueListIds.size === 0) {
+                    setCounts(new Map());
+                    setLoading(false);
+                    return;
+                }
+                
+                try {
+                    // --- New Logic: Identify and fetch first card for lists where it might be ignored/used as description ---
+                    const ignorableFirstCardLists = new Set();
+                    currentLayout.forEach(block => {
+                        if (block.ignoreFirstCard) {
+                            block.listIds.forEach(listId => ignorableFirstCardLists.add(listId));
+                        }
+                    });
+
+                    const firstCardPromises = Array.from(ignorableFirstCardLists).map(listId =>
+                        trelloFetch(`/lists/${listId}/cards?limit=1&fields=name,id,isTemplate`, user.token)
+                        .then(cards => ({ listId, firstCard: cards.length > 0 ? cards[0] : null }))
+                        .catch(e => {
+                            console.error(`Error fetching first card for list ${listId}:`, e);
+                            return { listId, firstCard: null };
+                        })
+                    );
+                    
+                    const firstCardResults = await Promise.all(firstCardPromises);
+                    const firstCardMap = new Map(firstCardResults.map(r => [r.listId, r.firstCard]));
+
+                    // Fetch all cards for counting, respecting the time filter. Only ID and list association are needed.
+                    const allCardsForCount = await trelloFetch(
+                        `/boards/${boardId}/cards?fields=id,idList,isTemplate${dateFilterParam}`, 
+                        user.token
+                    );
+                    
+                    const cardsForProcessing = ignoreTemplateCardsSetting
+                        ? allCardsForCount.filter(c => !c.isTemplate)
+                        : allCardsForCount;
+
+                    const listResults = {};
+                    
+                    // 2. Process card counts from the time-filtered results
+                    cardsForProcessing.forEach(card => {
+                        if (!uniqueListIds.has(card.idList)) return;
+                        
+                        if (!listResults[card.idList]) {
+                            listResults[card.idList] = { count: 0 };
+                        }
+                        listResults[card.idList].count++;
+                    });
+
+                    // 3. Final calculation and mapping
+                    const countsMap = new Map();
+                    
+                    Array.from(uniqueListIds).forEach(listId => {
+                        const listData = allListsMap.get(listId);
+                        const block = currentLayout.find(s => s.listIds.includes(listId));
+                        
+                        const isIgnored = block?.ignoreFirstCard;
+                        const displayDescription = block?.displayFirstCardDescription;
+                        const result = listResults[listId] || { count: 0 };
+                        
+                        let finalCount = result.count;
+                        let descriptionCardName = '';
+
+                        // If the first card should be ignored, we may need to adjust the count
+                        if (isIgnored) {
+                            const firstCard = firstCardMap.get(listId);
+                            if (firstCard) {
+                                // Check if this first card ID is present in the time-filtered, template-filtered list of cards
+                                const isFirstCardInFilteredSet = cardsForProcessing.some(c => c.id === firstCard.id);
+                                
+                                // If it IS in the set, we need to subtract one because it's being used as a description
+                                // or is otherwise ignored, and shouldn't be part of the count.
+                                if (isFirstCardInFilteredSet) {
+                                    finalCount--;
+                                }
+                                
+                                // If "display description" is also checked, set the name for display
+                                if (displayDescription) {
+                                    descriptionCardName = firstCard.name;
+                                }
+                            }
+                        }
+                        if (finalCount < 0) finalCount = 0; // Sanity check
+
+                        let color = persistentColors[boardId]?.[listId] || listData?.color;
+                        if (!color || color === '#cccccc') {
+                            color = getOrGenerateRandomColor(listId, usedColors);
+                        }
+
+                        countsMap.set(listId, {
+                            listId: listId,
+                            count: finalCount,
+                            name: listData?.name,
+                            displayColor: color,
+                            firstCardName: descriptionCardName
+                        });
+                    });
+                    
+                    setCounts(countsMap);
+
+                } catch (e) {
+                    console.error("Dashboard fetch error:", e);
+                    setError(e.message);
+                } finally {
+                    setLoading(false);
+                }
+            }, [user.token, listsFromSettings.length, boardId, sectionsLayout.length, timeFilter]);
+
+            // Interval setup
+            useEffect(() => {
+                               if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                }
+
+                const interval = setInterval(() => {
+                    setCountdown(prev => {
+                        if (prev <= 1) {
+                            fetchListCounts();
+                            return convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+
+                timerRef.current = interval;
+                
+                // Set initial countdown value and fetch
+                setCountdown(convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit));
+                fetchListCounts();
+
+                return () => clearInterval(interval);
+            }, [fetchListCounts, refreshIntervalMs]);
+
+
+            const handleTileClick = (listId, listName, color) => {
+                setModalList({ listId, listName, color, sectionsLayout }); // Pass layout to modal
+            };
+
+            const handleCloseModal = () => {
+                setModalList(null);
+            };
+            
+            const filterLabel = TIME_FILTERS[timeFilter].titleSuffix;
+            const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId);
+            const showClock = clockSetting !== 'false';
+
+
+            if (loading && listsFromSettings.length === 0) return <div className="container" style={{textAlign: 'center', marginTop: '50px'}}>Loading dashboard data...</div>;
+
+            if (error) return <div className="container"><div className="error">{error}</div></div>;
+
+            if (!boardName || listsFromSettings.length === 0) {
+                 return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>Trellops Dashboard</h1>
+                            <button className="logout-button" onClick={onLogout}>Log Out</button>
+                        </div>
+                        <p style={{textAlign: 'center', marginTop: '50px'}}>
+                            No Trello Board configured. Please go to settings to set up your first dashboard.
+                        </p>
+                        <div style={{textAlign: 'center', marginTop: '20px'}}>
+                            <button className="settings-button" onClick={onShowSettings}>Go to Settings</button>
+                        </div>
+                        <div style={{textAlign: 'center', marginTop: '10px'}}>
+                            <a href="help.html" style={{display: 'inline-flex', alignItems: 'center', textDecoration: 'none'}}>
+                                <img src="assets/help-icon.svg" alt="Help" style={{width: '18px', height: '18px', verticalAlign: 'middle', marginRight: '8px'}} />
+                                <span style={{color: 'var(--text-secondary)'}}>Need help?</span>
+                                &nbsp;
+                                <span style={{color: '#0057d9', fontWeight: 600}}>Trellops Use Guide</span>
+                            </a>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <div className="header-title-area">
+                            {/* Large Clock */}
+                            {showClock && <DigitalClock boardId={boardId} />}
+                            {/* Title with time filter */}
+                            <h1>{boardName} dashboard - {filterLabel}</h1>
+                        </div>
+                        
+                        <div className="header-actions-top">
+                            {/* Time Filter Dropdown */}
+                            <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)}>
+                                {Object.keys(TIME_FILTERS).map(key => (
+                                    <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                ))}
+                            </select>
+
+                            {/* Theme Toggle Button */}
+                            <button className="theme-toggle-button" onClick={() => toggleTheme()}>
+                                {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                            </button>
+
+
+                        </div>
+                    </div>
+
+                    {/* RENDER BLOCKS */}
+                    {sectionsLayout.map(block => {
+                        const blockTiles = block.listIds
+                            .map(listId => {
+                                const tileData = counts.get(listId);
+                                
+                                // Placeholder Logic
+                                if (!tileData) {
+                                    const list = allListsMap.get(listId);
+                                    if (list) {
+                                        const color = list.color || getOrGenerateRandomColor(list.id, new Set());
+                                        
+                                        return { listId: list.id, name: list.name, count: '...', displayColor: color, firstCardName: '' };
+                                    }
+                                    return undefined;
+                                }
+                                return tileData;
+                            })
+                            .filter(item => item !== undefined);
+
+                        // Determine collapse state
+                        const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
+
+                        if (blockTiles.length === 0 && !isCollapsed) return null;
+
+                        return (
+                            <div key={block.id} className="dashboard-block">
+                                <div className="block-header-row">
+                                    <div className="block-header">{block.name}</div>
+                                    <button 
+                                        className="collapse-toggle" 
+                                        onClick={() => handleToggleCollapse(block.id)}
+                                        title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}
+                                    >
+                                        {isCollapsed ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path>
+                                                <path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path>
+                                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                                            </svg>
+                                        ) : (
+                                            <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                                
+                                {/* Conditionally render the grid */}
+                                {!isCollapsed && (
+                                    <div className="dashboard-grid">
+                                        {blockTiles.map((item) => (
+                                            <div
+                                                key={item.listId}
+                                                className="dashboard-tile"
+                                                style={{
+                                                    backgroundColor: item.displayColor,
+                                                    color: 'white'
+                                                }}
+                                                onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}
+                                            >
+                                                <div className="card-count">{item.count}</div>
+                                                <div className="list-name">{item.name}</div>
+                                                {/* Display first card name if available */}
+                                                {item.firstCardName && (
+                                                    <div className="card-description" title={item.firstCardName}>
+                                                        {item.firstCardName}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+
+                    {modalList && (
+                        <CardDetailsModal
+                            listId={modalList.listId}
+                            listName={modalList.listName}
+                            color={modalList.color}
+                            token={user.token}
+                            onClose={handleCloseModal}
+                            sectionsLayout={sectionsLayout} 
+                            ignoreTemplateCards={ignoreTemplateCards}
+                        />
+                    )}
+
+                    {/* NEW: Fixed Footer Action Bar */}
+                    <div className="footer-action-bar">
+                        <span className="version">v.3</span>
+                        <span className="countdown">Next refresh in {countdown}s</span>
+                        <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
+                        {enableMapView && (
+                            <button className="settings-button" onClick={() => window.open('/map', '_blank')}>Map View</button>
+                        )}
+                        <button className="settings-button" onClick={onShowSettings}>Settings</button>
+                        <button className="logout-button" onClick={onLogout}>Log Out</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // 4. Main Application Component
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [settings, setSettings] = useState(null);
+            const [view, setView] = useState('landing'); // 'landing', 'settings', 'dashboard'
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState('');
+
+            // Check for token in URL on initial load
+            useEffect(() => {
+                const tokenFromUrl = trelloAuth.getTokenFromUrl();
+                if (tokenFromUrl) {
+                    handleLoginSuccess(tokenFromUrl);
+                } else {
+                    // If no token in URL, check if a user is already logged in
+                    const loggedInUserId = getCurrentUser();
+                    if (loggedInUserId) {
+                        // This is a simplified example. In a real app, you'd re-validate the token.
+                        // For this version, we assume the token is still valid.
+                        const userData = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_DATA)) || {};
+                        const userSession = userData[loggedInUserId];
+                        if (userSession && userSession.token) {
+                             handleLoginSuccess(userSession.token);
+                        } else {
+                            setView('landing');
+                            setLoading(false); // No valid session found
+                        }
+                    } else {
+                        setView('landing');
+                        setLoading(false);
+                    }
+                }
+            }, []);
+
+            // Check if settings should be opened on load (from map view)
+            useEffect(() => {
+                if (view === 'dashboard' && localStorage.getItem('openSettingsOnLoad') === 'true') {
+                    localStorage.removeItem('openSettingsOnLoad');
+                    setView('settings');
+                }
+            }, [view]);
+
+            const handleLoginSuccess = async (token) => {
+                setLoading(true);
+                setError('');
+                try {
+                    const member = await trelloFetch('/members/me', token);
+                    const userData = { id: member.id, username: member.username, token: token };
+                    
+                    // Store user session data
+                    setUserData(member.id, 'token', token);
+                    setUserData(member.id, 'username', member.username);
+                    setCurrentUser(member.id);
+
+                    setUser(userData);
+                    
+                    const savedSettings = getUserData(member.id, 'settings');
+                    if (savedSettings && savedSettings.boardId) {
+                        setSettings(savedSettings);
+                        setView('dashboard');
+                    } else {
+                        setView('settings');
+                    }
+                } catch (e) {
+                    console.error("Login validation failed:", e);
+                    setError("Failed to validate Trello session. Please log in again.");
+                    setCurrentUser(null); // Clear invalid user session
+                    setView('auth');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLogout = () => {
+                if (user) {
+                    // In a real app, you might want to revoke the token via Trello's API
+                    // trelloFetch(`/tokens/${user.token}`, 'DELETE');
+                    setUserData(user.id, 'token', null); // Invalidate the stored token
+                }
+                setCurrentUser(null);
+                setUser(null);
+                setSettings(null);
+                setView('landing');
+            };
+
+            const handleSaveSettings = (newSettings) => {
+                setSettings(newSettings);
+                setView('dashboard');
+            };
+
+            if (loading) {
+                return <div className="container" style={{textAlign: 'center', marginTop: '50px'}}>Initializing...</div>;
+            }
+            
+            if (error) {
+                 return (
+                    <div className="container">
+                        <div className="error" style={{textAlign: 'center', marginTop: '50px'}}>{error}</div>
+                        <div style={{textAlign: 'center', marginTop: '20px'}}>
+                            <button className="settings-button" onClick={() => { setError(''); setView('auth'); }}>Go to Login</button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'landing') {
+                return <LandingPage />;
+            }
+
+            if (view === 'dashboard') {
+                return <Dashboard user={user} settings={settings} onShowSettings={() => setView('settings')} onLogout={handleLogout} />;
+            }
+
+            if (view === 'settings') {
+                return <SettingsScreen user={user} onSave={handleSaveSettings} onBack={() => setView('dashboard')} onLogout={handleLogout} />;
+            }
+
+            return <LandingPage />;
+        };
+
+        ReactDOM.render(
+            <DarkModeProvider>
+                <App />
+            </DarkModeProvider>,
+            document.getElementById('root')
+        );
+    </script>
+</body>
+</html>
