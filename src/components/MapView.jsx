@@ -64,6 +64,15 @@ const getMarkerConfig = (card) => {
 // --- GEOCODING UTILS ---
 async function geocodeAddress(address) {
     try {
+        // Check if it's already coordinates
+        const coordMatch = address.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+        if (coordMatch) {
+            return {
+                lat: parseFloat(coordMatch[1]),
+                lng: parseFloat(coordMatch[2])
+            };
+        }
+
         const encoded = encodeURIComponent(address);
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1`;
         const resp = await fetch(url, { headers: { 'User-Agent': 'TrellopsDashboard/1.0' } });
@@ -80,11 +89,61 @@ async function geocodeAddress(address) {
 }
 
 const parseAddressFromDescription = (desc) => {
-    if (!desc) return null;
-    const lines = desc.split('\n');
-    for (const line of lines) {
-        if (line.trim().length > 5) return line.trim();
+    if (!desc || !desc.trim()) return null;
+
+    // 1. Try to extract Google Maps /place/ link
+    const mapsPlaceMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\/\s]+\/maps\/place\/([^\s)]+)/i);
+    if (mapsPlaceMatch) {
+        const placePart = mapsPlaceMatch[1];
+
+        // Try to extract coordinates from URL (@lat,lng)
+        const mapsUrlFullMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\s]+/i);
+        const mapsUrlFull = mapsUrlFullMatch ? mapsUrlFullMatch[0] : null;
+        if (mapsUrlFull) {
+            const coordMatch = mapsUrlFull.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (coordMatch) {
+                return `${coordMatch[1]},${coordMatch[2]}`;
+            }
+        }
+
+        // Decode place part
+        try {
+            return decodeURIComponent(placePart.replace(/\+/g, ' '));
+        } catch (e) {
+            return placePart.replace(/\+/g, ' ');
+        }
     }
+
+    // 2. Try to extract coordinates directly (lat,lng)
+    const coordMatch = desc.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    if (coordMatch) {
+        return `${coordMatch[1]},${coordMatch[2]}`;
+    }
+
+    // 3. Look for specific address patterns
+    const addressPatterns = [
+        /^\d+\s+[A-Za-z\s]+(?:St|Street|Ave|Avenue|Rd|Road|Ln|Lane|Dr|Drive|Way|Court|Ct|Place|Pl|Parkway|Crescent|Cres|Boulevard|Blvd)[^\n]*/i,
+        /(?:CNR|Corner)\s+[A-Za-z\s]+[&\/]\s+[A-Za-z\s]+[^\n]*/i,
+        /[A-Za-z\s]+(?:VIC|NSW|QLD|SA|WA|TAS|ACT)\s+\d{4}/i
+    ];
+
+    for (const pattern of addressPatterns) {
+        const match = desc.match(pattern);
+        if (match) {
+            const address = match[0].trim();
+            if (address.length > 5) return address;
+        }
+    }
+
+    // 4. Return first non-empty line as fallback
+    const lines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length > 0 && lines[0].length > 5) {
+        // Skip short codes
+        if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0])) {
+            return lines[0];
+        }
+    }
+
     return null;
 };
 
@@ -105,7 +164,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
     const [blocks, setBlocks] = useState([]);
     const [visibleBlockIds, setVisibleBlockIds] = useState(new Set());
     const [baseMap, setBaseMap] = useState('topo');
-    const [errorMessage, setErrorMessage] = useState('');
+    const [errorState, setErrorState] = useState(null); // { message, cardUrl }
 
     // Countdown state
     const [countdown, setCountdown] = useState(null);
@@ -113,13 +172,14 @@ const MapView = ({ user, onClose, onShowSettings }) => {
     const { theme, toggleTheme } = useDarkMode();
     const intervalRef = useRef(null);
     const countdownRef = useRef(null);
+    const geocodeLoopRef = useRef(false); // To tracking loop state
 
     // Per-board settings
     const settings = user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings : null;
     const boardId = settings?.boardId;
-    const boardName = settings?.boardName;
+    const boardName = settings?.boardName || 'Trello Board';
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
-    const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true'; // Verify this key in SettingsScreen, assuming pattern
+    const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
 
     // Refresh Settings
     const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
@@ -141,24 +201,10 @@ const MapView = ({ user, onClose, onShowSettings }) => {
     const updateTrelloCardCoordinates = async (cardId, coords) => {
         if (!updateTrelloCoordinates) return;
         try {
-            // Write to 'coordinates' field (standard if enabled) or pluginData
-            // If the Map Power-Up is enabled, logic is complex (plugin data).
-            // However, often 'coordinates' works if supported, or customized. 
-            // For now, let's try standard PUT to 'coordinates' if API allows, otherwise log.
-            // Actually, official Trello API doesn't expose 'coordinates' on root for write easily without powerup context.
-            // Assumption: User likely means 'pos' or custom field. 
-            // BUT, if legacy code did it, we should emulate.
-            // Given I cannot see legacy, I will assume a direct PUT to /cards/:id with coordinates querystring or body?
-            // "put to cart coordinates field". 
-            // Let's assume a custom field or specific power-up payload.
-            // Safe fallback: standard PUT /cards/id with `coordinates: {lat,long}` (unlikely to work without plugin context) or just locally.
-            // If "updateTrelloCoordinates" is true, I will attempt to update `coordinates` property.
             await trelloFetch(`/cards/${cardId}`, user.token, {
                 method: 'PUT',
-                body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` }) // Attempting string format or object
+                body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` })
             });
-            // Also try specific plugin format if known? 
-            // For now, simplified attempt.
         } catch (e) { console.warn("Failed to write back coords", e); }
     };
 
@@ -188,14 +234,18 @@ const MapView = ({ user, onClose, onShowSettings }) => {
 
             const processedCards = cardsData.map(c => {
                 let coords = null;
-                // Prefer Trello coordinates if they exist (mapped by powerup?)
+                // Prefer Trello coordinates if they exist
                 if (c.coordinates) {
-                    coords = typeof c.coordinates === 'object' ? c.coordinates : null;
-                    // Trello might return it if fields=coordinates was working
+                    if (typeof c.coordinates === 'string' && c.coordinates.includes(',')) {
+                        const parts = c.coordinates.split(',');
+                        if (parts.length === 2) coords = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                    } else if (typeof c.coordinates === 'object') {
+                        coords = c.coordinates;
+                    }
                 }
 
                 // Fallback to cache
-                if (!coords && cache[c.id]) coords = cache[c.id];
+                if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
 
                 return { ...c, coordinates: coords };
             });
@@ -239,7 +289,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                 setCountdown(refreshIntervalSeconds); // Reset countdown after refresh trigger
             }, refreshIntervalSeconds * 1000);
         } else {
-            setCountdown(null); // Pause or hide countdown
+            setCountdown(null);
         }
 
         return () => {
@@ -256,10 +306,13 @@ const MapView = ({ user, onClose, onShowSettings }) => {
 
         const needGeocoding = cards.filter(c => {
             if (cache[c.id]) return false; // Already cached
-            if (c.coordinates) return false;
-            // if (!c.desc) return false; // Try even if no desc? No, need address.
-            // But maybe address is in name? User said "description".
-            if (!c.desc && !parseAddressFromDescription(c.name)) return false;
+            if (c.coordinates && c.coordinates.lat) return false;
+
+            // Try address extraction with robust parser to see if it even NEEDS geocoding
+            // If parser returns null, we can't geocode it anyway, so don't queue
+            const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
+            if (!addressCandidate) return false;
+
             if (ignoreTemplateCards && c.isTemplate) return false;
 
             const block = blocks.find(b => b.listIds.includes(c.idList));
@@ -287,53 +340,84 @@ const MapView = ({ user, onClose, onShowSettings }) => {
 
     // Geocoding Processor
     useEffect(() => {
-        if (geocodingQueue.length === 0) {
-            if (status.startsWith('Geocoding')) setStatus('');
+        if (geocodingQueue.length === 0 || geocodeLoopRef.current) {
+            if (geocodingQueue.length === 0 && status.startsWith('Geocoding')) setStatus('');
             return;
         }
 
-        const process = async () => {
-            const cardId = geocodingQueue[0];
-            const card = cards.find(c => c.id === cardId);
+        const processQueue = async () => {
+            geocodeLoopRef.current = true;
 
-            if (!card) {
-                setGeocodingQueue(prev => prev.slice(1));
-                return;
-            }
+            // Process queue until empty
+            while (geocodingQueue.length > 0) {
+                const cardId = geocodingQueue[0];
+                const card = cards.find(c => c.id === cardId);
 
-            setStatus(`Geocoding: ${card.name} (${geocodingQueue.length} left)`);
+                // If card not found (e.g. filtered out), pop and continue
+                if (!card) {
+                    setGeocodingQueue(prev => prev.slice(1));
+                    continue; // Continue loop
+                }
 
-            // 1s Rate Limit check
-            await new Promise(r => setTimeout(r, 1000));
+                setStatus(`Geocoding: ${card.name} (${geocodingQueue.length} left)`);
 
-            try {
-                const address = parseAddressFromDescription(card.desc) || parseAddressFromDescription(card.name); // Fallback to name?
-                if (address) {
-                    const coords = await geocodeAddress(address);
-                    if (coords) {
-                        setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
-                        saveLocalGeocode(cardId, coords);
+                // 1s Rate Limit check
+                await new Promise(r => setTimeout(r, 1000));
 
-                        // Write back
-                        if (updateTrelloCoordinates) {
-                            updateTrelloCardCoordinates(cardId, coords);
+                try {
+                    const address = parseAddressFromDescription(card.desc) || (card.name.length > 5 ? card.name : null);
+                    console.log(`[Geodebug] Attempting card: ${card.name}, extracted address: ${address}`);
+
+                    if (address) {
+                        const coords = await geocodeAddress(address);
+                        if (coords) {
+                            console.log(`[Geodebug] Success: ${coords.lat}, ${coords.lng}`);
+                            // Direct state update function to ensure we don't use stale state in loop
+                            setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
+                            saveLocalGeocode(cardId, coords);
+
+                            // Write back
+                            if (updateTrelloCoordinates) {
+                                updateTrelloCardCoordinates(cardId, coords);
+                            }
+                        } else {
+                            throw new Error("Nominatim returned no valid results");
                         }
                     } else {
-                        // Failed to find coords (returned null)
-                        throw new Error("Address not found");
+                        // Logic fallback: try card Name if not tried? 
+                        // Already tried in `parseAddressFromDescription` logical OR above? No, only arg.
+                        // Let's assume queue filtering ensures we only queued things with viable addresses?
+                        // Actually, we should probably fail softly here.
+                        throw new Error("No address found in description or name");
                     }
-                } else {
-                    // No address found
+                } catch (e) {
+                    console.warn(`Geocoding failed for ${card.name}:`, e);
+                    setErrorState({
+                        message: `Geocoding failed for: ${card.name}`,
+                        cardUrl: card.shortUrl
+                    });
+                    setTimeout(() => setErrorState(null), 5000); // 5 seconds display
                 }
-            } catch (e) {
-                console.warn("Geocoding failed for", card.name);
-                setErrorMessage(`Failed to geocode: ${card.name}`);
-                setTimeout(() => setErrorMessage(''), 2000);
-            }
 
-            setGeocodingQueue(prev => prev.slice(1));
+                // Remove processed item (success or failure)
+                setGeocodingQueue(prev => {
+                    const next = prev.slice(1);
+                    return next;
+                });
+
+                // Wait a microtick to let React update? 
+                // Since our loop is async and queue is state, we are technically "breaking rules" of React purity by assuming
+                // `geocodingQueue` state will drain. BUT, `setGeocodingQueue` above updates the State var.
+                // However, the LOCAL `geocodingQueue` variable in this scope is CONSTANT closure.
+                // So `while (geocodingQueue.length > 0)` will loop forever if we don't update local reference.
+                // WE MUST BREAK and let useEffect re-trigger.
+                break;
+            }
+            geocodeLoopRef.current = false;
         };
-        process();
+
+        processQueue();
+
     }, [geocodingQueue, cards, status, updateTrelloCoordinates]);
 
     // Handle block toggle with Refresh trigger
@@ -425,7 +509,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                     map.fitBounds(bounds, { padding: [50, 50] });
                 }
             }
-        }, [markers.length]); // Intentionally limited to length change to avoid constant zoom reset on refresh
+        }, [markers.length]);
         return null;
     };
 
@@ -505,9 +589,15 @@ const MapView = ({ user, onClose, onShowSettings }) => {
             )}
 
             {/* Error Toast */}
-            {errorMessage && (
-                <div className="status-message error-toast" style={{ borderColor: 'red' }}>
-                    <span style={{ color: 'red' }}>{errorMessage}</span>
+            {errorState && (
+                <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', maxWidth: '400px', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
+                    <span style={{ color: '#333', fontSize: '0.9em' }}>{errorState.message}</span>
+                    {errorState.cardUrl && (
+                        <a href={errorState.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', marginTop: '4px', textDecoration: 'underline' }}>
+                            View Card
+                        </a>
+                    )}
                 </div>
             )}
         </div>
