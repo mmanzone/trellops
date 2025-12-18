@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -7,6 +7,7 @@ import { trelloFetch } from '/src/api/trello';
 import { getPersistentLayout } from '/src/utils/persistence';
 import { useDarkMode } from '/src/context/DarkModeContext';
 import { STORAGE_KEYS } from '/src/utils/constants';
+import { convertIntervalToSeconds } from '/src/utils/helpers';
 
 // --- ICONS LOGIC ---
 // Re-implementing the SVG icon generation from script.js
@@ -110,12 +111,19 @@ const MapView = ({ user, onClose, onShowSettings }) => {
     const [baseMap, setBaseMap] = useState('topo');
 
     const { theme, toggleTheme } = useDarkMode();
+    const timerRef = useRef(null);
 
     // Per-board settings
     const settings = user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings : null;
     const boardId = settings?.boardId;
     const boardName = settings?.boardName;
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+
+    // Refresh Settings
+    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
+    const defaultRefreshSetting = { value: 1, unit: 'minutes' };
+    const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+    const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
 
     // Helper to save local cache
     const saveLocalGeocode = (cId, coords) => {
@@ -127,71 +135,101 @@ const MapView = ({ user, onClose, onShowSettings }) => {
         } catch (e) { }
     };
 
-    // Load Data
-    useEffect(() => {
+    // Load Data Helper
+    const loadData = useCallback(async (isRefresh = false) => {
         if (!user || !boardId) return;
+        if (!isRefresh) setLoading(true);
+        if (!isRefresh) setStatus('Loading cards...');
 
-        const load = async () => {
-            setLoading(true);
-            setStatus('Loading cards...');
-            try {
-                // 1. Get Blocks
-                const layout = getPersistentLayout(user.id, boardId);
-                setBlocks(layout);
-                const initialVisible = new Set(layout.filter(b => b.includeOnMap !== false).map(b => b.id));
+        try {
+            // 1. Get Blocks
+            const currentLayout = getPersistentLayout(user.id, boardId);
+            setBlocks(currentLayout);
+
+            // Set initial visibility only if first load
+            if (!isRefresh) {
+                const initialVisible = new Set(currentLayout.filter(b => b.includeOnMap !== false).map(b => b.id));
                 setVisibleBlockIds(initialVisible);
-
-                // 2. Fetch Cards
-                const cards = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos`, user.token);
-
-                // 3. Load Geocoding Cache
-                const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
-                const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-
-                const processedCards = cards.map(c => {
-                    let coords = null;
-                    if (cache[c.id]) coords = cache[c.id];
-                    return { ...c, coordinates: coords };
-                });
-
-                setCards(processedCards);
-
-                // Identify cards needing geocoding
-                // Filter logic applied here for queueing
-                const needGeocoding = processedCards.filter(c => {
-                    if (c.coordinates) return false;
-                    if (!c.desc) return false;
-                    if (ignoreTemplateCards && c.isTemplate) return false;
-
-                    const block = layout.find(b => b.listIds.includes(c.idList));
-                    if (!block || !initialVisible.has(block.id)) return false;
-
-                    // Handle ignoreFirstCard logic during Queue build? 
-                    // Ideally we geocode everything valid, but let's stick to visible ones to save resources
-                    // Logic: Calculate first cards per list
-                    const listCards = processedCards.filter(pc => pc.idList === c.idList);
-                    const minPos = Math.min(...listCards.map(pc => pc.pos));
-                    if (block.ignoreFirstCard && c.pos === minPos) return false;
-
-                    return true;
-                }).map(c => c.id);
-
-                setGeocodingQueue(needGeocoding);
-
-            } catch (e) {
-                console.error(e);
-                setStatus(`Error: ${e.message}`);
-            } finally {
-                setLoading(false);
             }
-        };
-        load();
-    }, [user, boardId, ignoreTemplateCards]);
+
+            // 2. Fetch Cards
+            const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos`, user.token);
+
+            // 3. Load Geocoding Cache
+            const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
+            const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+
+            const processedCards = cardsData.map(c => {
+                let coords = null;
+                if (cache[c.id]) coords = cache[c.id];
+                return { ...c, coordinates: coords };
+            });
+
+            setCards(processedCards);
+
+        } catch (e) {
+            console.error(e);
+            setStatus(`Error: ${e.message}`);
+        } finally {
+            if (!isRefresh) setLoading(false);
+            if (!isRefresh) setStatus('');
+        }
+    }, [user, boardId]);
+
+    // Initial Load
+    useEffect(() => {
+        loadData(false);
+    }, [loadData]);
+
+    // Interval Refresh
+    useEffect(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        const interval = setInterval(() => {
+            loadData(true);
+        }, refreshIntervalSeconds * 1000); // convert to ms
+        timerRef.current = interval;
+        return () => clearInterval(interval);
+    }, [refreshIntervalSeconds, loadData]);
+
+    // Queue Calculation Effect (Re-run when cards or visibility changes to see if we need to geocode more things)
+    useEffect(() => {
+        const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
+        const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+
+        const needGeocoding = cards.filter(c => {
+            if (cache[c.id]) return false; // Already cached
+            if (c.coordinates) return false;
+            if (!c.desc) return false;
+            if (ignoreTemplateCards && c.isTemplate) return false;
+
+            const block = blocks.find(b => b.listIds.includes(c.idList));
+            if (!block || !visibleBlockIds.has(block.id)) return false;
+
+            // Handle ignoreFirstCard
+            if (block.ignoreFirstCard) {
+                const cardsInList = cards.filter(pc => pc.idList === c.idList);
+                const minPos = Math.min(...cardsInList.map(pc => pc.pos));
+                if (c.pos === minPos) return false;
+            }
+
+            return true;
+        }).map(c => c.id);
+
+        if (needGeocoding.length > 0) {
+            setGeocodingQueue(prev => {
+                const newItems = needGeocoding.filter(id => !prev.includes(id));
+                if (newItems.length > 0) return [...prev, ...newItems];
+                return prev;
+            });
+        }
+
+    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, boardId]);
+
 
     // Geocoding Processor
     useEffect(() => {
         if (geocodingQueue.length === 0) {
-            if (loading === false) setStatus('');
+            if (loading === false && status.startsWith('Geocoding')) setStatus('');
             return;
         }
 
@@ -219,7 +257,20 @@ const MapView = ({ user, onClose, onShowSettings }) => {
             setGeocodingQueue(prev => prev.slice(1));
         };
         process();
-    }, [geocodingQueue, cards]);
+    }, [geocodingQueue, cards, loading, status]); // Added loading, status to deps for setStatus logic
+
+    // Handle block toggle with Refresh trigger
+    const handleBlockToggle = (blockId, isChecked) => {
+        const next = new Set(visibleBlockIds);
+        if (isChecked) {
+            next.add(blockId);
+            // Trigger data refresh if enabling a block
+            loadData(true);
+        } else {
+            next.delete(blockId);
+        }
+        setVisibleBlockIds(next);
+    };
 
     // Calculate visible markers
     const markers = useMemo(() => {
@@ -233,15 +284,10 @@ const MapView = ({ user, onClose, onShowSettings }) => {
 
                 // Check ignore first card
                 if (block.ignoreFirstCard) {
-                    // Find min pos for this list
-                    // NOTE: This could be slow for many cards, optimizing by pre-calc outside if rendering causes lag
                     const cardsInList = cards.filter(pc => pc.idList === c.idList);
-                    // Use simple numerical sort or Math.min logic
-                    // Ensure robust float handling
                     const minPos = cardsInList.reduce((min, cur) => (cur.pos < min ? cur.pos : min), Infinity);
                     if (c.pos === minPos) return false;
                 }
-
                 return true;
             })
             .map(c => (
@@ -290,7 +336,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                     map.fitBounds(bounds, { padding: [50, 50] });
                 }
             }
-        }, [markers.length]);
+        }, [markers.length, cards]); // Added cards to deps for robustness
         return null;
     };
 
@@ -306,12 +352,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                                 <input
                                     type="checkbox"
                                     checked={visibleBlockIds.has(b.id)}
-                                    onChange={e => {
-                                        const next = new Set(visibleBlockIds);
-                                        if (e.target.checked) next.add(b.id);
-                                        else next.delete(b.id);
-                                        setVisibleBlockIds(next);
-                                    }}
+                                    onChange={e => handleBlockToggle(b.id, e.target.checked)}
                                 />
                                 {b.name} ({getBlockCount(b)})
                             </label>
@@ -329,15 +370,10 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                             <option key={key} value={key}>{config.name}</option>
                         ))}
                     </select>
-                    <select
-                        value={theme}
-                        onChange={e => toggleTheme(e.target.value)}
-                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd', marginLeft: '5px' }}
-                    >
-                        <option value="system">System</option>
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                    </select>
+
+                    <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '5px' }}>
+                        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                    </button>
                 </div>
             </div>
 
@@ -365,7 +401,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                         if (onShowSettings) onShowSettings();
                         else onClose(); // fallback
                     }}>Settings</button>
-                    <button className="logout-button" onClick={() => window.location.reload()}>Reload</button>
+                    <button className="logout-button" onClick={() => loadData(true)}>Reload</button>
                 </div>
             </div>
 

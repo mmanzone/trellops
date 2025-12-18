@@ -15,6 +15,8 @@ const App = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    const [previousView, setPreviousView] = useState(null);
+
     // Check for token in URL or existing session
     useEffect(() => {
         // 1. Check for Map route first
@@ -47,6 +49,7 @@ const App = () => {
     useEffect(() => {
         if (view === 'dashboard' && localStorage.getItem('openSettingsOnLoad') === 'true') {
             localStorage.removeItem('openSettingsOnLoad');
+            setPreviousView('dashboard');
             setView('settings');
         }
     }, [view]);
@@ -97,17 +100,32 @@ const App = () => {
         setUser(null);
         setSettings(null);
         setView('landing');
+        setPreviousView(null);
         trelloAuth.logout();
     };
 
     const handleSaveSettings = (newSettings) => {
         if (!newSettings) {
+            // Handle clear config or cancel
             setSettings(null);
-            setView('dashboard');
+            if (previousView === 'map') {
+                setView('map');
+                window.history.pushState({}, '', '/map');
+            } else {
+                setView('dashboard');
+            }
             return;
         }
         setSettings(newSettings);
-        setView('dashboard');
+
+        // Return to previous view
+        if (previousView === 'map') {
+            setView('map');
+            window.history.pushState({}, '', '/map');
+        } else {
+            setView('dashboard');
+            window.history.pushState({}, '', '/');
+        }
     };
 
     if (loading) {
@@ -134,8 +152,9 @@ const App = () => {
                     window.history.pushState({}, '', '/');
                 }}
                 onShowSettings={() => {
+                    setPreviousView('map');
                     setView('settings');
-                    window.history.pushState({}, '', '/');
+                    window.history.pushState({}, '', '/'); // Temporarily clear /map from URL while in settings? Or keep it? User might refresh. simpler to clear to maintain existing pattern.
                 }}
             />
         );
@@ -150,7 +169,10 @@ const App = () => {
             <Dashboard
                 user={user}
                 settings={settings}
-                onShowSettings={() => setView('settings')}
+                onShowSettings={() => {
+                    setPreviousView('dashboard');
+                    setView('settings');
+                }}
                 onLogout={handleLogout}
             />
         );
@@ -161,7 +183,15 @@ const App = () => {
             <SettingsScreen
                 user={user}
                 onSave={handleSaveSettings}
-                onBack={() => setView('dashboard')}
+                onBack={() => {
+                    if (previousView === 'map') {
+                        setView('map');
+                        window.history.pushState({}, '', '/map');
+                    } else {
+                        setView('dashboard');
+                        window.history.pushState({}, '', '/');
+                    }
+                }}
                 onLogout={handleLogout}
             />
         );
