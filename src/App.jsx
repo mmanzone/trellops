@@ -147,6 +147,7 @@ const App = () => {
         return (
             <MapView
                 user={user}
+                settings={settings}
                 onClose={() => {
                     setView('dashboard');
                     window.history.pushState({}, '', '/');
@@ -154,8 +155,9 @@ const App = () => {
                 onShowSettings={() => {
                     setPreviousView('map');
                     setView('settings');
-                    window.history.pushState({}, '', '/'); // Temporarily clear /map from URL while in settings? Or keep it? User might refresh. simpler to clear to maintain existing pattern.
+                    window.history.pushState({}, '', '/');
                 }}
+                onLogout={handleLogout}
             />
         );
     }

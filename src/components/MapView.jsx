@@ -8,6 +8,7 @@ import { getPersistentLayout } from '/src/utils/persistence';
 import { useDarkMode } from '/src/context/DarkModeContext';
 import { STORAGE_KEYS } from '/src/utils/constants';
 import { convertIntervalToSeconds, getLabelTextColor } from '/src/utils/helpers';
+import DigitalClock from './common/DigitalClock';
 
 // --- ICONS LOGIC ---
 const getMarkerIcon = (markerConfig) => {
@@ -64,7 +65,6 @@ const getMarkerConfig = (card) => {
 // --- GEOCODING UTILS ---
 async function geocodeAddress(address) {
     try {
-        // Check if it's already coordinates
         const coordMatch = address.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
         if (coordMatch) {
             return {
@@ -95,8 +95,6 @@ const parseAddressFromDescription = (desc) => {
     const mapsPlaceMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\/\s]+\/maps\/place\/([^\s)]+)/i);
     if (mapsPlaceMatch) {
         const placePart = mapsPlaceMatch[1];
-
-        // Try to extract coordinates from URL (@lat,lng)
         const mapsUrlFullMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\s]+/i);
         const mapsUrlFull = mapsUrlFullMatch ? mapsUrlFullMatch[0] : null;
         if (mapsUrlFull) {
@@ -105,8 +103,6 @@ const parseAddressFromDescription = (desc) => {
                 return `${coordMatch[1]},${coordMatch[2]}`;
             }
         }
-
-        // Decode place part
         try {
             return decodeURIComponent(placePart.replace(/\+/g, ' '));
         } catch (e) {
@@ -138,7 +134,6 @@ const parseAddressFromDescription = (desc) => {
     // 4. Return first non-empty line as fallback
     const lines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length > 0 && lines[0].length > 5) {
-        // Skip short codes
         if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0])) {
             return lines[0];
         }
@@ -156,7 +151,7 @@ const TILE_LAYERS = {
     'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
 };
 
-const MapView = ({ user, onClose, onShowSettings }) => {
+const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [cards, setCards] = useState([]);
     const [status, setStatus] = useState('');
     const [loading, setLoading] = useState(true);
@@ -164,30 +159,30 @@ const MapView = ({ user, onClose, onShowSettings }) => {
     const [blocks, setBlocks] = useState([]);
     const [visibleBlockIds, setVisibleBlockIds] = useState(new Set());
     const [baseMap, setBaseMap] = useState('topo');
-    const [errorState, setErrorState] = useState(null); // { message, cardUrl }
+    const [errorState, setErrorState] = useState(null);
 
-    // Countdown state
     const [countdown, setCountdown] = useState(null);
 
     const { theme, toggleTheme } = useDarkMode();
     const intervalRef = useRef(null);
     const countdownRef = useRef(null);
-    const geocodeLoopRef = useRef(false); // To tracking loop state
+    const geocodeLoopRef = useRef(false);
 
-    // Per-board settings
-    const settings = user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings : null;
-    const boardId = settings?.boardId;
-    const boardName = settings?.boardName || 'Trello Board';
+    // Initial Board ID / Name from props first, then fallback to local
+    // This fixes the "header disappearance" bug if props are passed correctly
+    const boardId = settings?.boardId || (user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings?.boardId : null);
+    const boardName = settings?.boardName || (user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings?.boardName : 'Trello Board');
+
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
 
-    // Refresh Settings
     const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
     const defaultRefreshSetting = { value: 1, unit: 'minutes' };
     const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
     const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
 
-    // Helper to save local cache
+    const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
+
     const saveLocalGeocode = (cId, coords) => {
         try {
             const key = `MAP_GEOCODING_CACHE_${boardId}`;
@@ -197,7 +192,6 @@ const MapView = ({ user, onClose, onShowSettings }) => {
         } catch (e) { }
     };
 
-    // Trello Write-Back
     const updateTrelloCardCoordinates = async (cardId, coords) => {
         if (!updateTrelloCoordinates) return;
         try {
@@ -208,33 +202,26 @@ const MapView = ({ user, onClose, onShowSettings }) => {
         } catch (e) { console.warn("Failed to write back coords", e); }
     };
 
-    // Load Data Helper
     const loadData = useCallback(async (isRefresh = false) => {
         if (!user || !boardId) return;
         if (!isRefresh) setLoading(true);
         if (!isRefresh) setStatus('Loading cards...');
 
         try {
-            // 1. Get Blocks
             const currentLayout = getPersistentLayout(user.id, boardId);
             setBlocks(currentLayout);
 
-            // Set initial visibility only if first load
             if (!isRefresh) {
                 const initialVisible = new Set(currentLayout.filter(b => b.includeOnMap !== false).map(b => b.id));
                 setVisibleBlockIds(initialVisible);
             }
 
-            // 2. Fetch Cards
             const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates`, user.token);
-
-            // 3. Load Geocoding Cache
             const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
             const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
             const processedCards = cardsData.map(c => {
                 let coords = null;
-                // Prefer Trello coordinates if they exist
                 if (c.coordinates) {
                     if (typeof c.coordinates === 'string' && c.coordinates.includes(',')) {
                         const parts = c.coordinates.split(',');
@@ -243,10 +230,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                         coords = c.coordinates;
                     }
                 }
-
-                // Fallback to cache
                 if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
-
                 return { ...c, coordinates: coords };
             });
 
@@ -261,19 +245,15 @@ const MapView = ({ user, onClose, onShowSettings }) => {
         }
     }, [user, boardId]);
 
-    // Initial Load
     useEffect(() => {
         loadData(false);
     }, [loadData]);
 
 
-    // Countdown + Interval Logic
     useEffect(() => {
-        // Reset countdown logic
         if (countdownRef.current) clearInterval(countdownRef.current);
         if (intervalRef.current) clearInterval(intervalRef.current);
 
-        // Only start countdown if queue is empty
         if (geocodingQueue.length === 0 && !loading) {
             setCountdown(refreshIntervalSeconds);
 
@@ -286,7 +266,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
 
             intervalRef.current = setInterval(() => {
                 loadData(true);
-                setCountdown(refreshIntervalSeconds); // Reset countdown after refresh trigger
+                setCountdown(refreshIntervalSeconds);
             }, refreshIntervalSeconds * 1000);
         } else {
             setCountdown(null);
@@ -299,17 +279,14 @@ const MapView = ({ user, onClose, onShowSettings }) => {
     }, [geocodingQueue.length, loading, refreshIntervalSeconds, loadData]);
 
 
-    // Queue Calculation Effect
     useEffect(() => {
         const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
         const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
         const needGeocoding = cards.filter(c => {
-            if (cache[c.id]) return false; // Already cached
+            if (cache[c.id]) return false;
             if (c.coordinates && c.coordinates.lat) return false;
 
-            // Try address extraction with robust parser to see if it even NEEDS geocoding
-            // If parser returns null, we can't geocode it anyway, so don't queue
             const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
             if (!addressCandidate) return false;
 
@@ -338,7 +315,6 @@ const MapView = ({ user, onClose, onShowSettings }) => {
     }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, boardId]);
 
 
-    // Geocoding Processor
     useEffect(() => {
         if (geocodingQueue.length === 0 || geocodeLoopRef.current) {
             if (geocodingQueue.length === 0 && status.startsWith('Geocoding')) setStatus('');
@@ -348,35 +324,25 @@ const MapView = ({ user, onClose, onShowSettings }) => {
         const processQueue = async () => {
             geocodeLoopRef.current = true;
 
-            // Process queue until empty
             while (geocodingQueue.length > 0) {
                 const cardId = geocodingQueue[0];
                 const card = cards.find(c => c.id === cardId);
 
-                // If card not found (e.g. filtered out), pop and continue
                 if (!card) {
                     setGeocodingQueue(prev => prev.slice(1));
-                    continue; // Continue loop
+                    continue;
                 }
 
                 setStatus(`Geocoding: ${card.name} (${geocodingQueue.length} left)`);
-
-                // 1s Rate Limit check
                 await new Promise(r => setTimeout(r, 1000));
 
                 try {
                     const address = parseAddressFromDescription(card.desc) || (card.name.length > 5 ? card.name : null);
-                    console.log(`[Geodebug] Attempting card: ${card.name}, extracted address: ${address}`);
-
                     if (address) {
                         const coords = await geocodeAddress(address);
                         if (coords) {
-                            console.log(`[Geodebug] Success: ${coords.lat}, ${coords.lng}`);
-                            // Direct state update function to ensure we don't use stale state in loop
                             setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
                             saveLocalGeocode(cardId, coords);
-
-                            // Write back
                             if (updateTrelloCoordinates) {
                                 updateTrelloCardCoordinates(cardId, coords);
                             }
@@ -384,10 +350,6 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                             throw new Error("Nominatim returned no valid results");
                         }
                     } else {
-                        // Logic fallback: try card Name if not tried? 
-                        // Already tried in `parseAddressFromDescription` logical OR above? No, only arg.
-                        // Let's assume queue filtering ensures we only queued things with viable addresses?
-                        // Actually, we should probably fail softly here.
                         throw new Error("No address found in description or name");
                     }
                 } catch (e) {
@@ -396,21 +358,10 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                         message: `Geocoding failed for: ${card.name}`,
                         cardUrl: card.shortUrl
                     });
-                    setTimeout(() => setErrorState(null), 5000); // 5 seconds display
+                    setTimeout(() => setErrorState(null), 5000);
                 }
 
-                // Remove processed item (success or failure)
-                setGeocodingQueue(prev => {
-                    const next = prev.slice(1);
-                    return next;
-                });
-
-                // Wait a microtick to let React update? 
-                // Since our loop is async and queue is state, we are technically "breaking rules" of React purity by assuming
-                // `geocodingQueue` state will drain. BUT, `setGeocodingQueue` above updates the State var.
-                // However, the LOCAL `geocodingQueue` variable in this scope is CONSTANT closure.
-                // So `while (geocodingQueue.length > 0)` will loop forever if we don't update local reference.
-                // WE MUST BREAK and let useEffect re-trigger.
+                setGeocodingQueue(prev => prev.slice(1));
                 break;
             }
             geocodeLoopRef.current = false;
@@ -420,7 +371,6 @@ const MapView = ({ user, onClose, onShowSettings }) => {
 
     }, [geocodingQueue, cards, status, updateTrelloCoordinates]);
 
-    // Handle block toggle with Refresh trigger
     const handleBlockToggle = (blockId, isChecked) => {
         const next = new Set(visibleBlockIds);
         if (isChecked) {
@@ -432,16 +382,13 @@ const MapView = ({ user, onClose, onShowSettings }) => {
         setVisibleBlockIds(next);
     };
 
-    // Calculate visible markers
     const markers = useMemo(() => {
         return cards
             .filter(c => c.coordinates && c.coordinates.lat && c.coordinates.lng)
             .filter(c => {
                 if (ignoreTemplateCards && c.isTemplate) return false;
-
                 const block = blocks.find(b => b.listIds.includes(c.idList));
                 if (!block || !visibleBlockIds.has(block.id)) return false;
-
                 if (block.ignoreFirstCard) {
                     const cardsInList = cards.filter(pc => pc.idList === c.idList);
                     const minPos = cardsInList.reduce((min, cur) => (cur.pos < min ? cur.pos : min), Infinity);
@@ -451,7 +398,7 @@ const MapView = ({ user, onClose, onShowSettings }) => {
             })
             .map(c => (
                 <Marker
-                    key={c.id} // Ensure key is unique and stable
+                    key={c.id}
                     position={[c.coordinates.lat, c.coordinates.lng]}
                     icon={getMarkerIcon(getMarkerConfig(c))}
                 >
@@ -482,7 +429,6 @@ const MapView = ({ user, onClose, onShowSettings }) => {
             ));
     }, [cards, visibleBlockIds, blocks, ignoreTemplateCards]);
 
-    // Calculate count per block for header
     const getBlockCount = (block) => {
         return cards.filter(c => {
             if (!block.listIds.includes(c.idList)) return false;
@@ -513,12 +459,12 @@ const MapView = ({ user, onClose, onShowSettings }) => {
         return null;
     };
 
-
     return (
         <div className="map-container">
             <div className="map-header">
                 <div className="map-header-title-area">
-                    <h1>{boardName} - Map View</h1>
+                    {showClock && <DigitalClock boardId={boardId} />}
+                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName} - Map View</h1>
                     <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         {blocks.map(b => (
                             <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em', cursor: 'pointer' }}>
@@ -563,21 +509,26 @@ const MapView = ({ user, onClose, onShowSettings }) => {
 
             <div className="map-footer">
                 <div className="map-footer-left">
-                    Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
-                    Leaflet | Geocoding: Nominatim
+                    <button className="refresh-button" onClick={() => loadData(true)}>Refresh Map</button>
                     {countdown !== null && (
-                        <span style={{ marginLeft: '15px', color: '#666', fontWeight: 'bold' }}>
-                            Refreshing in {countdown}s
+                        <span className="countdown" style={{ marginLeft: '10px' }}>
+                            Next refresh in {countdown}s
                         </span>
                     )}
                 </div>
                 <div className="map-footer-right">
+                    <span style={{ fontSize: '0.85em', marginRight: '15px', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
+                        Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
+                        <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a> |
+                        Geocoding: <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
+                    </span>
+
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();
                     }}>Settings</button>
-                    <button className="logout-button" onClick={() => loadData(true)}>Reload</button>
+                    <button className="logout-button" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
 
@@ -588,7 +539,6 @@ const MapView = ({ user, onClose, onShowSettings }) => {
                 </div>
             )}
 
-            {/* Error Toast */}
             {errorState && (
                 <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', maxWidth: '400px', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
