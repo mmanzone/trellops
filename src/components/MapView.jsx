@@ -91,7 +91,6 @@ async function geocodeAddress(address) {
 const parseAddressFromDescription = (desc) => {
     if (!desc || !desc.trim()) return null;
 
-    // 1. Try to extract Google Maps /place/ link
     const mapsPlaceMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\/\s]+\/maps\/place\/([^\s)]+)/i);
     if (mapsPlaceMatch) {
         const placePart = mapsPlaceMatch[1];
@@ -110,13 +109,11 @@ const parseAddressFromDescription = (desc) => {
         }
     }
 
-    // 2. Try to extract coordinates directly (lat,lng)
     const coordMatch = desc.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
     if (coordMatch) {
         return `${coordMatch[1]},${coordMatch[2]}`;
     }
 
-    // 3. Look for specific address patterns
     const addressPatterns = [
         /^\d+\s+[A-Za-z\s]+(?:St|Street|Ave|Avenue|Rd|Road|Ln|Lane|Dr|Drive|Way|Court|Ct|Place|Pl|Parkway|Crescent|Cres|Boulevard|Blvd)[^\n]*/i,
         /(?:CNR|Corner)\s+[A-Za-z\s]+[&\/]\s+[A-Za-z\s]+[^\n]*/i,
@@ -131,7 +128,6 @@ const parseAddressFromDescription = (desc) => {
         }
     }
 
-    // 4. Return first non-empty line as fallback
     const lines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length > 0 && lines[0].length > 5) {
         if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0])) {
@@ -168,10 +164,16 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const countdownRef = useRef(null);
     const geocodeLoopRef = useRef(false);
 
-    // Initial Board ID / Name from props first, then fallback to local
-    // This fixes the "header disappearance" bug if props are passed correctly
-    const boardId = settings?.boardId || (user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings?.boardId : null);
-    const boardName = settings?.boardName || (user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings?.boardName : 'Trello Board');
+    // Reliable Board ID / Name logic
+    const getStoredSettings = () => {
+        if (!user) return {};
+        try {
+            return JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings || {};
+        } catch (e) { return {}; }
+    };
+    const storedSettings = getStoredSettings();
+    const boardId = settings?.boardId || storedSettings.boardId;
+    const boardName = settings?.boardName || storedSettings.boardName || 'Trello Board';
 
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
@@ -509,21 +511,20 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
             <div className="map-footer">
                 <div className="map-footer-left">
-                    <button className="refresh-button" onClick={() => loadData(true)}>Refresh Map</button>
-                    {countdown !== null && (
-                        <span className="countdown" style={{ marginLeft: '10px' }}>
-                            Next refresh in {countdown}s
-                        </span>
-                    )}
-                </div>
-                <div className="map-footer-right">
                     <span style={{ fontSize: '0.85em', marginRight: '15px', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
                         Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
                         <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a> |
                         Geocoding: <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
                     </span>
-
+                </div>
+                <div className="map-footer-right">
+                    {countdown !== null && (
+                        <span className="countdown" style={{ marginRight: '15px' }}>
+                            Next refresh in {countdown}s
+                        </span>
+                    )}
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
+                    <button className="refresh-button" onClick={() => loadData(true)}>Refresh Map</button>
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();
