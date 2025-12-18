@@ -133,6 +133,10 @@ const App = () => {
                     setView('dashboard');
                     window.history.pushState({}, '', '/');
                 }}
+                onShowSettings={() => {
+                    setView('settings');
+                    window.history.pushState({}, '', '/');
+                }}
             />
         );
     }

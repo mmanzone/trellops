@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '/src/styles/map.css';
 import { trelloFetch } from '/src/api/trello';
-import { getPersistentLayout, getPersistentColors, setPersistentLayout } from '/src/utils/persistence';
-import { getLabelTextColor } from '/src/utils/helpers';
+import { getPersistentLayout } from '/src/utils/persistence';
 import { useDarkMode } from '/src/context/DarkModeContext';
+import { STORAGE_KEYS } from '/src/utils/constants';
 
 // --- ICONS LOGIC ---
 // Re-implementing the SVG icon generation from script.js
@@ -89,23 +89,33 @@ const parseAddressFromDescription = (desc) => {
     return null;
 };
 
+// --- TILE LAYERS ---
+const TILE_LAYERS = {
+    'topo': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Topographic (Esri)' },
+    'osm': { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors', name: 'OpenStreetMap' },
+    'osmhot': { url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors', name: 'OSM Hotspot' },
+    'sat': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Satellite (Esri)' },
+    'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
+};
 
 // --- COMPONENT ---
 
-const MapView = ({ user, onClose }) => {
+const MapView = ({ user, onClose, onShowSettings }) => {
     const [cards, setCards] = useState([]);
     const [status, setStatus] = useState('');
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
     const [blocks, setBlocks] = useState([]);
     const [visibleBlockIds, setVisibleBlockIds] = useState(new Set());
+    const [baseMap, setBaseMap] = useState('topo');
+
+    const { theme, toggleTheme } = useDarkMode();
 
     // Per-board settings
     const settings = user ? JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings : null;
     const boardId = settings?.boardId;
     const boardName = settings?.boardName;
-
-    const geocodeMode = localStorage.getItem(`MAP_GEOCODING_MODE_${boardId}`) || 'store';
+    const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
 
     // Helper to save local cache
     const saveLocalGeocode = (cId, coords) => {
@@ -128,7 +138,6 @@ const MapView = ({ user, onClose }) => {
                 // 1. Get Blocks
                 const layout = getPersistentLayout(user.id, boardId);
                 setBlocks(layout);
-                // Default visibility: blocks that don't explicitly say includeOnMap=false
                 const initialVisible = new Set(layout.filter(b => b.includeOnMap !== false).map(b => b.id));
                 setVisibleBlockIds(initialVisible);
 
@@ -139,25 +148,33 @@ const MapView = ({ user, onClose }) => {
                 const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
                 const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
-                // 4. Check for Custom Fields (Coordinates) - Simplified for brevity
-                // We'll trust local cache and description parsing for now to match core functionality quickly.
-                // In a full port, we'd fetch custom fields as well.
-
                 const processedCards = cards.map(c => {
                     let coords = null;
-                    // Check local cache
-                    if (cache[c.id]) {
-                        coords = cache[c.id];
-                    }
+                    if (cache[c.id]) coords = cache[c.id];
                     return { ...c, coordinates: coords };
                 });
 
                 setCards(processedCards);
 
                 // Identify cards needing geocoding
-                const needGeocoding = processedCards.filter(c =>
-                    !c.coordinates && c.desc && initialVisible.has(layout.find(b => b.listIds.includes(c.idList))?.id)
-                ).map(c => c.id);
+                // Filter logic applied here for queueing
+                const needGeocoding = processedCards.filter(c => {
+                    if (c.coordinates) return false;
+                    if (!c.desc) return false;
+                    if (ignoreTemplateCards && c.isTemplate) return false;
+
+                    const block = layout.find(b => b.listIds.includes(c.idList));
+                    if (!block || !initialVisible.has(block.id)) return false;
+
+                    // Handle ignoreFirstCard logic during Queue build? 
+                    // Ideally we geocode everything valid, but let's stick to visible ones to save resources
+                    // Logic: Calculate first cards per list
+                    const listCards = processedCards.filter(pc => pc.idList === c.idList);
+                    const minPos = Math.min(...listCards.map(pc => pc.pos));
+                    if (block.ignoreFirstCard && c.pos === minPos) return false;
+
+                    return true;
+                }).map(c => c.id);
 
                 setGeocodingQueue(needGeocoding);
 
@@ -169,7 +186,7 @@ const MapView = ({ user, onClose }) => {
             }
         };
         load();
-    }, [user, boardId]);
+    }, [user, boardId, ignoreTemplateCards]);
 
     // Geocoding Processor
     useEffect(() => {
@@ -188,38 +205,44 @@ const MapView = ({ user, onClose }) => {
             }
 
             setStatus(`Geocoding: ${card.name} (${geocodingQueue.length} left)`);
-
-            // Fake delay for rate limit
-            await new Promise(r => setTimeout(r, 1100));
+            await new Promise(r => setTimeout(r, 1100)); // Rate limit
 
             const address = parseAddressFromDescription(card.desc);
             if (address) {
                 const coords = await geocodeAddress(address);
                 if (coords) {
-                    // Update Card
                     setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
-                    // Cache
                     saveLocalGeocode(cardId, coords);
-
-                    // Update Trello if mode is 'update' (skip for safety in this refactor unless explicit)
-                    // if (geocodeMode === 'update') { ... }
                 }
             }
 
             setGeocodingQueue(prev => prev.slice(1));
         };
-
         process();
-    }, [geocodingQueue, cards]); // Depend on cards to access current state
+    }, [geocodingQueue, cards]);
 
-    // Markers
+    // Calculate visible markers
     const markers = useMemo(() => {
         return cards
             .filter(c => c.coordinates && c.coordinates.lat && c.coordinates.lng)
             .filter(c => {
-                // Visibility Check
+                if (ignoreTemplateCards && c.isTemplate) return false;
+
                 const block = blocks.find(b => b.listIds.includes(c.idList));
-                return block && visibleBlockIds.has(block.id);
+                if (!block || !visibleBlockIds.has(block.id)) return false;
+
+                // Check ignore first card
+                if (block.ignoreFirstCard) {
+                    // Find min pos for this list
+                    // NOTE: This could be slow for many cards, optimizing by pre-calc outside if rendering causes lag
+                    const cardsInList = cards.filter(pc => pc.idList === c.idList);
+                    // Use simple numerical sort or Math.min logic
+                    // Ensure robust float handling
+                    const minPos = cardsInList.reduce((min, cur) => (cur.pos < min ? cur.pos : min), Infinity);
+                    if (c.pos === minPos) return false;
+                }
+
+                return true;
             })
             .map(c => (
                 <Marker
@@ -235,22 +258,31 @@ const MapView = ({ user, onClose }) => {
                     </Popup>
                 </Marker>
             ));
-    }, [cards, visibleBlockIds, blocks]);
+    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards]);
 
-    // Bounds - Auto fit
+    // Calculate count per block for header
+    const getBlockCount = (block) => {
+        return cards.filter(c => {
+            if (!block.listIds.includes(c.idList)) return false;
+            if (ignoreTemplateCards && c.isTemplate) return false;
+
+            if (block.ignoreFirstCard) {
+                const cardsInList = cards.filter(pc => pc.idList === c.idList);
+                const minPos = cardsInList.reduce((min, cur) => (cur.pos < min ? cur.pos : min), Infinity);
+                if (c.pos === minPos) return false;
+            }
+            return true;
+        }).length;
+    };
+
+
     const MapBounds = () => {
         const map = useMap();
         useEffect(() => {
             if (markers.length > 0) {
-
-                // We don't have direct access to L.Marker objects here easily to create a FeatureGroup 
-                // straightforwardly without refs. 
-                // Alternative: Calculate bounds from data
                 const validCards = cards.filter(c =>
-                    c.coordinates &&
-                    c.coordinates.lat &&
-                    c.coordinates.lng &&
-                    visibleBlockIds.has(blocks.find(b => b.listIds.includes(c.idList))?.id)
+                    c.coordinates && c.coordinates.lat && c.coordinates.lng &&
+                    markers.some(m => m.key === c.id) // Only bounds for visible markers
                 );
 
                 if (validCards.length > 0) {
@@ -258,7 +290,7 @@ const MapView = ({ user, onClose }) => {
                     map.fitBounds(bounds, { padding: [50, 50] });
                 }
             }
-        }, [markers.length]); // Only refit when count changes significantly
+        }, [markers.length]);
         return null;
     };
 
@@ -268,9 +300,9 @@ const MapView = ({ user, onClose }) => {
             <div className="map-header">
                 <div className="map-header-title-area">
                     <h1>{boardName} - Map View</h1>
-                    <div style={{ marginLeft: '20px', display: 'flex', gap: '10px' }}>
+                    <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         {blocks.map(b => (
-                            <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em' }}>
+                            <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em', cursor: 'pointer' }}>
                                 <input
                                     type="checkbox"
                                     checked={visibleBlockIds.has(b.id)}
@@ -281,21 +313,39 @@ const MapView = ({ user, onClose }) => {
                                         setVisibleBlockIds(next);
                                     }}
                                 />
-                                {b.name}
+                                {b.name} ({getBlockCount(b)})
                             </label>
                         ))}
                     </div>
                 </div>
                 <div className="map-header-actions">
                     <span className="map-card-count">{markers.length} mapped cards</span>
+                    <select
+                        value={baseMap}
+                        onChange={e => setBaseMap(e.target.value)}
+                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    >
+                        {Object.entries(TILE_LAYERS).map(([key, config]) => (
+                            <option key={key} value={key}>{config.name}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={theme}
+                        onChange={e => toggleTheme(e.target.value)}
+                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd', marginLeft: '5px' }}
+                    >
+                        <option value="system">System</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
                 </div>
             </div>
 
             <div id="map">
                 <MapContainer center={[51.505, -0.09]} zoom={2} style={{ height: "100%", width: "100%" }}>
                     <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution={TILE_LAYERS[baseMap].attribution}
+                        url={TILE_LAYERS[baseMap].url}
                     />
                     {markers}
                     <MapBounds />
@@ -304,10 +354,17 @@ const MapView = ({ user, onClose }) => {
 
             <div className="map-footer">
                 <div className="map-footer-left">
-                    Map tiles © OpenStreetMap
+                    Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
+                    Leaflet | Geocoding: Nominatim
                 </div>
                 <div className="map-footer-right">
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
+                    <button className="settings-button" onClick={() => {
+                        // We need to trigger the parent to show settings
+                        // Since our 'onClose' goes to dashboard, we might need a direct 'onShowSettings'
+                        if (onShowSettings) onShowSettings();
+                        else onClose(); // fallback
+                    }}>Settings</button>
                     <button className="logout-button" onClick={() => window.location.reload()}>Reload</button>
                 </div>
             </div>
