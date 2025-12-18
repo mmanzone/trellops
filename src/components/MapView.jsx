@@ -242,7 +242,7 @@ const MapView = ({ user, onClose }) => {
         const map = useMap();
         useEffect(() => {
             if (markers.length > 0) {
-                const group = new L.FeatureGroup(markers.map(m => m));
+
                 // We don't have direct access to L.Marker objects here easily to create a FeatureGroup 
                 // straightforwardly without refs. 
                 // Alternative: Calculate bounds from data
