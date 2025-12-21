@@ -270,7 +270,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
     const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
 
-    const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
+    const [showClock, setShowClock] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false');
+
+    useEffect(() => {
+        // Ensure clock setting is up to date when board changes or component mounts
+        setShowClock(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false');
+    }, [boardId]);
 
     const saveLocalGeocode = (cId, coords) => {
         try {
@@ -314,16 +319,27 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
             const processedCards = cardsData.map(c => {
                 let coords = null;
+                let source = 'none';
+
                 if (c.coordinates) {
                     if (typeof c.coordinates === 'string' && c.coordinates.includes(',')) {
                         const parts = c.coordinates.split(',');
-                        if (parts.length === 2) coords = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                        if (parts.length === 2) {
+                            coords = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+                            source = 'api';
+                        }
                     } else if (typeof c.coordinates === 'object') {
                         coords = c.coordinates;
+                        source = 'api';
                     }
                 }
-                if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
-                return { ...c, coordinates: coords };
+
+                if ((!coords || !coords.lat) && cache[c.id]) {
+                    coords = cache[c.id];
+                    source = 'cache';
+                }
+
+                return { ...c, coordinates: coords, source };
             });
 
             setCards(processedCards);
@@ -336,6 +352,42 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             if (!isRefresh) setStatus('');
         }
     }, [user, boardId]);
+
+    // --- SYNC LOOP FOR TRELLO COORDINATES ---
+    useEffect(() => {
+        if (!updateTrelloCoordinates || cards.length === 0) return;
+
+        // Find cards that have coordinates (from cache or geocoding) but NOT from API
+        // and haven't been marked as 'synced' yet (to avoid loops, though source check helps)
+        const toSync = cards.filter(c =>
+            c.coordinates &&
+            c.coordinates.lat &&
+            (c.source === 'cache' || c.source === 'new')
+        );
+
+        if (toSync.length === 0) return;
+
+        const syncCards = async () => {
+            for (const card of toSync) {
+                // Double check it hasn't been updated in the meantime (e.g. by another process)
+                // We optimistically mark it as 'api' locally after sync to stop retries
+                try {
+                    await updateTrelloCardCoordinates(card.id, card.coordinates);
+                    // Update local state to reflect it's now synced (prevents loop)
+                    setCards(prev => prev.map(p =>
+                        p.id === card.id ? { ...p, source: 'api' } : p
+                    ));
+                    // Small delay to be nice to API
+                    await new Promise(r => setTimeout(r, 500));
+                } catch (e) {
+                    console.warn(`Failed to sync card ${card.name}`, e);
+                }
+            }
+        };
+
+        syncCards();
+    }, [cards, updateTrelloCoordinates]);
+
 
     useEffect(() => {
         loadData(false);
@@ -433,7 +485,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     if (address) {
                         const coords = await geocodeAddress(address);
                         if (coords) {
-                            setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
+                            setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords, source: 'new' } : c));
                             saveLocalGeocode(cardId, coords);
                             if (updateTrelloCoordinates) {
                                 updateTrelloCardCoordinates(cardId, coords);
