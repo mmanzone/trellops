@@ -606,65 +606,94 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     console.log("[MapView] Render. Board:", boardName, "Show Clock:", showClock, "UpdateTrelloCoords:", updateTrelloCoordinates);
 
     return (
-        <div className="map-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%' }}>
+        <div className="map-container" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
+            width: '100%',
+            overflow: 'hidden' // Prevent full body scroll if map overflows
+        }}>
             <div className="map-header" style={{
                 display: 'flex',
+                flex: '0 0 auto', // Don't shrink
                 minHeight: '70px',
-                zIndex: 9999,
+                zIndex: 2000, // Higher than Leaflet (typ. 400-1000)
                 position: 'relative',
                 background: 'var(--bg-secondary, #fff)',
-                flexShrink: 0
+                boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                width: '100%'
             }}>
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
                     <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName} - Map View</h1>
-                    <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        {blocks.map(b => (
-                            <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em', cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={visibleBlockIds.has(b.id)}
-                                    onChange={e => handleBlockToggle(b.id, e.target.checked)}
-                                />
-                                {b.name} ({getBlockCount(b)})
-                            </label>
-                        ))}
-                    </div>
                 </div>
                 <div className="map-header-actions">
-                    <span className="map-card-count">{markers.length} mapped cards</span>
+                    <span className="map-card-count">{cards.length} Cards</span>
+                    <button className="settings-button secondary" onClick={() => loadData(true)} disabled={loading}>
+                        {loading ? 'Refreshing...' : 'Refresh Map'}
+                    </button>
                     <select
                         value={baseMap}
-                        onChange={e => setBaseMap(e.target.value)}
-                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        onChange={(e) => {
+                            setBaseMap(e.target.value);
+                            localStorage.setItem('MAP_TILE_LAYER', e.target.value);
+                        }}
+                        style={{ padding: '5px', borderRadius: '4px' }}
                     >
-                        {Object.entries(TILE_LAYERS).map(([key, config]) => (
-                            <option key={key} value={key}>{config.name}</option>
-                        ))}
+                        {Object.keys(TILE_LAYERS).map(key => <option key={key} value={key}>{TILE_LAYERS[key].name}</option>)}
                     </select>
-
-                    <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '5px' }}>
-                        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                    <button className="settings-button" onClick={onShowSettings}>
+                        Settings
+                    </button>
+                    <button className="logout-button" onClick={onClose} style={{ marginLeft: '10px' }}>
+                        Close Map
                     </button>
                 </div>
             </div>
 
-            <div id="map">
-                <MapContainer center={[51.505, -0.09]} zoom={2} style={{ height: "100%", width: "100%" }}>
+            <div id="map" style={{
+                flex: '1 1 auto',
+                position: 'relative',
+                zIndex: 1,
+                minHeight: 0 // Crucial for flex children
+            }}>
+                <MapContainer
+                    center={[20, 0]}
+                    zoom={2}
+                    style={{ height: '100%', width: '100%' }}
+                    maxBounds={[[-90, -180], [90, 180]]}
+                    maxBoundsViscosity={1.0}
+                >
                     <TileLayer
-                        attribution={TILE_LAYERS[baseMap].attribution}
                         url={TILE_LAYERS[baseMap].url}
+                        attribution={TILE_LAYERS[baseMap].attribution}
                     />
                     {markers}
                     <MapBounds />
                 </MapContainer>
+
+                {status && (
+                    <div className={`status-message ${status ? '' : 'hidden'}`}>
+                        {loading && <div className="spinner"></div>}
+                        <div className="status-content">
+                            {status}
+                            {geocodingQueue.length > 0 && (
+                                <div className="status-progress">
+                                    <div
+                                        className="bar"
+                                        style={{ width: `${Math.min(100, Math.round(((cards.length - geocodingQueue.length) / cards.length) * 100))}%` }}
+                                    ></div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
-            <div className="map-footer">
+            <div className="map-footer" style={{ zIndex: 2001 }}>
                 <div className="map-footer-left">
                     <span style={{ fontSize: '0.85em', marginRight: '15px', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
                         Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
-                        <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a> |
                         Geocoding: <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
                     </span>
                 </div>
@@ -674,34 +703,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                             Next refresh in {countdown}s
                         </span>
                     )}
-                    <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
-                    <button className="refresh-button" onClick={() => loadData(true)}>Refresh Map</button>
-                    <button className="settings-button" onClick={() => {
-                        if (onShowSettings) onShowSettings();
-                        else onClose();
-                    }}>Settings</button>
-                    <button className="logout-button" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
-
-            {status && (
-                <div className="status-message">
-                    <div className="spinner"></div>
-                    <span>{status}</span>
-                </div>
-            )}
-
-            {errorState && (
-                <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', maxWidth: '400px', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
-                    <span style={{ color: '#333', fontSize: '0.9em' }}>{errorState.message}</span>
-                    {errorState.cardUrl && (
-                        <a href={errorState.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', marginTop: '4px', textDecoration: 'underline' }}>
-                            View Card
-                        </a>
-                    )}
-                </div>
-            )}
         </div>
     );
 };

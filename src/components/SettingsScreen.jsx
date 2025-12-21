@@ -471,7 +471,10 @@ const SettingsScreen = ({ user, onSave, onBack, onLogout }) => {
         const finalSettings = {
             boardId: selectedBoardId,
             boardName: selectedBoard.name,
-            selectedLists: Array.from(selectedListsMap.values())
+            selectedLists: Array.from(selectedListsMap.values()),
+            // Pass these expressly so App state is updated immediately without separate localStorage read
+            mapGeocodeMode: mapGeocodeMode || 'store',
+            enableMapView: enableMapView
         };
 
         // Persist per-board Map View settings
