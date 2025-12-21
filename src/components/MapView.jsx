@@ -286,6 +286,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         try {
             await trelloFetch(`/cards/${cardId}`, user.token, {
                 method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` })
             });
         } catch (e) { console.warn("Failed to write back coords", e); }

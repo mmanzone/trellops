@@ -24,12 +24,12 @@ export const trelloAuth = {
     }
 };
 
-export const trelloFetch = async (path, token) => {
+export const trelloFetch = async (path, token, options = {}) => {
     if (!token) {
         throw new Error("Trello authentication token not provided.");
     }
     const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${TRELLO_API_KEY}&token=${token}`;
-    const response = await fetch(url);
+    const response = await fetch(url, options);
     if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = errorText;
