@@ -34,7 +34,9 @@ export const trelloFetch = async (path, token, options = {}) => {
 
     const response = await fetch(url, options);
 
-    if (!response.ok) {
+    if (response.ok) {
+        console.log(`[TrelloAPI] Response OK ${response.status} for ${path}`);
+    } else {
         const errorText = await response.text();
         console.error(`[TrelloAPI] Error ${response.status}:`, errorText);
         let errorMessage = errorText;

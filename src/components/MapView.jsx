@@ -603,11 +603,18 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         return null;
     };
 
-    console.log("[MapView] Render. Board:", boardName, "Show Clock:", showClock);
+    console.log("[MapView] Render. Board:", boardName, "Show Clock:", showClock, "UpdateTrelloCoords:", updateTrelloCoordinates);
 
     return (
-        <div className="map-container">
-            <div className="map-header">
+        <div className="map-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%' }}>
+            <div className="map-header" style={{
+                display: 'flex',
+                minHeight: '70px',
+                zIndex: 9999,
+                position: 'relative',
+                background: 'var(--bg-secondary, #fff)',
+                flexShrink: 0
+            }}>
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
                     <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName} - Map View</h1>
