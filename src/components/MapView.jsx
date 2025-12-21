@@ -603,6 +603,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         return null;
     };
 
+    console.log("[MapView] Render. Board:", boardName, "Show Clock:", showClock);
+
     return (
         <div className="map-container">
             <div className="map-header">
