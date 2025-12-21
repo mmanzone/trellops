@@ -63,8 +63,10 @@ const getMarkerConfig = (card) => {
 };
 
 // --- GEOCODING UTILS ---
+// --- GEOCODING UTILS ---
 async function geocodeAddress(address) {
     try {
+        // 1. Direct Coordinate Match
         const coordMatch = address.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
         if (coordMatch) {
             return {
@@ -73,6 +75,53 @@ async function geocodeAddress(address) {
             };
         }
 
+        // 2. Handle URL-like addresses (short links or full URLs passed as address)
+        if (address.match(/^https?:\/\//i)) {
+            let finalUrl = address;
+
+            // Attempt to resolve short links if possible (client-side restriction applies)
+            // Note: This often fails due to CORS if the shortener redirects to a different origin.
+            // We'll try a HEAD request or just fetch. If it fails, we parse what we have.
+            if (address.includes('goo.gl') || address.includes('bit.ly') || address.includes('t.co')) {
+                try {
+                    const resp = await fetch(address, { method: 'HEAD', mode: 'no-cors' }); // no-cors limits access to headers/url, but sometimes browser follows
+                    // Actually, with no-cors we can't see the final URL.
+                    // Realistically, without a backend proxy, we can't reliably resolve short links that do 301.
+                    // However, sometimes the "address" passed in IS the resolution if `parseAddressFromDescription` did its job poorly.
+                    // But `parseAddressFromDescription` (below) returns the URL if it can't parse it.
+                } catch (e) {
+                    // Ignore
+                }
+            }
+
+            // Retry parsing the URL (in case it wasn't parsed fully before or we can extract more)
+            // If it's still just a generic URL without coords, we can't match it.
+            // But if it's a "search" URL, we can extract the query.
+            try {
+                const urlObj = new URL(finalUrl);
+                const lat = urlObj.searchParams.get('lat');
+                const lng = urlObj.searchParams.get('lng');
+                if (lat && lng) return { lat: parseFloat(lat), lng: parseFloat(lng) };
+
+                // q param
+                const q = urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
+                if (q) {
+                    // If q contains coords
+                    const qCoords = q.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+                    if (qCoords) return { lat: parseFloat(qCoords[1]), lng: parseFloat(qCoords[2]) };
+
+                    // Otherwise treat q as the address to search via Nominatim
+                    // Recursive call with the extracted query string
+                    return geocodeAddress(q);
+                }
+            } catch (e) { /* invalid url */ }
+
+            // If we still have a URL and no coords, we CANNOT send the URL to Nominatim. It will fail.
+            // So we return null here to avoid the specific error the user saw ("Nominatim returned no valid results").
+            return null;
+        }
+
+        // 3. Nominatim Fallback
         const encoded = encodeURIComponent(address);
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1`;
         const resp = await fetch(url, { headers: { 'User-Agent': 'TrellopsDashboard/1.0' } });
@@ -83,7 +132,8 @@ async function geocodeAddress(address) {
             }
         }
     } catch (e) {
-        throw new Error("Nominatim Error");
+        console.warn("Geocoding/Nominatim error:", e);
+        // Don't throw, just return null so we handle it gracefully
     }
     return null;
 }
@@ -91,29 +141,64 @@ async function geocodeAddress(address) {
 const parseAddressFromDescription = (desc) => {
     if (!desc || !desc.trim()) return null;
 
-    const mapsPlaceMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\/\s]+\/maps\/place\/([^\s)]+)/i);
-    if (mapsPlaceMatch) {
-        const placePart = mapsPlaceMatch[1];
-        const mapsUrlFullMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\s]+/i);
-        const mapsUrlFull = mapsUrlFullMatch ? mapsUrlFullMatch[0] : null;
-        if (mapsUrlFull) {
-            const coordMatch = mapsUrlFull.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-            if (coordMatch) {
-                return `${coordMatch[1]},${coordMatch[2]}`;
-            }
-        }
+    // 1. Check for explicit Google Maps URL formats
+
+    // a) @lat,lon
+    const atStatsMatch = desc.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (atStatsMatch) return `${atStatsMatch[1]},${atStatsMatch[2]}`;
+
+    // b) search?q=lat,lon or ?q=Address
+    // We look for the URL first
+    const urlMatch = desc.match(/https?:\/\/[^\s]+/i);
+    if (urlMatch) {
+        const urlStr = urlMatch[0];
         try {
-            return decodeURIComponent(placePart.replace(/\+/g, ' '));
+            const urlObj = new URL(urlStr);
+
+            // ?q=... or ?query=...
+            const q = urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
+            if (q) {
+                // Check if q is coordinates
+                const qCoord = q.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+                if (qCoord) return `${qCoord[1]},${qCoord[2]}`;
+                // Return the query itself (e.g. "Toorak VIC")
+                return decodeURIComponent(q.replace(/\+/g, ' '));
+            }
+
+            // /maps/place/Address/@...
+            if (urlStr.includes('/maps/place/')) {
+                const parts = urlObj.pathname.split('/maps/place/');
+                if (parts[1]) {
+                    const addressPart = parts[1].split('/')[0];
+                    return decodeURIComponent(addressPart.replace(/\+/g, ' '));
+                }
+            }
+
+            // Shortened links: maps.app.goo.gl or goo.gl
+            if (urlStr.includes('goo.gl') || urlStr.includes('maps.app.goo.gl')) {
+                // Return the URL itself. `geocodeAddress` will attempt to handle it 
+                // (though primarily by returning null if it can't resolve, preventing the "valid results" error 
+                // effectively by not sending garbage to Nominatim).
+                return urlStr;
+            }
+
         } catch (e) {
-            return placePart.replace(/\+/g, ' ');
+            // URL parsing failed, fall back to regex
         }
     }
 
+    // 2. Explicit Coords in text
     const coordMatch = desc.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
     if (coordMatch) {
-        return `${coordMatch[1]},${coordMatch[2]}`;
+        // Enforce reasonable lat/lng ranges to avoid version numbers (e.g. 1.0.2)
+        const lat = parseFloat(coordMatch[1]);
+        const lng = parseFloat(coordMatch[2]);
+        if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+            return `${lat},${lng}`;
+        }
     }
 
+    // 3. Address Heuristics
     const addressPatterns = [
         /^\d+\s+[A-Za-z\s]+(?:St|Street|Ave|Avenue|Rd|Road|Ln|Lane|Dr|Drive|Way|Court|Ct|Place|Pl|Parkway|Crescent|Cres|Boulevard|Blvd)[^\n]*/i,
         /(?:CNR|Corner)\s+[A-Za-z\s]+[&\/]\s+[A-Za-z\s]+[^\n]*/i,
@@ -128,9 +213,11 @@ const parseAddressFromDescription = (desc) => {
         }
     }
 
+    // 4. Fallback: First line if it looks like an address
     const lines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length > 0 && lines[0].length > 5) {
-        if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0])) {
+        // Exclude things that look like IDs
+        if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0]) && !lines[0].startsWith('http')) {
             return lines[0];
         }
     }
