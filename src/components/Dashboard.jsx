@@ -280,7 +280,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
         fetchListCounts();
 
         return () => clearInterval(interval);
-    }, [fetchListCounts, refreshIntervalMs, settings, refreshSetting]);
+    }, [fetchListCounts, effectiveSeconds]);
 
 
     const handleTileClick = (listId, listName, color) => {
