@@ -274,6 +274,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     }, [user, boardId]);
 
     useEffect(() => {
+        window.scrollTo(0, 0); // Ensure page starts at top
         loadData(false);
     }, [loadData]);
 
