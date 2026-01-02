@@ -476,7 +476,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         <Popup>
                             <div className="popup-card">
                                 <a href={c.shortUrl} target="_blank" rel="noreferrer"><strong>{c.name}</strong></a>
-                                {listName && <div style={{ fontWeight: 'bold', fontSize: '0.85em', color: '#666', marginBottom: '4px' }}>{listName}</div>}
+                                {(listName || block?.name) && (
+                                    <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#444', marginBottom: '6px' }}>
+                                        {block ? block.name : ''}{block && listName ? ' - ' : ''}{listName}
+                                    </div>
+                                )}
                                 {c.labels && c.labels.length > 0 && (
                                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '4px 0' }}>
                                         {c.labels.map((l, i) => (
@@ -553,10 +557,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                                     checked={visibleBlockIds.has(b.id)}
                                     onChange={e => handleBlockToggle(b.id, e.target.checked)}
                                 />
-                                {/* Render Icon - Correctly */}
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#555', marginTop: '-1px' }}>
-                                    <path d={ICONS[b.mapIcon ? b.mapIcon.toLowerCase() : 'map-marker'] || ICONS['map-marker']} />
-                                </svg>
+                                {/* Render Icon - Correctly using dangerouslySetInnerHTML because ICONS contains raw HTML strings */}
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    style={{ color: '#555', marginTop: '-1px' }}
+                                    dangerouslySetInnerHTML={{ __html: ICONS[b.mapIcon ? b.mapIcon.toLowerCase() : 'map-marker'] || ICONS['map-marker'] }}
+                                />
                                 {b.name} ({getBlockCount(b)})
                             </label>
                         ))}
