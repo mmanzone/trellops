@@ -6,8 +6,9 @@ import IconPicker from './common/IconPicker';
 import ColorPicker from './common/ColorPicker';
 import '/src/styles/settings.css';
 
-const SettingsScreen = ({ user, onClose, onSave, boards }) => {
+const SettingsScreen = ({ user, onClose, onSave }) => {
     // --- State ---
+    const [boards, setBoards] = useState([]); // Fetch internally
     const [selectedBoardId, setSelectedBoardId] = useState('');
     const [lists, setLists] = useState([]);
     const [loadingLists, setLoadingLists] = useState(false);
@@ -29,11 +30,22 @@ const SettingsScreen = ({ user, onClose, onSave, boards }) => {
         const loadInitialSettings = async () => {
             if (!user) return;
             try {
+                // 1. Fetch Boards
+                try {
+                    const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url', user.token);
+                    setBoards(boardsData);
+                } catch (e) {
+                    console.warn("Failed to fetch boards", e);
+                    setError("Failed to load boards.");
+                    return;
+                }
+
                 const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
                 const userSettings = storedData[user.id]?.settings;
 
                 if (userSettings?.boardId) {
                     setSelectedBoardId(userSettings.boardId);
+
                     // Load Blocks/Layout
                     const layoutKey = `TRELLO_DASHBOARD_LAYOUT_${userSettings.boardId}`;
                     const savedLayout = localStorage.getItem(layoutKey);
