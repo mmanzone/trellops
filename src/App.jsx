@@ -185,7 +185,7 @@ const App = () => {
             <SettingsScreen
                 user={user}
                 onSave={handleSaveSettings}
-                onBack={() => {
+                onClose={() => {
                     if (previousView === 'map') {
                         setView('map');
                         window.history.pushState({}, '', '/map');

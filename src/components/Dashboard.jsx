@@ -85,26 +85,43 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
     };
 
     // NEW: Get refresh interval setting
-    const defaultRefreshSetting = { value: 1, unit: 'minutes' };
-    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
-    const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
-    const refreshIntervalMs = convertIntervalToMilliseconds(refreshSetting.value, refreshSetting.unit);
-    const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+    // NEW: Get refresh interval setting
+    const effectiveSeconds = React.useMemo(() => {
+        try {
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
+            const defaultRefreshSetting = { value: 1, unit: 'minutes' };
+            const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+            const calculatedSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+            return calculatedSeconds < 15 ? 15 : calculatedSeconds;
+        } catch (e) {
+            return 60; // default to 60s on error
+        }
+    }, [boardId]);
 
+    const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+    const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+
+
+    const isFetchingRef = useRef(false);
 
     const fetchListCounts = useCallback(async (manual = false) => {
         if (manual || loading) {
             setLoading(true);
         }
+
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
+
         setError('');
 
         const persistentColorsCopy = getPersistentColors(user.id);
         const currentLayout = getPersistentLayout(user.id, boardId);
         const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
-        const dateFilterParam = calculateDateFilter(timeFilter);
+        // We do filtering locally now, so we don't need dateFilterParam for the API call
+        // const dateFilterParam = calculateDateFilter(timeFilter); 
         const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
         const ignoreTemplateCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
-
+        const ignoreCompletedCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
 
         if (uniqueListIds.size === 0) {
             setCounts(new Map());
@@ -113,39 +130,65 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
         }
 
         try {
-            // --- New Logic: Identify and fetch first card for lists where it might be ignored/used as description ---
-            const ignorableFirstCardLists = new Set();
-            currentLayout.forEach(block => {
-                if (block.ignoreFirstCard) {
-                    block.listIds.forEach(listId => ignorableFirstCardLists.add(listId));
-                }
-            });
-
-            const firstCardPromises = Array.from(ignorableFirstCardLists).map(listId =>
-                trelloFetch(`/lists/${listId}/cards?limit=1&fields=name,id,isTemplate`, user.token)
-                    .then(cards => ({ listId, firstCard: cards.length > 0 ? cards[0] : null }))
-                    .catch(e => {
-                        console.error(`Error fetching first card for list ${listId}:`, e);
-                        return { listId, firstCard: null };
-                    })
-            );
-
-            const firstCardResults = await Promise.all(firstCardPromises);
-            const firstCardMap = new Map(firstCardResults.map(r => [r.listId, r.firstCard]));
-
-            // Fetch all cards for counting, respecting the time filter. Only ID and list association are needed.
-            const allCardsForCount = await trelloFetch(
-                `/boards/${boardId}/cards?fields=id,idList,isTemplate${dateFilterParam}`,
+            // OPTIMIZATION: Fetch ALL cards for the board in ONE request.
+            // This avoids N requests (one per list) which causes API throttling (Error 429).
+            // We fetch 'name' and 'pos' to determine the "first card" locally.
+            // We fetch 'dateLastActivity' to filter by time locally.
+            const allCards = await trelloFetch(
+                `/boards/${boardId}/cards?fields=id,idList,pos,name,isTemplate,dateLastActivity,dueComplete`,
                 user.token
             );
 
-            const cardsForProcessing = ignoreTemplateCardsSetting
-                ? allCardsForCount.filter(c => !c.isTemplate)
-                : allCardsForCount;
+            // 1. Process "First Card" for descriptions (Find min pos per list)
+            const firstCardMap = new Map();
+            allCards.forEach(c => {
+                // Optimization: Only track if list is relevant? 
+                // Actually, it's cheap to track for all lists or just filter.
+                // Let's just track for all lists to be safe and simple.
+                const currentFirst = firstCardMap.get(c.idList);
+                if (!currentFirst || c.pos < currentFirst.pos) {
+                    firstCardMap.set(c.idList, c);
+                }
+            });
+
+            // 2. Filter cards for "Counts" based on Time Filter & Templates
+            const filterConfig = TIME_FILTERS[timeFilter];
+            let sinceDate = null;
+            let beforeDate = null;
+
+            if (filterConfig) {
+                if (filterConfig.type === 'relative' && timeFilter !== 'all') {
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() - filterConfig.minutes);
+                    sinceDate = now;
+                } else if (filterConfig.type === 'calendar') {
+                    if (filterConfig.start) sinceDate = filterConfig.start;
+                    if (filterConfig.end && timeFilter !== 'this_month' && timeFilter !== 'this_week') {
+                        beforeDate = filterConfig.end; // 'before' is exclusive usually
+                    }
+                }
+            }
+
+            const cardsForProcessing = allCards.filter(c => {
+                // Template Filter
+                if (ignoreTemplateCardsSetting && c.isTemplate) return false;
+
+                // Completed Filter (NEW)
+                if (ignoreCompletedCardsSetting && c.dueComplete) return false;
+
+                // Time Filter
+                if (sinceDate || beforeDate) {
+                    const cardDate = new Date(c.dateLastActivity); // dateLastActivity is ISO string
+                    if (sinceDate && cardDate < sinceDate) return false;
+                    if (beforeDate && cardDate >= beforeDate) return false;
+                }
+
+                return true;
+            });
 
             const listResults = {};
 
-            // 2. Process card counts from the time-filtered results
+            // 3. Count cards per list
             cardsForProcessing.forEach(card => {
                 if (!uniqueListIds.has(card.idList)) return;
 
@@ -155,7 +198,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
                 listResults[card.idList].count++;
             });
 
-            // 3. Final calculation and mapping
+            // 4. Final calculation and mapping
             const countsMap = new Map();
 
             Array.from(uniqueListIds).forEach(listId => {
@@ -208,8 +251,19 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
 
         } catch (e) {
             console.error("Dashboard fetch error:", e);
-            setError(e.message);
+
+            // Handle Rate Limiting
+            if (e.message && e.message.includes('429')) {
+                setError("Trello API Limit Exceeded. Refresh paused. Please wait a moment or increase refresh interval.");
+                // We should probably stop the auto-refresh here or relying on the error state to show UI is enough.
+                // The useEffect interval depends on 'loading' state? No.
+                // It continues running.
+                // We should add a 'paused' state logic if error is 429.
+            } else {
+                setError(e.message);
+            }
         } finally {
+            isFetchingRef.current = false;
             setLoading(false);
         }
     }, [user.token, listsFromSettings.length, boardId, sectionsLayout.length, timeFilter]);
@@ -224,7 +278,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
             setCountdown(prev => {
                 if (prev <= 1) {
                     fetchListCounts();
-                    return convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+                    return effectiveSeconds;
                 }
                 return prev - 1;
             });
@@ -233,11 +287,11 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
         timerRef.current = interval;
 
         // Set initial countdown value and fetch
-        setCountdown(convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit));
+        setCountdown(effectiveSeconds);
         fetchListCounts();
 
         return () => clearInterval(interval);
-    }, [fetchListCounts, refreshIntervalMs]);
+    }, [fetchListCounts, effectiveSeconds]);
 
 
     const handleTileClick = (listId, listName, color) => {
@@ -402,7 +456,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
 
             {/* NEW: Fixed Footer Action Bar */}
             <div className="footer-action-bar">
-                <span className="version">v.3</span>
+
                 <span className="countdown">Next refresh in {countdown}s</span>
                 <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
                 {enableMapView && (

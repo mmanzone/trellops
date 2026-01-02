@@ -44,6 +44,12 @@ export const setPersistentColor = (userId, boardId, listId, color) => {
     setUserData(userId, 'listColors', colors);
 };
 
+export const setPersistentColors = (userId, boardId, colorsMap) => {
+    const allColors = getPersistentColors(userId);
+    allColors[boardId] = colorsMap;
+    setUserData(userId, 'listColors', allColors);
+};
+
 export const getPersistentSelections = (userId, boardId) => {
     try {
         const allSelections = getUserData(userId, 'listSelections') || {};

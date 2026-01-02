@@ -9,34 +9,43 @@ import { useDarkMode } from '/src/context/DarkModeContext';
 import { STORAGE_KEYS } from '/src/utils/constants';
 import { convertIntervalToSeconds, getLabelTextColor } from '/src/utils/helpers';
 import DigitalClock from './common/DigitalClock';
+import { ICONS } from './common/IconPicker'; // Import the SVG paths
+import { marked } from 'marked';
 
 // --- ICONS LOGIC ---
 const getMarkerIcon = (markerConfig) => {
     const colorMap = {
         'blue': '#3388ff', 'red': '#ff6b6b', 'green': '#51cf66',
-        'orange': '#ffa94d', 'yellow': '#ffd43b'
+        'orange': '#ffa94d', 'yellow': '#ffd43b', 'grey': '#868e96', 'black': '#343a40'
     };
-    const markerColor = colorMap[markerConfig.color] || '#3388ff';
-    const icon = (markerConfig.icon || '').toLowerCase();
+    const markerColor = colorMap[markerConfig.color] || colorMap['blue'];
+    const iconName = (markerConfig.icon || 'map-marker').toLowerCase();
 
-    let iconSvg = '';
+    // Retrieve SVG path from ICONS constant, fallback to map-marker if not found
+    const svgPath = ICONS[iconName] || ICONS['map-marker'];
 
-    if (['truck', 'delivery', 'car', 'en route'].some(k => icon.includes(k))) {
-        iconSvg = `<svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/><circle cx="14" cy="11" r="6" fill="none" stroke="#222" stroke-width="3.2" /><circle cx="14" cy="11" r="6" fill="none" stroke="#fff" stroke-width="2.4" /><circle cx="14" cy="11" r="2.2" fill="#222" /><circle cx="14" cy="11" r="1.8" fill="#fff" /><line x1="14" y1="5.5" x2="14" y2="7" stroke="#222" stroke-width="2.8" stroke-linecap="round" /><line x1="14" y1="5.5" x2="14" y2="7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /><line x1="14" y1="15" x2="14" y2="16.5" stroke="#222" stroke-width="2.8" stroke-linecap="round" /><line x1="14" y1="15" x2="14" y2="16.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /><line x1="8.5" y1="11" x2="10" y2="11" stroke="#222" stroke-width="2.8" stroke-linecap="round" /><line x1="8.5" y1="11" x2="10" y2="11" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /><line x1="18" y1="11" x2="19.5" y2="11" stroke="#222" stroke-width="2.8" stroke-linecap="round" /><line x1="18" y1="11" x2="19.5" y2="11" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /></svg>`;
-    } else if (['wrench', 'tool', 'onsite', 'on site'].some(k => icon.includes(k))) {
-        iconSvg = `<svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/><polygon points="14,4 9,14 19,14" fill="#fff" stroke="#222" stroke-width="1.2" /><line x1="11.5" y1="7.5" x2="16.5" y2="7.5" stroke="#222" stroke-width="1.2" stroke-linecap="round" /><line x1="10" y1="10.5" x2="18" y2="10.5" stroke="#222" stroke-width="1.2" stroke-linecap="round" /><ellipse cx="14" cy="14.5" rx="5" ry="1.5" fill="#222" opacity="0.4" /></svg>`;
-    } else if (icon.includes('check')) {
-        iconSvg = `<svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/><polyline points="8,10 12,14 18,7" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
-    } else if (icon.includes('exclamation')) {
-        iconSvg = `<svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/><circle cx="14" cy="14" r="0.8" fill="#fff" /><line x1="14" y1="8" x2="14" y2="12" stroke="#fff" stroke-width="1.5" stroke-linecap="round" /></svg>`;
-    } else {
-        iconSvg = `<svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/><circle cx="14" cy="10" r="2" fill="#fff" /></svg>`;
-    }
+    // Construct the SVG string
+    // We colored the path with white/black before, but user wants colored markers.
+    // Let's keep the marker shape colored and the icon inside white?
+    // OR: The user is selecting "Marker Colour".
+    // Strategy: Use a standard pin shape in the selected color, and overlay the selected icon in White.
 
-    const html = `<div style="width:28px;height:42px;position:relative;display:flex;align-items:flex-start;justify-content:center;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.35));">${iconSvg}</div>`;
+    // Pin Shape SVG (Standard Leaflet-ish shape)
+    const pinPath = `<path d="M14 0C8 0 3 5 3 11c0 8 11 21 11 21s11-13 11-21C25 5 20 0 14 0z" fill="${markerColor}"/>`;
+
+    // Inner Icon: Scale and position it inside the pin
+    // The pin is ~28x42. The head is circle r=11 at (14,11).
+    // Our icons are 24x24 viewBox. We need to scale them to fit in approx 14x14 box centered at (14,11).
+    // Center: 14,11. Size 14. Top-Left: 7, 4.
+    const innerIconGroup = `<g transform="translate(7, 4) scale(0.58)" fill="#fff">${svgPath}</g>`;
+
+    const html = `<svg width="28" height="42" viewBox="0 0 28 42" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 3px 4px rgba(0,0,0,0.4));">
+        ${pinPath}
+        ${innerIconGroup}
+    </svg>`;
 
     return L.divIcon({
-        html: html,
+        html: `<div style="width:28px;height:42px;display:block;">${html}</div>`,
         iconSize: [28, 42],
         iconAnchor: [14, 42],
         popupAnchor: [0, -42],
@@ -44,20 +53,34 @@ const getMarkerIcon = (markerConfig) => {
     });
 };
 
-const getMarkerConfig = (card) => {
-    const labels = (card.labels || []).map(l => (l.name || l.color || '').toLowerCase());
+const getMarkerConfig = (card, block, markerRules) => {
+    // 1. Initial Defaults
+    // Block Icon takes precedence over generic default
+    let icon = block.mapIcon || 'map-marker';
+    let color = 'blue'; // Default color
 
-    let icon = 'map-marker';
-    if (labels.some(l => ['en route', 'enroute', 'en-route'].includes(l))) icon = 'truck';
-    else if (labels.some(l => ['on scene', 'on site', 'onscene', 'onsite'].includes(l))) icon = 'wrench';
-    else if (labels.some(l => l.includes('completed'))) icon = 'check-circle';
-    else if (labels.some(l => l.includes('priority'))) icon = 'exclamation-circle';
+    // 2. Apply Rules (Top to Bottom priority - First Match Wins per property?)
+    // User Requirement: "if there is a conflict... only the highest setting in the list should be applied."
+    // Implementation: Iterate rules. Once we find a rule that sets 'icon', we lock 'icon'. Same for 'color'.
 
-    let color = 'blue';
-    if (labels.some(l => l.includes('priority'))) color = 'red';
-    else if (labels.some(l => l.includes('important'))) color = 'orange';
-    else if (labels.some(l => l.includes('routine'))) color = 'yellow';
-    else if (labels.some(l => l.includes('completed'))) color = 'green';
+    let iconSet = false;
+    let colorSet = false;
+
+    if (markerRules && markerRules.length > 0) {
+        for (const rule of markerRules) {
+            if (iconSet && colorSet) break; // All done
+
+            if (card.labels && card.labels.some(l => l.id === rule.labelId)) {
+                if (rule.overrideType === 'icon' && !iconSet) {
+                    icon = rule.overrideValue;
+                    iconSet = true;
+                } else if (rule.overrideType === 'color' && !colorSet) {
+                    color = rule.overrideValue;
+                    colorSet = true;
+                }
+            }
+        }
+    }
 
     return { icon, color };
 };
@@ -149,6 +172,7 @@ const TILE_LAYERS = {
 
 const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [cards, setCards] = useState([]);
+    const [lists, setLists] = useState([]); // NEW: Store lists
     const [status, setStatus] = useState('');
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
@@ -156,6 +180,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [visibleBlockIds, setVisibleBlockIds] = useState(new Set());
     const [baseMap, setBaseMap] = useState('topo');
     const [errorState, setErrorState] = useState(null);
+    const [markerRules, setMarkerRules] = useState([]);
 
     const [countdown, setCountdown] = useState(null);
 
@@ -173,8 +198,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     };
     const storedSettings = getStoredSettings();
     const boardId = settings?.boardId || storedSettings.boardId;
-    // Ensure boardName is never undefined. Fallback to 'Trello Board' if strictly missing.
-    // If settings.boardName is "" (empty string), we might want to still show it or fallback.
     const boardName = (settings && settings.boardName)
         ? settings.boardName
         : (storedSettings.boardName || 'Trello Board');
@@ -222,14 +245,28 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         } catch (e) { console.warn("Failed to write back coords", e); }
     };
 
+    const isFetchingRef = useRef(false);
+
     const loadData = useCallback(async (isRefresh = false) => {
         if (!user || !boardId) return;
+        if (isFetchingRef.current) return; // Prevent overlapping fetches
+
+        isFetchingRef.current = true;
         if (!isRefresh) setLoading(true);
         if (!isRefresh) setStatus('Loading cards...');
 
         try {
             const currentLayout = getPersistentLayout(user.id, boardId);
             setBlocks(currentLayout);
+
+            // Load Marker Rules
+            const rulesKey = `TRELLO_MARKER_RULES_${boardId}`;
+            const savedRules = localStorage.getItem(rulesKey);
+            if (savedRules) {
+                setMarkerRules(JSON.parse(savedRules));
+            } else {
+                setMarkerRules([]);
+            }
 
             if (!isRefresh) {
                 const initialVisible = new Set(
@@ -240,11 +277,29 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 setVisibleBlockIds(initialVisible);
             }
 
-            const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates`, user.token);
+            // FETCH LISTS
+            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
+            setLists(listsData);
+
+            const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete`, user.token);
             const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
             const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
-            const processedCards = cardsData.map(c => {
+            const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+            const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+
+            const processedCards = [];
+
+            for (const c of cardsData) {
+                // 1. FILTERING
+                if (ignoreTemplateCards && c.isTemplate) continue;
+                if (ignoreCompletedCards && c.dueComplete) continue;
+
+                // Note: We don't filter by block existence here yet, because some users might 
+                // want to see all geocoded cards even if not in a "Block" (legacy behavior).
+                // However, the previous logic did not filter by block either at this stage, 
+                // it just processed coordinates. Block filtering happens in renderMarkers.
+
                 let coords = null;
                 if (c.coordinates) {
                     if (typeof c.coordinates === 'string' && c.coordinates.includes(',')) {
@@ -259,8 +314,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     }
                 }
                 if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
-                return { ...c, coordinates: coords };
-            });
+                processedCards.push({ ...c, coordinates: coords });
+            }
 
             setCards(processedCards);
 
@@ -268,6 +323,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             console.error(e);
             setStatus(`Error: ${e.message}`);
         } finally {
+            isFetchingRef.current = false;
             if (!isRefresh) setLoading(false);
             if (!isRefresh) setStatus('');
         }
@@ -426,38 +482,56 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 }
                 return true;
             })
-            .map(c => (
-                <Marker
-                    key={c.id}
-                    position={[c.coordinates.lat, c.coordinates.lng]}
-                    icon={getMarkerIcon(getMarkerConfig(c))}
-                >
-                    <Popup>
-                        <div className="popup-card">
-                            <a href={c.shortUrl} target="_blank" rel="noreferrer"><strong>{c.name}</strong></a>
-                            {c.labels && c.labels.length > 0 && (
-                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '4px 0' }}>
-                                    {c.labels.map((l, i) => (
-                                        <span key={i} style={{
-                                            backgroundColor: l.color ? (l.color === 'sky' ? '#00c2e0' : l.color) : '#ccc',
-                                            color: getLabelTextColor(l.color || 'light'),
-                                            border: '1px solid black',
-                                            padding: '2px 6px',
-                                            borderRadius: '3px',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 'bold'
-                                        }}>
-                                            {l.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                            <div className="popup-desc" style={{ whiteSpace: 'pre-wrap' }}>{c.desc}</div>
-                        </div>
-                    </Popup>
-                </Marker>
-            ));
-    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards]);
+            .map(c => {
+                const block = blocks.find(b => b.listIds.includes(c.idList));
+                const config = getMarkerConfig(c, block, markerRules);
+                const listName = lists.find(l => l.id === c.idList)?.name || '';
+
+                return (
+                    <Marker
+                        key={c.id}
+                        position={[c.coordinates.lat, c.coordinates.lng]}
+                        icon={getMarkerIcon(config)}
+                    >
+                        <Popup>
+                            <div className="popup-card">
+                                <a href={c.shortUrl} target="_blank" rel="noreferrer"><strong>{c.name}</strong></a>
+                                {(listName || block?.name) && (
+                                    <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#444', marginBottom: '6px' }}>
+                                        {block ? block.name : ''}{block && listName ? ' - ' : ''}{listName}
+                                    </div>
+                                )}
+                                {c.labels && c.labels.length > 0 && (
+                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '4px 0' }}>
+                                        {c.labels.map((l, i) => (
+                                            <span key={i} style={{
+                                                backgroundColor: l.color ? (l.color === 'sky' ? '#00c2e0' : l.color) : '#ccc',
+                                                color: getLabelTextColor(l.color || 'light'),
+                                                border: '1px solid black',
+                                                padding: '2px 6px',
+                                                borderRadius: '3px',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 'bold'
+                                            }}>
+                                                {l.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="popup-desc" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }} dangerouslySetInnerHTML={{ __html: marked.parse(c.desc || '') }}></div>
+                                {c.coordinates && (
+                                    <div style={{ marginTop: '8px', fontSize: '0.8em' }}>
+                                        <a href={`https://www.google.com/maps?q=${c.coordinates.lat},${c.coordinates.lng}`} target="_blank" rel="noreferrer" style={{ color: '#0079bf' }}>
+                                            {c.coordinates.lat.toFixed(5)}, {c.coordinates.lng.toFixed(5)}
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </Popup>
+                    </Marker>
+                );
+            });
+    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, markerRules, lists]);
 
     const getBlockCount = (block) => {
         return cards.filter(c => {
@@ -494,7 +568,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             <div className="map-header">
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName} - Map View</h1>
+                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName}</h1>
                     <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         {blocks.filter(b => b.includeOnMap !== false).map(b => (
                             <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em', cursor: 'pointer' }}>
@@ -502,6 +576,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                                     type="checkbox"
                                     checked={visibleBlockIds.has(b.id)}
                                     onChange={e => handleBlockToggle(b.id, e.target.checked)}
+                                />
+                                {/* Render Icon - Correctly using dangerouslySetInnerHTML because ICONS contains raw HTML strings */}
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    style={{ color: '#555', marginTop: '-1px' }}
+                                    dangerouslySetInnerHTML={{ __html: ICONS[b.mapIcon ? b.mapIcon.toLowerCase() : 'map-marker'] || ICONS['map-marker'] }}
                                 />
                                 {b.name} ({getBlockCount(b)})
                             </label>
@@ -555,7 +638,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         Reset Location Cache
                     </button>
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
-                    <button className="refresh-button" onClick={() => loadData(true)}>Refresh Map</button>
+                    <button className="refresh-button" onClick={() => {
+                        loadData(true);
+                        setCountdown(refreshIntervalSeconds);
+                    }}>Refresh Map</button>
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();

@@ -1,869 +1,679 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { trelloFetch } from '../api/trello';
-import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
-import {
-    getUserData, setUserData, getPersistentLayout, setPersistentLayout,
-    getPersistentColors, setPersistentColor, setPersistentSelections
-} from '../utils/persistence';
-import { useDarkMode } from '../context/DarkModeContext';
-import { convertIntervalToSeconds } from '../utils/helpers';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
+import IconPicker from './common/IconPicker';
+import ColorPicker from './common/ColorPicker';
+import { STORAGE_KEYS } from '../utils/constants';
+import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
+import '../styles/settings.css';
 
-const SettingsScreen = ({ user, onSave, onBack, onLogout }) => {
-    const initialSettings = getUserData(user.id, 'settings') || {};
+const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
+    // --- State ---
     const [boards, setBoards] = useState([]);
-    const [selectedBoardId, setSelectedBoardId] = useState(initialSettings.boardId || '');
-    const [allBoardLists, setAllBoardLists] = useState([]);
+    const [selectedBoardId, setSelectedBoardId] = useState('');
+    const [allLists, setAllLists] = useState([]); // All fetched lists
+    const [boardLabels, setBoardLabels] = useState([]);
+
+    // Configuration State
+    const [blocks, setBlocks] = useState([]); // { id, name, listIds, includeOnMap, mapIcon, ... }
+    const [listColors, setListColors] = useState({}); // { listId: hexColor }
+
+    // Other Settings
+    const [refreshValue, setRefreshValue] = useState(1);
+    const [refreshUnit, setRefreshUnit] = useState('minutes');
+    const [showClock, setShowClock] = useState(true);
+    const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(true);
+    const [ignoreCompletedCards, setIgnoreCompletedCards] = useState(false);
+
+    // Map View
+    const [enableMapView, setEnableMapView] = useState(false);
+    const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
+    const [markerRules, setMarkerRules] = useState([]);
 
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [showMoreOptions, setShowMoreOptions] = useState(false);
+    const [loadingLists, setLoadingLists] = useState(false);
 
-    // --- Block Management State ---
-    const [blocks, setBlocks] = useState(() => getPersistentLayout(user.id, initialSettings.boardId));
-    const [listColors, setListColors] = useState(() => (getPersistentColors(user.id)[initialSettings.boardId] || {}));
-    const [enableMapView, setEnableMapView] = useState(() => {
-        const storageKey = `ENABLE_MAP_VIEW_${initialSettings.boardId}`;
-        const stored = localStorage.getItem(storageKey);
-        return stored === 'true'; // Default to false (disabled) if not set
-    });
-    const [mapGeocodeMode, setMapGeocodeMode] = useState(() => {
-        const key = `MAP_GEOCODING_MODE_${initialSettings.boardId}`;
-        const stored = localStorage.getItem(key);
-        return stored || 'store'; // 'store' (default) or 'update'
-    });
+    // Initial Load
+    useEffect(() => {
+        const loadInitialSettings = async () => {
+            if (!user) return;
+            try {
+                // 1. Fetch Boards
+                const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url', user.token);
+                setBoards(boardsData);
 
-    // Handler for per-board map view toggle
-    const handleToggleEnableMapView = (isChecked) => {
-        setEnableMapView(isChecked);
-        const storageKey = `ENABLE_MAP_VIEW_${initialSettings.boardId}`;
-        localStorage.setItem(storageKey, isChecked ? 'true' : 'false');
+                const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                const userSettings = storedData[user.id]?.settings;
+
+                if (userSettings?.boardId) {
+                    const bId = userSettings.boardId;
+                    setSelectedBoardId(bId);
+                    await fetchBoardData(bId);
+
+                    // Load Layout - Prefer persistence helper logic
+                    const allUserData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                    const savedLayout = allUserData[user.id]?.dashboardLayout?.[bId];
+
+                    if (savedLayout) {
+                        setBlocks(savedLayout);
+                    } else {
+                        // Fallback to legacy key if exists (migration)
+                        const legacyKey = `TRELLO_DASHBOARD_LAYOUT_${bId}`;
+                        const legacyLayout = localStorage.getItem(legacyKey);
+                        if (legacyLayout) setBlocks(JSON.parse(legacyLayout));
+                    }
+
+                    // Load Colors
+                    const savedColors = getPersistentColors(user.id)?.[bId] || {};
+                    setListColors(savedColors);
+
+                    // Load Other Settings
+                    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + bId);
+                    if (savedRefresh) {
+                        const parsed = JSON.parse(savedRefresh);
+                        setRefreshValue(parsed.value);
+                        setRefreshUnit(parsed.unit);
+                    }
+                    const savedClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + bId);
+                    if (savedClock === 'false') setShowClock(false);
+
+                    const savedIgnore = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + bId);
+                    if (savedIgnore === 'false') setIgnoreTemplateCards(false);
+
+                    const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + bId);
+                    if (savedIgnoreCompleted === 'true') setIgnoreCompletedCards(true);
+                    else setIgnoreCompletedCards(false);
+
+                    // Load Map Config
+                    const rulesKey = `TRELLO_MARKER_RULES_${bId}`;
+                    const savedRules = localStorage.getItem(rulesKey);
+                    if (savedRules) setMarkerRules(JSON.parse(savedRules));
+
+                    if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
+                    if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
+                }
+            } catch (e) {
+                console.warn("Error loading settings", e);
+            }
+        };
+        loadInitialSettings();
+    }, [user]);
+
+    const fetchBoardData = async (boardId) => {
+        setLoadingLists(true);
+        setError('');
+        try {
+            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
+            setAllLists(listsData);
+            const labelsData = await trelloFetch(`/boards/${boardId}/labels`, user.token);
+            setBoardLabels(labelsData);
+        } catch (e) {
+            setError('Failed to load board lists.');
+        } finally {
+            setLoadingLists(false);
+        }
     };
 
-    const [newBlockName, setNewBlockName] = useState('');
-    const [showMoreOptions, setShowMoreOptions] = useState(false);
+    const handleBoardChange = async (e) => {
+        const boardId = e.target.value;
+        setSelectedBoardId(boardId);
+        setBlocks([]);
+        setListColors({});
+        setMarkerRules([]);
+        if (boardId) await fetchBoardData(boardId);
+        else setAllLists([]);
+    };
 
-    // Clock setting state for settings screen
-    const [showClockSetting, setShowClockSetting] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + initialSettings.boardId) !== 'false');
-    // NEW: Ignore Template Cards setting
-    const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(() => localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + initialSettings.boardId) !== 'false');
+    // --- Actions ---
 
-    // Theme setting from Context
-    const { theme, toggleTheme } = useDarkMode();
+    const handleAddBlock = () => {
+        setBlocks([...blocks, {
+            id: `block-${Date.now()}`,
+            name: 'New Block',
+            listIds: [],
+            includeOnMap: false,
+            mapIcon: 'map-marker',
+            ignoreFirstCard: false,
+            displayFirstCardDescription: false
+        }]);
+    };
 
-    // NEW: Refresh Interval State
-    const defaultRefreshSetting = { value: 1, unit: 'minutes' };
-    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + initialSettings.boardId);
-    const [refreshValue, setRefreshValue] = useState(savedRefresh ? JSON.parse(savedRefresh).value : 1);
-    const [refreshUnit, setRefreshUnit] = useState(savedRefresh ? JSON.parse(savedRefresh).unit : 'minutes');
+    const handleRemoveBlock = (blockId) => {
+        if (window.confirm("Delete this block? Assigned lists will be unassigned.")) {
+            setBlocks(blocks.filter(b => b.id !== blockId));
+        }
+    };
 
+    const handleUpdateBlockName = (id, name) => {
+        setBlocks(blocks.map(b => b.id === id ? { ...b, name } : b));
+    };
 
-    const selectedBoard = boards.find(b => b.id === selectedBoardId);
+    const handleUpdateBlockProp = (id, prop, val) => {
+        setBlocks(blocks.map(b => b.id === id ? { ...b, [prop]: val } : b));
+    };
 
-    // --- Export/Import Handlers ---
-    const handleExportConfig = () => {
-        if (!selectedBoardId) {
-            setError("Please select a board before exporting.");
+    // Drag and Drop Logic
+    const onDragEnd = (result) => {
+        const { source, destination, draggableId, type } = result;
+        if (!destination) return;
+
+        // RULE REORDERING
+        if (type === 'RULE') {
+            const newRules = Array.from(markerRules);
+            const [movedRule] = newRules.splice(source.index, 1);
+            newRules.splice(destination.index, 0, movedRule);
+            setMarkerRules(newRules);
             return;
         }
 
-        const configData = {
-            theme: localStorage.getItem(STORAGE_KEYS.THEME),
-            clockSetting: localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId),
-            refreshInterval: localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId),
-            layout: getPersistentLayout(user.id, selectedBoardId),
-            colors: getPersistentColors(user.id)[selectedBoardId],
-            // NOTE: API Key and Token are EXCLUDED for security
-            boardName: selectedBoard?.name || 'UnknownBoard'
+        // BLOCK REORDERING
+        if (type === 'BLOCK') {
+            const newBlocks = Array.from(blocks);
+            const [movedBlock] = newBlocks.splice(source.index, 1);
+            newBlocks.splice(destination.index, 0, movedBlock);
+            setBlocks(newBlocks);
+            return;
+        }
+
+        // LIST ASSIGNMENT
+        const listId = draggableId;
+        const sourceId = source.droppableId;
+        const destId = destination.droppableId;
+
+        const removeListFromBlock = (blockId, lId) => {
+            const block = blocks.find(b => b.id === blockId);
+            const newListIds = block.listIds.filter(id => id !== lId);
+            return { ...block, listIds: newListIds };
         };
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(configData, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `trellops_${configData.boardName.replace(/\s/g, '_')}_configuration.json`);
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+        const addListToBlock = (blockId, lId, index) => {
+            const block = blocks.find(b => b.id === blockId);
+            const newListIds = Array.from(block.listIds);
+            newListIds.splice(index, 0, lId);
+            return { ...block, listIds: newListIds };
+        };
+
+        // Case 1: Reordering within same block
+        if (sourceId === destId && sourceId !== 'unassigned') {
+            const block = blocks.find(b => b.id === sourceId);
+            const newListIds = Array.from(block.listIds);
+            newListIds.splice(source.index, 1);
+            newListIds.splice(destination.index, 0, listId);
+            setBlocks(blocks.map(b => b.id === sourceId ? { ...b, listIds: newListIds } : b));
+            return;
+        }
+
+        let newBlocks = [...blocks];
+
+        // Case 2: Moving from Block A to Block B (or Unassigned)
+        if (sourceId !== 'unassigned') {
+            newBlocks = newBlocks.map(b => b.id === sourceId ? removeListFromBlock(sourceId, listId) : b);
+        }
+
+        // Case 3: Moving to Block B
+        if (destId !== 'unassigned') {
+            newBlocks = newBlocks.map(b => b.id === destId ? addListToBlock(destId, listId, destination.index) : b);
+        }
+
+        setBlocks(newBlocks);
     };
 
-    const handleImportConfig = (event) => {
-        const file = event.target.files[0];
+    // Rule Management
+    const handleAddRule = () => setMarkerRules([...markerRules, { id: `rule-${Date.now()}`, labelId: '', overrideType: 'color', overrideValue: 'red' }]);
+    const handleUpdateRule = (id, f, v) => setMarkerRules(markerRules.map(r => r.id === id ? { ...r, [f]: v } : r));
+    const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
+
+    const handleSave = () => {
+        if (!selectedBoardId) return alert("Select a board first.");
+
+        // VALIDATION: Refresh Interval 
+        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
+            setError("Refresh interval must be at least 15 seconds.");
+            window.scrollTo(0, 0);
+            return;
+        }
+
+        const selectedBoard = boards.find(b => b.id === selectedBoardId);
+
+        try {
+            // 1. Save Blocks Layout (Correct Persistence)
+            setPersistentLayout(user.id, selectedBoardId, blocks);
+
+            // 2. Save Colors
+            setPersistentColors(user.id, selectedBoardId, listColors);
+
+            // 3. Save Other Settings
+            localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
+            localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
+            localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
+            localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
+
+            // 4. Save Map Config
+            localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
+
+            // 5. Update User Settings (CRITICAL: Populate selectedLists for Dashboard.jsx)
+            // Flatten all lists assigned to blocks
+            const assignedLists = blocks.flatMap(b => b.listIds.map(lId => allLists.find(l => l.id === lId))).filter(Boolean);
+
+            const newSettings = {
+                boardId: selectedBoardId,
+                boardName: selectedBoard ? selectedBoard.name : 'Trello Board',
+                selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
+                enableMapView,
+                mapGeocodeMode
+            };
+
+            const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+            storedData[user.id] = {
+                ...storedData[user.id],
+                settings: newSettings
+            };
+            localStorage.setItem('trelloUserData', JSON.stringify(storedData));
+
+            // Call onSave with newSettings to update App.jsx state IMMEDIATELY
+            onSave(newSettings);
+        } catch (e) {
+            console.error(e);
+            setError("Failed to save settings.");
+        }
+    };
+
+    const handleClearBoardConfig = () => {
+        if (window.confirm("Clear all settings?")) {
+            setBlocks([]);
+            setListColors({});
+            setMarkerRules([]);
+        }
+    };
+
+    const handleExportConfig = () => {
+        if (!selectedBoardId) return;
+        const config = {
+            boardId: selectedBoardId,
+            blocks,
+            listColors,
+            markerRules,
+            refreshValue,
+            refreshUnit,
+            showClock,
+            ignoreTemplateCards,
+            ignoreCompletedCards,
+            enableMapView,
+            mapGeocodeMode
+        };
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trellops-config-${selectedBoardId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImportConfig = (e) => {
+        const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = (evt) => {
             try {
-                const importedConfig = JSON.parse(e.target.result);
-                if (!selectedBoardId) {
-                    setError("Please select the target Trello board first.");
-                    return;
+                const config = JSON.parse(evt.target.result);
+                if (config.boardId && config.boardId !== selectedBoardId) {
+                    if (!window.confirm(`This config is for board ${config.boardId}, but you are on ${selectedBoardId}. Import anyway?`)) return;
                 }
-
-                // 1. Update Theme
-                if (importedConfig.theme) {
-                    toggleTheme(importedConfig.theme);
-                }
-                // 2. Update Refresh Rate
-                if (importedConfig.refreshInterval) {
-                    localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, importedConfig.refreshInterval);
-                    const { value: rValue, unit: rUnit } = JSON.parse(importedConfig.refreshInterval);
-                    setRefreshValue(rValue);
-                    setRefreshUnit(rUnit);
-                }
-                // 3. Update Clock Setting
-                if (importedConfig.clockSetting !== undefined) {
-                    localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, importedConfig.clockSetting);
-                    setShowClockSetting(importedConfig.clockSetting !== 'false');
-                }
-                // 4. Update Layout (Blocks)
-                if (importedConfig.layout) {
-                    setPersistentLayout(user.id, selectedBoardId, importedConfig.layout);
-                    setBlocks(getPersistentLayout(user.id, selectedBoardId));
-                }
-                // 5. Update Colors
-                if (importedConfig.colors) {
-                    const allColors = getPersistentColors(user.id);
-                    allColors[selectedBoardId] = importedConfig.colors;
-                    setUserData(user.id, 'listColors', allColors);
-                    setListColors(importedConfig.colors);
-                }
-
-                alert(`Configuration successfully imported for board ${selectedBoardId}.`);
-                // Force full settings refresh to apply changes
-                onSave({ boardId: selectedBoardId, boardName: importedConfig.boardName || 'Imported Board', selectedLists: [] });
-
+                if (config.blocks) setBlocks(config.blocks);
+                if (config.listColors) setListColors(config.listColors);
+                if (config.markerRules) setMarkerRules(config.markerRules);
+                if (config.refreshValue) setRefreshValue(config.refreshValue);
+                if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
+                if (config.showClock !== undefined) setShowClock(config.showClock);
+                if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
+                if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+                if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
+                if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+                alert("Configuration imported! Click Save to persist changes.");
             } catch (err) {
-                setError("Invalid configuration file format.");
-                console.error("Import error:", err);
+                console.error(err);
+                alert("Failed to parse configuration file.");
             }
         };
         reader.readAsText(file);
     };
 
-    // NEW: Handle Clearing Board Configuration
-    const handleClearBoardConfig = () => {
-        if (!selectedBoardId) {
-            setError("Please select a board to clear configuration.");
-            return;
-        }
+    // Helper: Get Unassigned Lists
+    const assignedListIds = new Set(blocks.flatMap(b => b.listIds));
+    const unassignedLists = allLists.filter(l => !assignedListIds.has(l.id));
 
-        const boardName = boards.find(b => b.id === selectedBoardId)?.name || 'this board';
+    const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
-        if (window.confirm(`Are you sure you want to reset the layout for the board: "${boardName}"? This cannot be undone.`)) {
-            // 1. Clear Layout
-            const allLayouts = getUserData(user.id, 'dashboardLayout') || {};
-            delete allLayouts[selectedBoardId];
-            setUserData(user.id, 'dashboardLayout', allLayouts);
-
-            // 2. Clear Colors
-            const allColors = getPersistentColors(user.id);
-            delete allColors[selectedBoardId];
-            setUserData(user.id, 'listColors', allColors);
-
-            // 3. Clear other per-board settings
-            localStorage.removeItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId);
-            localStorage.removeItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
-            localStorage.removeItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId);
-
-            // 4. Clear the main settings if it's the current board
-            const currentSettings = getUserData(user.id, 'settings');
-            if (currentSettings && currentSettings.boardId === selectedBoardId) {
-                setUserData(user.id, 'settings', null);
-            }
-
-            // 5. Reset component state to default values
-            setBlocks(DEFAULT_LAYOUT);
-            setListColors({});
-            setRefreshValue(defaultRefreshSetting.value);
-            setRefreshUnit(defaultRefreshSetting.unit);
-            setIgnoreTemplateCards(true); // Reset to default
-
-            alert(`Layout cleared for "${boardName}". The dashboard will now reset.`);
-
-            // Force a re-save and switch to dashboard (which will prompt re-setup)
-            onSave(null);
-        }
-    };
-
-
-    // Fetch Boards on load
-    useEffect(() => {
-        setLoading(true);
-        trelloFetch('/members/me/boards', user.token)
-            .then(data => {
-                setBoards(data);
-                if (data.length > 0 && !selectedBoardId) {
-                    setSelectedBoardId(data[0].id);
-                }
-            })
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(false));
-    }, [user.token]);
-
-    // Fetch Lists and initialize states when selectedBoardId changes
-    useEffect(() => {
-        if (!selectedBoardId) return;
-        setLoading(true);
-        setError('');
-
-        const boardPersistentColors = getPersistentColors(user.id)[selectedBoardId] || {};
-        const boardLayout = getPersistentLayout(user.id, selectedBoardId);
-        const clockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId) !== 'false';
-        const ignoreTemplates = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId) !== 'false';
-
-        // Read refresh setting
-        const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId);
-        const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
-
-
-        trelloFetch(`/boards/${selectedBoardId}/lists?cards=none&fields=id,name`, user.token)
-            .then(data => {
-                setAllBoardLists(data);
-                setListColors(boardPersistentColors);
-                setBlocks(boardLayout);
-                setShowClockSetting(clockSetting);
-                setIgnoreTemplateCards(ignoreTemplates);
-                setRefreshValue(rValue);
-                setRefreshUnit(rUnit);
-            })
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(false));
-    }, [selectedBoardId, user.token]);
-
-    // --- HANDLERS ---
-
-    const handleBoardChange = (e) => {
-        const newId = e.target.value;
-        setSelectedBoardId(newId);
-        // Reset blocks/colors/clock, will be reloaded by useEffect
-        setBlocks(getPersistentLayout(user.id, newId));
-        setListColors(getPersistentColors(user.id)[newId] || {});
-        setAllBoardLists([]);
-        setShowClockSetting(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + newId) !== 'false');
-        setIgnoreTemplateCards(localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + newId) !== 'false');
-
-        const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + newId);
-        const { value: rValue, unit: rUnit } = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
-        setRefreshValue(rValue);
-        setRefreshUnit(rUnit);
-    };
-
-    const handleAddBlock = () => {
-        if (!newBlockName.trim()) return;
-        const newBlock = {
-            id: Date.now().toString(),
-            name: newBlockName.trim(),
-            listIds: [],
-            ignoreFirstCard: false,
-            displayFirstCardDescription: true,
-            isCollapsed: false
-        };
-        const newLayout = [...blocks, newBlock];
-        setBlocks(newLayout);
-        setNewBlockName('');
-        setPersistentLayout(user.id, selectedBoardId, newLayout);
-    };
-
-    const handleRemoveBlock = (blockId) => {
-        const blockToRemove = blocks.find(s => s.id === blockId);
-        if (!blockToRemove) return;
-
-        const listIdsToMoveBack = blockToRemove.listIds;
-
-        // Add lists from the removed block back to the 'Default' block
-        const newBlocks = blocks
-            .filter(s => s.id !== blockId)
-            .map(s => {
-                if (s.id === 'all') {
-                    return { ...s, listIds: [...s.listIds, ...listIdsToMoveBack] };
-                }
-                return s;
-            });
-
-        // Ensure 'Default' block exists if it was somehow deleted
-        if (!newBlocks.some(s => s.id === 'all')) {
-            newBlocks.unshift({ id: 'all', name: 'Default', listIds: listIdsToMoveBack, ignoreFirstCard: false, isCollapsed: false });
-        }
-
-        setBlocks(newBlocks);
-        setPersistentLayout(user.id, selectedBoardId, newBlocks);
-    };
-
-    // Handler for re-ordering blocks
-    const handleReorderBlock = (blockId, direction) => {
-        const currentBlocks = [...blocks];
-        const index = currentBlocks.findIndex(s => s.id === blockId);
-        if (index === -1) return;
-
-        const newIndex = direction === 'up' ? index - 1 : index + 1;
-
-        // Only allow swap if the new index is valid and not swapping 'all' (index 0) with any other element
-        if (newIndex > 0 && newIndex < currentBlocks.length && currentBlocks[newIndex].id !== 'all') {
-            [currentBlocks[index], currentBlocks[newIndex]] = [currentBlocks[newIndex], currentBlocks[index]];
-
-            setBlocks(currentBlocks);
-            setPersistentLayout(user.id, selectedBoardId, currentBlocks);
-        }
-    };
-
-
-    // Allows renaming of all blocks, including 'all'
-    const handleRenameBlock = (blockId, newName) => {
-        if (!newName.trim()) return;
-        const newBlocks = blocks.map(s => s.id === blockId ? { ...s, name: newName } : s);
-        setBlocks(newBlocks);
-        setPersistentLayout(user.id, selectedBoardId, newBlocks);
-    };
-
-    // Handler for the 'Use first card as description' checkbox
-    const handleToggleIgnoreCard = (blockId, isChecked) => {
-        const newBlocks = blocks.map(s =>
-            s.id === blockId ? { ...s, ignoreFirstCard: isChecked } : s
-        );
-        setBlocks(newBlocks);
-        setPersistentLayout(user.id, selectedBoardId, newBlocks);
-    };
-
-    // Handler for the 'Display first card as description' checkbox
-    const handleToggleDisplayDescription = (blockId, isChecked) => {
-        const newBlocks = blocks.map(s =>
-            s.id === blockId ? { ...s, displayFirstCardDescription: isChecked } : s
-        );
-        setBlocks(newBlocks);
-        setPersistentLayout(user.id, selectedBoardId, newBlocks);
-    };
-
-    // NEW: Handler for 'Include on Map' checkbox
-    const handleToggleIncludeOnMap = (blockId, isChecked) => {
-        const newBlocks = blocks.map(s =>
-            s.id === blockId ? { ...s, includeOnMap: isChecked } : s
-        );
-        setBlocks(newBlocks);
-        setPersistentLayout(user.id, selectedBoardId, newBlocks);
-    };
-
-    // Handler for the Clock checkbox
-    const handleToggleClock = (isChecked) => {
-        setShowClockSetting(isChecked);
-        localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, isChecked ? 'true' : 'false');
-    };
-
-    // NEW: Handler for Ignore Template Cards checkbox
-    const handleToggleIgnoreTemplateCards = (isChecked) => {
-        setIgnoreTemplateCards(isChecked);
-        localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, isChecked ? 'true' : 'false');
-    };
-
-    // Handler for re-ordering tiles
-    const handleReorderList = (blockId, listId, direction) => {
-        const newBlocks = blocks.map(block => {
-            if (block.id !== blockId) return block;
-
-            const listIds = [...block.listIds];
-            const index = listIds.indexOf(listId);
-
-            if (index === -1) return block;
-
-            const newIndex = direction === 'up' ? index - 1 : index + 1;
-
-            if (newIndex >= 0 && newIndex < listIds.length) {
-                // Swap elements
-                [listIds[index], listIds[newIndex]] = [listIds[newIndex], listIds[index]];
-                return { ...block, listIds };
-            }
-            return block;
-        });
-
-        setBlocks(newBlocks);
-        setPersistentLayout(user.id, selectedBoardId, newBlocks);
-    };
-
-
-    const handleMoveList = (listId, fromBlockId, toBlockId) => {
-        const newBlocks = blocks.map(block => {
-            if (block.id === fromBlockId) {
-                return { ...block, listIds: block.listIds.filter(id => id !== listId) };
-            }
-            if (block.id === toBlockId) {
-                return { ...block, listIds: [...block.listIds, listId] };
-            }
-            return block;
-        });
-
-        // Handle move to pool ("Unassigned Lists")
-        if (toBlockId === 'pool') {
-            const updatedBlocks = newBlocks.map(s =>
-                ({ ...s, listIds: s.listIds.filter(id => id !== listId) })
-            );
-
-            const allSelectedIds = updatedBlocks.flatMap(s => s.listIds);
-            setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
-            setBlocks(updatedBlocks);
-            setPersistentLayout(user.id, selectedBoardId, updatedBlocks);
-            return;
-        }
-
-        setBlocks(newBlocks);
-        setPersistentLayout(user.id, selectedBoardId, newBlocks);
-
-        // Update persistent selections cache (add listId)
-        const allSelectedIds = newBlocks.flatMap(s => s.listIds);
-        setPersistentSelections(user.id, selectedBoardId, allSelectedIds);
-    };
-
-    const handleColorChange = (listId, color) => {
-        const newColors = { ...listColors, [listId]: color };
-        setListColors(newColors);
-        setPersistentColor(user.id, selectedBoardId, listId, color);
-    };
-
-    // Handle Refresh Rate Change
-    const handleRefreshChange = (value, unit) => {
-        const newValue = parseInt(value) || 0;
-        setRefreshValue(newValue);
-        if (unit) setRefreshUnit(unit);
-
-        // Save immediately
-        localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({
-            value: newValue,
-            unit: unit || refreshUnit
-        }));
-    };
-
-
-    const handleSave = () => {
-        const selectedBoard = boards.find(b => b.id === selectedBoardId);
-        if (!selectedBoard) {
-            setError('Please select a board.');
-            return;
-        }
-
-        // Final validation before saving settings/returning
-        const intervalInSeconds = convertIntervalToSeconds(refreshValue, refreshUnit);
-        if (intervalInSeconds < 10) {
-            setError('Minimum refresh rate is 10 seconds.');
-            return;
-        }
-        if (intervalInSeconds > 86400) { // 24 hours = 86400 seconds
-            setError('Maximum refresh rate is 24 hours.');
-            return;
-        }
-        // Save final refresh setting
-        localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({
-            value: refreshValue,
-            unit: refreshUnit
-        }));
-
-
-        // Gather all lists that are currently assigned to ANY block
-        const selectedListsMap = new Map();
-        blocks.flatMap(s => s.listIds).forEach(listId => {
-            const listData = allBoardLists.find(l => l.id === listId);
-            if (listData) {
-                selectedListsMap.set(listId, {
-                    id: listId,
-                    name: listData.name,
-                    color: listColors[listId] || ''
-                });
-            }
-        });
-
-        // Update the main SETTINGS cache for dashboard initialization
-        const finalSettings = {
-            boardId: selectedBoardId,
-            boardName: selectedBoard.name,
-            selectedLists: Array.from(selectedListsMap.values()),
-            // Pass these expressly so App state is updated immediately without separate localStorage read
-            mapGeocodeMode: mapGeocodeMode || 'store',
-            enableMapView: enableMapView
-        };
-
-        // Persist per-board Map View settings
-        try {
-            const geoKey = `MAP_GEOCODING_MODE_${selectedBoardId}`;
-            localStorage.setItem(geoKey, mapGeocodeMode || 'store');
-        } catch (e) {
-            console.warn('Failed to persist MAP_GEOCODING_MODE', e);
-        }
-        try {
-            const mapKey = `ENABLE_MAP_VIEW_${selectedBoardId}`;
-            localStorage.setItem(mapKey, enableMapView ? 'true' : 'false');
-        } catch (e) {
-            console.warn('Failed to persist ENABLE_MAP_VIEW', e);
-        }
-
-        setUserData(user.id, 'settings', finalSettings);
-        onSave(finalSettings);
-    };
-
-    // Derive list pool: Trello lists not currently assigned to any block
-    const assignedListIds = new Set(blocks.flatMap(s => s.listIds));
-    const listPool = allBoardLists
-        .filter(list => !assignedListIds.has(list.id))
-        .map(list => ({ id: list.id, name: list.name }));
-
-    // Get the ID of the first block for the default move action
-    const firstBlockId = blocks.length > 0 ? blocks[0].id : null;
-
-    if (loading) return <div className="form-card settings">Loading Boards...</div>;
+    // Reuse Switch Component
+    const ToggleSwitch = ({ checked, onChange }) => (
+        <label className="switch">
+            <input type="checkbox" checked={checked} onChange={onChange} />
+            <span className="slider round"></span>
+        </label>
+    );
 
     return (
-        <div className="form-card settings">
-            <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
-                <button className="logout-button" onClick={onLogout} style={{ margin: 0 }}>Log Out</button>
-            </div>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span>Trellops Dashboard Setup</span>
-                <a href="help.html" target="_blank" rel="noopener noreferrer" className="subtle-help-link">First time user? Check out our user guide</a>
-            </h2>
+        <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
+            <h2>Dashboard Settings</h2>
 
+            {/* Breadcrumb Navigation */}
+            <div style={{ marginBottom: '20px', fontSize: '0.9em' }}>
+                <a href="#section-1" onClick={(e) => { e.preventDefault(); document.getElementById('section-1').scrollIntoView({ behavior: 'smooth' }); }}>1. Choose your board</a> |
+                <a href="#section-2" onClick={(e) => { e.preventDefault(); document.getElementById('section-2').scrollIntoView({ behavior: 'smooth' }); }}> 2. Manage Blocks</a> |
+                <a href="#section-3" onClick={(e) => { e.preventDefault(); document.getElementById('section-3').scrollIntoView({ behavior: 'smooth' }); }}> 3. Assign tiles</a> |
+                <a href="#section-4" onClick={(e) => { e.preventDefault(); document.getElementById('section-4').scrollIntoView({ behavior: 'smooth' }); }}> 4. Other settings</a> |
+                <a href="#section-5" onClick={(e) => { e.preventDefault(); document.getElementById('section-5').scrollIntoView({ behavior: 'smooth' }); }}> 5. Map view</a>
+            </div>
+
+            {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2' }}>{error}</div>}
+
+            {/* SECTION 1: BOARD */}
             <div className="admin-section">
                 <h3>1. Choose your Trello Board</h3>
-                <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
                     Boards are pulled directly from your Trello account, across all workspaces.
                 </p>
-                <div className="settings-row">
-                    <label htmlFor="board-select">Your Trello board:</label>
-                    <select id="board-select" value={selectedBoardId} onChange={handleBoardChange}>
-                        <option value="">-- Select a Board --</option>
-                        {boards.map(board => (
-                            <option key={board.id} value={board.id}>{board.name}</option>
-                        ))}
-                    </select>
-                </div>
+                <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
+                    <option value="">-- Choose a Board --</option>
+                    {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
             </div>
 
             {selectedBoard && (
-                <div className="admin-section">
-                    <h3>2. Manage your Trellops Blocks</h3>
-                    <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                        A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
-                    </p>
-                    <div className="block-management">
-                        <input
-                            type="text"
-                            placeholder="New Block Name"
-                            value={newBlockName}
-                            onChange={e => setNewBlockName(e.target.value)}
-                            className="block-title-input"
-                            style={{ width: '200px', marginRight: '10px' }}
-                        />
-                        <button className="settings-button" onClick={handleAddBlock} disabled={!newBlockName.trim()}>
-                            Add Block
-                        </button>
-                    </div>
-
-                    {blocks.map((block, blockIndex) => (
-                        <div key={block.id} className="layout-block-box" style={{ flexGrow: 1, maxWidth: '100%', marginTop: '20px', padding: '15px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-                                    <div className="order-buttons" style={{ marginRight: '15px' }}>
-                                        <button
-                                            onClick={() => handleReorderBlock(block.id, 'up')}
-                                            disabled={blockIndex === 0}
-                                            title="Move Block Up"
-                                        >
-                                            ▲
-                                        </button>
-                                        <button
-                                            onClick={() => handleReorderBlock(block.id, 'down')}
-                                            disabled={blockIndex === blocks.length - 1}
-                                            title="Move Block Down"
-                                        >
-                                            ▼
-                                        </button>
-                                    </div>
-
-                                    <input
-                                        type="text"
-                                        value={block.name}
-                                        onChange={e => handleRenameBlock(block.id, e.target.value)}
-                                        className="block-title-input"
-                                        style={{ width: 'calc(100% - 15px)' }}
-                                    />
-                                </div>
-
-                                {block.id !== 'all' && (
-                                    <button
-                                        className="remove-block-button"
-                                        onClick={() => handleRemoveBlock(block.id)}
-                                        title="Delete block and move lists to 'Default'"
-                                    >
-                                        &times;
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {selectedBoard && (
-                <div className="admin-section">
-                    <h3>3. Assign Tiles to your Blocks</h3>
-                    <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                        Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left,  the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
-                    </p>
-                    <div className="layout-config-container">
-                        <div className="layout-column">
-                            <div className="layout-block-box">
-                                <h4 style={{ marginBottom: '10px', color: '#6b778c' }}>Pool of Unassigned Trello Lists ({listPool.length})</h4>
-                                <div className="list-pool" style={{ minHeight: '100px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    {listPool.map(list => (
-                                        <div key={list.id} className="layout-list-item" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: '10px', flexBasis: 'auto', flexGrow: 0 }}>
-                                            <span style={{ flexGrow: 1, flexBasis: '100%' }}>{list.name}</span>
-                                            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-end', width: '100%' }}>
-                                                {blocks.map(block => (
+                <DragDropContext onDragEnd={onDragEnd}>
+                    {/* SECTION 2: BLOCKS */}
+                    <div className="admin-section" id="section-2">
+                        <h3>2. Manage your Trellops blocks</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                            A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
+                        </p>
+                        <Droppable droppableId="blocks-list" type="BLOCK">
+                            {(provided) => (
+                                <div ref={provided.innerRef} {...provided.droppableProps}>
+                                    {blocks.map((block, index) => (
+                                        <Draggable key={block.id} draggableId={block.id} index={index}>
+                                            {(provided) => (
+                                                <div
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: '#fff', padding: '8px', border: '1px solid #eee', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                >
+                                                    <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                    <input
+                                                        type="text"
+                                                        value={block.name}
+                                                        onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
+                                                        className="block-name-input"
+                                                    />
                                                     <button
-                                                        key={block.id}
-                                                        className="move-button-pool"
-                                                        onClick={() => handleMoveList(list.id, 'pool', block.id)}
-                                                        title={`Move to ${block.name}`}
+                                                        onClick={() => handleRemoveBlock(block.id)}
+                                                        style={{ color: 'red', marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                        title="Remove Block"
                                                     >
-                                                        {block.name} &raquo;
+                                                        X
                                                     </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {listPool.length === 0 && <p style={{ fontSize: '0.9em', color: '#6b778c' }}>All lists assigned.</p>}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="layout-column">
-                            {blocks.map((block) => (
-                                <div key={block.id} className="layout-block-box" style={{ flexGrow: 1, maxWidth: '100%' }}>
-                                    <h4 style={{ marginBottom: '10px' }}>{block.name}</h4>
-                                    {block.listIds.length > 0 ? (
-                                        block.listIds.map((listId, index) => {
-                                            const listData = allBoardLists.find(l => l.id === listId);
-                                            if (!listData) return null;
-
-                                            return (
-                                                <div key={listId} className="list-config-item">
-                                                    <div className="order-buttons">
-                                                        <button
-                                                            onClick={() => handleReorderList(block.id, listId, 'up')}
-                                                            disabled={index === 0}
-                                                            title="Move Up"
-                                                        >
-                                                            ▲
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleReorderList(block.id, listId, 'down')}
-                                                            disabled={index === block.listIds.length - 1}
-                                                            title="Move Down"
-                                                        >
-                                                            ▼
-                                                        </button>
-                                                    </div>
-                                                    <span style={{
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                        width: '50%'
-                                                    }}>
-                                                        {listData.name}
-                                                    </span>
-                                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                        <input
-                                                            type="color"
-                                                            value={listColors[listId] || '#cccccc'}
-                                                            onChange={e => handleColorChange(listId, e.target.value)}
-                                                            title="Choose Tile Color"
-                                                            style={{ marginLeft: '10px' }}
-                                                        />
-                                                        <select
-                                                            onChange={e => handleMoveList(listId, block.id, e.target.value)}
-                                                            style={{ marginLeft: '10px', padding: '5px', fontSize: '0.8em', width: '85px' }}
-                                                            value={block.id}
-                                                        >
-                                                            <option value={block.id}>Move...</option>
-                                                            <optgroup label="Blocks">
-                                                                {blocks.map(s => (
-                                                                    s.id !== block.id && <option key={s.id} value={s.id}>{s.name}</option>
-                                                                ))}
-                                                            </optgroup>
-                                                            <optgroup label="Unassigned">
-                                                                <option value="pool">Move to Pool</option>
-                                                            </optgroup>
-                                                        </select>
-                                                    </div>
                                                 </div>
-                                            );
-                                        })
-                                    ) : (
-                                        <p style={{ fontSize: '0.9em', color: '#6b778c' }}>Move lists here.</p>
-                                    )}
-
-                                    <div className="section-options">
-                                        <label>
-                                            <input
-                                                type="checkbox"
-                                                checked={block.ignoreFirstCard}
-                                                onChange={e => handleToggleIgnoreCard(block.id, e.target.checked)}
-                                            />
-                                            Do not count the first card in the total
-                                        </label>
-                                        {block.ignoreFirstCard && (
-                                            <label className="sub-option">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={block.displayFirstCardDescription}
-                                                    onChange={e => handleToggleDisplayDescription(block.id, e.target.checked)}
-                                                />
-                                                Display the first card as tile description
-                                            </label>
-                                        )}
-                                        {enableMapView && (
-                                            <label>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={block.includeOnMap === true}
-                                                    onChange={e => handleToggleIncludeOnMap(block.id, e.target.checked)}
-                                                />
-                                                Show this block on the Map
-                                            </label>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {selectedBoard && (
-                <div className="admin-section">
-                    <h3>4. Other Dashboard Settings for "{selectedBoard.name}"</h3>
-                    <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                        These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommmended 30 seconds for live displays. The digital clock appears in the top-left corner for the screen and follows the local computer time format. Template Cards in Trello can be exceluded from the count (recommended)
-                    </p>
-                    <div className="three-column">
-                        <div className="settings-row" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label className="switch">
-                                    <input
-                                        type="checkbox"
-                                        id="show-clock-check"
-                                        checked={showClockSetting}
-                                        onChange={e => handleToggleClock(e.target.checked)}
-                                    />
-                                    <span className="slider round"></span>
-                                </label>
-                                <label htmlFor="show-clock-check">Show Digital Clock</label>
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label>Auto-Refresh:</label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={refreshValue}
-                                    onChange={e => handleRefreshChange(e.target.value)}
-                                    style={{ width: '60px' }}
-                                />
-                                <select
-                                    value={refreshUnit}
-                                    onChange={e => handleRefreshChange(refreshValue, e.target.value)}
-                                >
-                                    <option value="seconds">Seconds</option>
-                                    <option value="minutes">Minutes</option>
-                                    <option value="hours">Hours</option>
-                                </select>
-                            </span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label htmlFor="theme-select">Theme:</label>
-                                <select
-                                    id="theme-select"
-                                    value={theme}
-                                    onChange={(e) => toggleTheme(e.target.value)}
-                                >
-                                    <option value="system">System</option>
-                                    <option value="light">Light</option>
-                                    <option value="dark">Dark</option>
-                                </select>
-                            </span>
-                        </div>
-                        <div className="settings-row" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginTop: '8px' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label className="switch">
-                                    <input
-                                        type="checkbox"
-                                        id="ignore-templates-check"
-                                        checked={ignoreTemplateCards}
-                                        onChange={e => handleToggleIgnoreTemplateCards(e.target.checked)}
-                                    />
-                                    <span className="slider round"></span>
-                                </label>
-                                <label htmlFor="ignore-templates-check">Ignore Template Cards</label>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {selectedBoard && (
-                <div className="admin-section">
-                    <h3>5. Map View for "{selectedBoard.name}"</h3>
-                    <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                        Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
-                    </p>
-                    <div className="settings-row" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginTop: '8px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <label className="switch">
-                                <input
-                                    type="checkbox"
-                                    id="enable-map-view-check"
-                                    checked={enableMapView}
-                                    onChange={e => handleToggleEnableMapView(e.target.checked)}
-                                />
-                                <span className="slider round"></span>
-                            </label>
-                            <label htmlFor="enable-map-view-check">Enable Map View</label>
-                        </span>
-                    </div>
-
-                    {enableMapView && (
-                        <div style={{ marginTop: '12px' }}>
-                            <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Geocoding behavior</label>
-                            <label style={{ display: 'block', marginBottom: '6px' }}>
-                                <input type="radio" name="mapGeocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={() => setMapGeocodeMode('store')} />
-                                <span style={{ marginLeft: '8px' }}>Store geolocation data locally (default)</span>
-                            </label>
-                            <label style={{ display: 'block', marginBottom: '6px' }}>
-                                <input type="radio" name="mapGeocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={() => setMapGeocodeMode('update')} />
-                                <span style={{ marginLeft: '8px' }}>Update the Trello card coordinates</span>
-                            </label>
-                            {mapGeocodeMode === 'update' && (
-                                <div style={{ marginTop: '8px', padding: '8px', background: '#fff3f0', border: '1px solid #ffd6cc', color: '#7a1f00', borderRadius: '6px' }}>
-                                    <strong>Warning:</strong> Using this option will update the Trello card on "{selectedBoard.name}" with lat/long coordinates.
+                                            )}
+                                        </Draggable>
+                                    ))}
+                                    {provided.placeholder}
                                 </div>
                             )}
+                        </Droppable>
+                        <button className="add-block-button" onClick={handleAddBlock} style={{ marginTop: '10px' }}>+ Add Block</button>
+                    </div>
+
+                    {/* SECTION 3: ASSIGN TILES */}
+                    <div className="admin-section" id="section-3">
+                        <h3>3. Assign tiles to your blocks</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                            Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
+                            {/* UNASSIGNED */}
+                            <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                <h4>Available Lists</h4>
+                                <Droppable droppableId="unassigned" type="LIST">
+                                    {(provided) => (
+                                        <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
+                                            {unassignedLists.map((list, index) => (
+                                                <Draggable key={list.id} draggableId={list.id} index={index}>
+                                                    {(provided) => (
+                                                        <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            {...provided.dragHandleProps}
+                                                            style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                        >
+                                                            {list.name}
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            ))}
+                                            {provided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
+                            </div>
+
+                            {/* BLOCKS TARGETS */}
+                            <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                {blocks.map(block => (
+                                    <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
+                                        <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
+
+                                        {/* Block Options Inside Section 3 */}
+                                        <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
+                                            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
+                                                    <span style={{ marginLeft: '5px' }}>Do not count the first card in the total</span>
+                                                </label>
+                                                {block.ignoreFirstCard && (
+                                                    <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                        <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
+                                                        <span style={{ marginLeft: '5px' }}>Display the first card as tile description</span>
+                                                    </label>
+                                                )}
+                                            </div>
+                                            <div style={{ marginTop: '5px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
+                                                    <span style={{ marginLeft: '5px' }}>Show on map</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <Droppable droppableId={block.id} type="LIST">
+                                            {(provided) => (
+                                                <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px' }}>
+                                                    {block.listIds.map((listId, index) => {
+                                                        const list = allLists.find(l => l.id === listId);
+                                                        if (!list) return null;
+                                                        const color = listColors[listId] || '#0079bf';
+                                                        return (
+                                                            <Draggable key={listId} draggableId={listId} index={index}>
+                                                                {(provided) => (
+                                                                    <div
+                                                                        ref={provided.innerRef}
+                                                                        {...provided.draggableProps}
+                                                                        {...provided.dragHandleProps}
+                                                                        style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
+                                                                    >
+                                                                        <span>{list.name}</span>
+                                                                        <input
+                                                                            type="color"
+                                                                            value={color}
+                                                                            onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
+                                                                            style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                                                            title="Tile Colour"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </Draggable>
+                                                        );
+                                                    })}
+                                                    {provided.placeholder}
+                                                </div>
+                                            )}
+                                        </Droppable>
+
+                                        {/* Block Marker - Full Width at Bottom */}
+                                        {block.includeOnMap && (
+                                            <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                                                <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Block Marker Icon:</label>
+                                                <div style={{ width: '100%' }}>
+                                                    <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+
+                    {/* SECTION 4: OTHER */}
+                    <div className="admin-section" id="section-4">
+                        <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                            These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
+                            <div>
+                                <label>Refresh Interval</label>
+                                <div style={{ marginTop: '5px' }}>
+                                    <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
+                                    <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px' }}>
+                                        <option value="seconds">Seconds</option>
+                                        <option value="minutes">Minutes</option>
+                                        <option value="hours">Hours</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Features</label>
+                                <div style={{ marginTop: '5px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                        <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
+                                        <span style={{ marginLeft: '5px' }}>Show Clock</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                        <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
+                                        <span style={{ marginLeft: '5px' }}>Ignore Template Cards</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center' }}>
+                                        <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
+                                        <span style={{ marginLeft: '5px' }}>Ignore Completed Cards</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* SECTION 5: MAP */}
+                    <div className="admin-section" id="section-5">
+                        <h3>5. Map view for {selectedBoard.name}</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                            Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
+                        </p>
+                        <div className="settings-row">
+                            <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
+                            <span style={{ marginLeft: '10px' }}>Enable Map View</span>
+                        </div>
+
+                        {enableMapView && (
+                            <div style={{ marginTop: '15px' }}>
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Geocoding behavior:</label>
+                                    <label style={{ display: 'block', marginBottom: '3px' }}>
+                                        <input type="radio" name="geocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={e => setMapGeocodeMode(e.target.value)} />
+                                        Store geolocation data locally (default)
+                                    </label>
+                                    <label style={{ display: 'block' }}>
+                                        <input type="radio" name="geocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={e => setMapGeocodeMode(e.target.value)} />
+                                        Update the Trello card coordinates (beta feature - only for demo purposes)
+                                    </label>
+                                    {mapGeocodeMode === 'update' && (
+                                        <p style={{ color: '#d32f2f', fontSize: '0.85em', marginTop: '5px', marginLeft: '20px', fontStyle: 'italic' }}>
+                                            Note: this will update each card in your Trello board with Lat/Long Coordinates in the Location field. Only enable if you want to update each card in Trello.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <h4>Marker Variants</h4>
+                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                    Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
+                                </p>
+
+                                <Droppable droppableId="marker-rules" type="RULE">
+                                    {(provided) => (
+                                        <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
+                                            {markerRules.map((rule, idx) => (
+                                                <Draggable key={rule.id} draggableId={rule.id} index={idx}>
+                                                    {(provided) => (
+                                                        <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            className="rule-item"
+                                                            style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                        >
+                                                            <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                            <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
+                                                                <option value="">-- Label --</option>
+                                                                {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
+                                                            </select>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
+                                                                <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                                            </div>
+
+                                                            <div style={{ flex: 1, minWidth: '200px' }}>
+                                                                {rule.overrideType === 'color' ?
+                                                                    <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
+                                                                    <div style={{ width: '100%' }}>
+                                                                        <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
+                                                                    </div>
+                                                                }
+                                                            </div>
+
+                                                            <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            ))}
+                                            {provided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
+                                <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+                            </div>
+                        )}
+                    </div>
+                </DragDropContext>
             )}
 
-            {error && <div className="error">{error}</div>}
 
-            <div className="actions-container">
-                <button className="save-layout-button" onClick={handleSave}>
-                    Save Layout & View Dashboard
-                </button>
-                <button className="button-secondary" onClick={onBack}>
-                    Cancel changes
-                </button>
-                <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>
-                    More options...
-                </button>
+
+            <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v3.0.0</span>
+                <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
+                <button className="button-secondary" onClick={onClose}>Cancel</button>
+                <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
             </div>
 
             {showMoreOptions && (
                 <MoreOptionsModal
                     onClose={() => setShowMoreOptions(false)}
+                    onReset={handleClearBoardConfig}
                     onExport={handleExportConfig}
                     onImport={handleImportConfig}
-                    onReset={handleClearBoardConfig}
-                    boardName={boards.find(b => b.id === selectedBoardId)?.name || ''}
                     selectedBoardId={selectedBoardId}
+                    boardName={selectedBoard?.name}
                 />
             )}
         </div>
