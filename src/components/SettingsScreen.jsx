@@ -5,36 +5,34 @@ import MoreOptionsModal from './common/MoreOptionsModal';
 import IconPicker from './common/IconPicker';
 import ColorPicker from './common/ColorPicker';
 import { STORAGE_KEYS } from '/src/utils/constants';
+import { setPersistentColors, getPersistentColors } from '/src/utils/persistence';
 import '/src/styles/settings.css';
 
 const SettingsScreen = ({ user, onClose, onSave }) => {
     // --- State ---
-    const [boards, setBoards] = useState([]); // Fetch internally
+    const [boards, setBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
-    const [lists, setLists] = useState([]);
-    const [loadingLists, setLoadingLists] = useState(false);
+    const [allLists, setAllLists] = useState([]); // All fetched lists
     const [boardLabels, setBoardLabels] = useState([]);
 
-    // 1. Layout & Blocks
-    const [blocks, setBlocks] = useState([]); // { id, name, listIds, includeOnMap, mapIcon, displayFirstCardDescription, color (new), ... }
+    // Configuration State
+    const [blocks, setBlocks] = useState([]); // { id, name, listIds, includeOnMap, mapIcon, ... }
+    const [listColors, setListColors] = useState({}); // { listId: hexColor }
 
-    // 2. Refresh
+    // Other Settings
     const [refreshValue, setRefreshValue] = useState(1);
     const [refreshUnit, setRefreshUnit] = useState('minutes');
-
-    // 3. Digital Clock
     const [showClock, setShowClock] = useState(true);
-
-    // 4. Template Cards
     const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(true);
 
-    // 5. Map View
-    const [enableMapView, setEnableMapView] = useState(false); // Default OFF
+    // Map View
+    const [enableMapView, setEnableMapView] = useState(false);
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [markerRules, setMarkerRules] = useState([]);
 
     const [error, setError] = useState('');
     const [showMoreOptions, setShowMoreOptions] = useState(false);
+    const [loadingLists, setLoadingLists] = useState(false);
 
     // Initial Load
     useEffect(() => {
@@ -42,14 +40,8 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
             if (!user) return;
             try {
                 // 1. Fetch Boards
-                try {
-                    const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url', user.token);
-                    setBoards(boardsData);
-                } catch (e) {
-                    console.warn("Failed to fetch boards", e);
-                    setError("Failed to load boards.");
-                    return;
-                }
+                const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url', user.token);
+                setBoards(boardsData);
 
                 const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
                 const userSettings = storedData[user.id]?.settings;
@@ -57,40 +49,38 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                 if (userSettings?.boardId) {
                     const bId = userSettings.boardId;
                     setSelectedBoardId(bId);
+                    await fetchBoardData(bId);
 
-                    // 1. Blocks/Layout
+                    // Load Layout
                     const layoutKey = `TRELLO_DASHBOARD_LAYOUT_${bId}`;
                     const savedLayout = localStorage.getItem(layoutKey);
                     if (savedLayout) {
                         setBlocks(JSON.parse(savedLayout));
                     }
 
-                    // 2. Refresh
+                    // Load Colors
+                    const savedColors = getPersistentColors(user.id)?.[bId] || {};
+                    setListColors(savedColors);
+
+                    // Load Other Settings
                     const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + bId);
                     if (savedRefresh) {
                         const parsed = JSON.parse(savedRefresh);
                         setRefreshValue(parsed.value);
                         setRefreshUnit(parsed.unit);
                     }
-
-                    // 3. Clock
                     const savedClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + bId);
                     if (savedClock === 'false') setShowClock(false);
 
-                    // 4. Template Cards
                     const savedIgnore = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + bId);
                     if (savedIgnore === 'false') setIgnoreTemplateCards(false);
 
-                    // 5. Map View
+                    // Load Map Config
                     const rulesKey = `TRELLO_MARKER_RULES_${bId}`;
                     const savedRules = localStorage.getItem(rulesKey);
                     if (savedRules) setMarkerRules(JSON.parse(savedRules));
-
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
-
-                    // Fetch Lists & Labels
-                    await fetchBoardData(bId);
                 }
             } catch (e) {
                 console.warn("Error loading settings", e);
@@ -104,11 +94,11 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         setError('');
         try {
             const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
-            setLists(listsData);
+            setAllLists(listsData);
             const labelsData = await trelloFetch(`/boards/${boardId}/labels`, user.token);
             setBoardLabels(labelsData);
         } catch (e) {
-            setError('Failed to load board lists/labels.');
+            setError('Failed to load board lists.');
         } finally {
             setLoadingLists(false);
         }
@@ -118,107 +108,130 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         const boardId = e.target.value;
         setSelectedBoardId(boardId);
         setBlocks([]);
-        setMarkerRules([]);
-        if (boardId) {
-            await fetchBoardData(boardId);
-        } else {
-            setLists([]);
-            setBoardLabels([]);
-        }
+        setListColors({});
+        if (boardId) await fetchBoardData(boardId);
+        else setAllLists([]);
     };
 
-    // --- Block Management ---
+    // --- Actions ---
+
     const handleAddBlock = () => {
         const newBlock = {
             id: `block-${Date.now()}`,
             name: 'New Block',
             listIds: [],
-            expanded: true,
-            includeOnMap: false, // Default false per request
+            includeOnMap: false,
             mapIcon: 'map-marker',
             ignoreFirstCard: false,
-            displayFirstCardDescription: false,
-            color: 'blue' // Default Dashboard Tile Color
+            displayFirstCardDescription: false
         };
         setBlocks([...blocks, newBlock]);
     };
 
-    const handleUpdateBlock = (id, field, value) => {
-        setBlocks(blocks.map(b => b.id === id ? { ...b, [field]: value } : b));
-    };
-
-    const handleRemoveBlock = (id) => {
-        if (window.confirm("Delete this block configuration?")) {
-            setBlocks(blocks.filter(b => b.id !== id));
+    const handleRemoveBlock = (blockId) => {
+        if (window.confirm("Delete this block? Assigned lists will be unassigned.")) {
+            setBlocks(blocks.filter(b => b.id !== blockId));
         }
     };
 
-    const handleDragEnd = (result) => {
-        if (!result.destination) return;
-        const items = Array.from(blocks);
-        const [reorderedItem] = items.splice(result.source.index, 1);
-        items.splice(result.destination.index, 0, reorderedItem);
-        setBlocks(items);
+    const handleUpdateBlockName = (id, name) => {
+        setBlocks(blocks.map(b => b.id === id ? { ...b, name } : b));
     };
 
-    // --- Marker Rules Management ---
-    const handleAddRule = () => {
-        const newRule = {
-            id: `rule-${Date.now()}`,
-            labelId: '',
-            overrideType: 'color',
-            overrideValue: 'red'
+    const handleUpdateBlockProp = (id, prop, val) => {
+        setBlocks(blocks.map(b => b.id === id ? { ...b, [prop]: val } : b));
+    };
+
+    // Drag and Drop Logic
+    const onDragEnd = (result) => {
+        const { source, destination, draggableId } = result;
+        if (!destination) return;
+
+        // Moving between blocks or unassigned
+        // Source Droppable ID: 'unassigned' or blockId
+        // Dest Droppable ID: 'unassigned' or blockId
+
+        // Helper to remove listId from a block
+        const removeListFromBlock = (blockId, listId) => {
+            const block = blocks.find(b => b.id === blockId);
+            const newListIds = Array.from(block.listIds);
+            const index = newListIds.indexOf(listId);
+            if (index > -1) newListIds.splice(index, 1);
+            return { ...block, listIds: newListIds };
         };
-        setMarkerRules([...markerRules, newRule]);
-    };
 
-    const handleUpdateRule = (id, field, value) => {
-        setMarkerRules(markerRules.map(r => r.id === id ? { ...r, [field]: value } : r));
-    };
+        // Helper to add listId to a block
+        const addListToBlock = (blockId, listId, index) => {
+            const block = blocks.find(b => b.id === blockId);
+            const newListIds = Array.from(block.listIds);
+            newListIds.splice(index, 0, listId);
+            return { ...block, listIds: newListIds };
+        };
 
-    const removeRule = (id) => {
-        setMarkerRules(markerRules.filter(r => r.id !== id));
-    };
+        const listId = draggableId;
+        const sourceId = source.droppableId;
+        const destId = destination.droppableId;
 
-    const moveRule = (index, direction) => {
-        if (direction === 'up' && index > 0) {
-            const newRules = [...markerRules];
-            [newRules[index], newRules[index - 1]] = [newRules[index - 1], newRules[index]];
-            setMarkerRules(newRules);
-        } else if (direction === 'down' && index < markerRules.length - 1) {
-            const newRules = [...markerRules];
-            [newRules[index], newRules[index + 1]] = [newRules[index + 1], newRules[index]];
-            setMarkerRules(newRules);
-        }
-    };
-
-    // --- Save ---
-    const handleSave = () => {
-        if (!selectedBoardId) {
-            setError("Please select a board.");
+        // Case 1: Reordering within same block
+        if (sourceId === destId && sourceId !== 'unassigned') {
+            const block = blocks.find(b => b.id === sourceId);
+            const newListIds = Array.from(block.listIds);
+            newListIds.splice(source.index, 1);
+            newListIds.splice(destination.index, 0, listId);
+            setBlocks(blocks.map(b => b.id === sourceId ? { ...b, listIds: newListIds } : b));
             return;
         }
+
+        let newBlocks = [...blocks];
+
+        // Case 2: Moving from Block A to Block B (or Unassigned)
+        if (sourceId !== 'unassigned') {
+            newBlocks = newBlocks.map(b => b.id === sourceId ? removeListFromBlock(sourceId, listId) : b);
+        }
+
+        // Case 3: Moving to Block B
+        if (destId !== 'unassigned') {
+            newBlocks = newBlocks.map(b => b.id === destId ? addListToBlock(destId, listId, destination.index) : b);
+        }
+
+        setBlocks(newBlocks);
+    };
+
+    // Rule Management
+    const handleAddRule = () => setMarkerRules([...markerRules, { id: `rule-${Date.now()}`, labelId: '', overrideType: 'color', overrideValue: 'red' }]);
+    const handleUpdateRule = (id, f, v) => setMarkerRules(markerRules.map(r => r.id === id ? { ...r, [f]: v } : r));
+    const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
+    const moveRule = (idx, dir) => {
+        const newRules = [...markerRules];
+        const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+        [newRules[idx], newRules[swapIdx]] = [newRules[swapIdx], newRules[idx]];
+        setMarkerRules(newRules);
+    };
+
+    const handleSave = () => {
+        if (!selectedBoardId) return alert("Select a board first.");
 
         const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
         try {
-            // 1. Layout (Blocks)
+            // 1. Save Blocks Layout
             const layoutKey = `TRELLO_DASHBOARD_LAYOUT_${selectedBoardId}`;
             localStorage.setItem(layoutKey, JSON.stringify(blocks));
 
-            // 2. Refresh
+            // 2. Save Colors
+            setPersistentColors(user.id, selectedBoardId, listColors);
+
+            // 3. Save Other Settings
             localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
-
-            // 3. Clock
             localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
-
-            // 4. Template Cards
             localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
 
-            // 5. Map View & User Settings
-            const rulesKey = `TRELLO_MARKER_RULES_${selectedBoardId}`;
-            const cleanRules = markerRules.filter(r => r.labelId);
-            localStorage.setItem(rulesKey, JSON.stringify(cleanRules));
+            // 4. Save Map Config
+            localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId)));
+
+            // 5. Save User Settings (CRITICAL: Populate selectedLists for Dashboard.jsx)
+            // Flatten all lists assigned to blocks
+            const assignedLists = blocks.flatMap(b => b.listIds.map(lId => allLists.find(l => l.id === lId))).filter(Boolean);
 
             const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
             storedData[user.id] = {
@@ -226,33 +239,31 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                 settings: {
                     boardId: selectedBoardId,
                     boardName: selectedBoard ? selectedBoard.name : 'Trello Board',
+                    selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                     enableMapView,
                     mapGeocodeMode
                 }
             };
             localStorage.setItem('trelloUserData', JSON.stringify(storedData));
 
-            // Also save persistent list colors based on block config? 
-            // Dashboard.jsx usually manages its own list colors via `getPersistentColors`.
-            // But if we want to "Restore functionalities", keeping it simple is best.
-
             onSave();
         } catch (e) {
-            console.error("Save failed", e);
+            console.error(e);
             setError("Failed to save settings.");
         }
     };
 
-    // Config Handlers
-    const handleExportConfig = () => { /* Same as before */ };
-    const handleImportConfig = (file) => { /* Same as before */ }; // Simplified for now
     const handleClearBoardConfig = () => {
-        if (window.confirm("Reset all settings?")) {
+        if (window.confirm("Clear all settings?")) {
             setBlocks([]);
+            setListColors({});
             setMarkerRules([]);
-            setEnableMapView(false);
         }
     };
+
+    // Helper: Get Unassigned Lists
+    const assignedListIds = new Set(blocks.flatMap(b => b.listIds));
+    const unassignedLists = allLists.filter(l => !assignedListIds.has(l.id));
 
     const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
@@ -260,9 +271,9 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         <div className="settings-container">
             <h2>Dashboard Settings</h2>
 
-            {/* Top Selector */}
-            <div className="settings-row">
-                <label>Select Board:</label>
+            {/* SECTION 1: BOARD */}
+            <div className="admin-section">
+                <h3>1. Choose your Trello Board</h3>
                 <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
                     <option value="">-- Choose a Board --</option>
                     {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -271,231 +282,185 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
 
             {selectedBoard && (
                 <>
-                    {/* SECTION 1: BLOCKS */}
+                    {/* SECTION 2: BLOCKS */}
                     <div className="admin-section">
-                        <h3>1. Blocks Configuration</h3>
-                        <p style={{ marginTop: '-10px', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                            Configure dashboard blocks and map markers.
-                        </p>
-
-                        <DragDropContext onDragEnd={handleDragEnd}>
-                            <Droppable droppableId="blocks-list">
-                                {(provided) => (
-                                    <div {...provided.droppableProps} ref={provided.innerRef} className="blocks-list">
-                                        {blocks.map((block, index) => (
-                                            <Draggable key={block.id} draggableId={block.id} index={index}>
-                                                {(provided) => (
-                                                    <div
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        className="block-config-item"
-                                                        style={{ ...provided.draggableProps.style }}
-                                                    >
-                                                        <div className="block-header">
-                                                            <div {...provided.dragHandleProps} className="drag-handle">::</div>
-                                                            <input
-                                                                type="text"
-                                                                value={block.name}
-                                                                onChange={(e) => handleUpdateBlock(block.id, 'name', e.target.value)}
-                                                                placeholder="Block Name"
-                                                                className="block-name-input"
-                                                            />
-                                                            <button className="remove-block-btn" onClick={() => handleRemoveBlock(block.id)}>✕</button>
-                                                        </div>
-
-                                                        {/* Block Details */}
-                                                        <div className="block-lists-select">
-                                                            <label>Lists in this block:</label>
-                                                            <div className="lists-checkboxes">
-                                                                {loadingLists ? <span>Loading...</span> : lists.map(list => (
-                                                                    <label key={list.id} className="list-checkbox">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={block.listIds.includes(list.id)}
-                                                                            onChange={(e) => {
-                                                                                const newIds = e.target.checked
-                                                                                    ? [...block.listIds, list.id]
-                                                                                    : block.listIds.filter(id => id !== list.id);
-                                                                                handleUpdateBlock(block.id, 'listIds', newIds);
-                                                                            }}
-                                                                        />
-                                                                        {list.name}
-                                                                    </label>
-                                                                ))}
-                                                            </div>
-
-                                                            <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
-                                                                {/* Dashboard Settings */}
-                                                                <div style={{ flex: 1, minWidth: '200px' }}>
-                                                                    <strong>Dashboard Appearance</strong>
-                                                                    <div style={{ marginTop: '5px' }}>
-                                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9em' }}>
-                                                                            <input type="checkbox" checked={block.ignoreFirstCard} onChange={e => handleUpdateBlock(block.id, 'ignoreFirstCard', e.target.checked)} />
-                                                                            Ignore 1st card (Header)
-                                                                        </label>
-                                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9em', marginTop: '4px' }}>
-                                                                            <input type="checkbox" checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlock(block.id, 'displayFirstCardDescription', e.target.checked)} />
-                                                                            Show Header Desc.
-                                                                        </label>
-
-                                                                        {/* Tile Color Picker */}
-                                                                        <div style={{ marginTop: '8px' }}>
-                                                                            <label style={{ fontSize: '0.85em' }}>Tile Color:</label>
-                                                                            <ColorPicker
-                                                                                selectedColor={block.color}
-                                                                                onChange={(c) => handleUpdateBlock(block.id, 'color', c)}
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Map Settings */}
-                                                                <div style={{ flex: 1, minWidth: '200px', borderLeft: '1px solid #eee', paddingLeft: '15px' }}>
-                                                                    <strong>Map Settings</strong>
-                                                                    <div style={{ marginTop: '5px' }}>
-                                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9em' }}>
-                                                                            <input type="checkbox" checked={block.includeOnMap} onChange={e => handleUpdateBlock(block.id, 'includeOnMap', e.target.checked)} />
-                                                                            Show on Map
-                                                                        </label>
-                                                                        {block.includeOnMap && (
-                                                                            <div style={{ marginTop: '8px' }}>
-                                                                                <label style={{ fontSize: '0.85em' }}>Marker Icon:</label>
-                                                                                <IconPicker
-                                                                                    selectedIcon={block.mapIcon}
-                                                                                    onChange={(icon) => handleUpdateBlock(block.id, 'mapIcon', icon)}
-                                                                                />
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </Draggable>
-                                        ))}
-                                        {provided.placeholder}
-                                    </div>
-                                )}
-                            </Droppable>
-                        </DragDropContext>
+                        <h3>2. Manage your Trellops Blocks</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>Create sections for your dashboard.</p>
+                        {blocks.map(block => (
+                            <div key={block.id} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
+                                <input
+                                    type="text"
+                                    value={block.name}
+                                    onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
+                                    className="block-name-input"
+                                />
+                                <button onClick={() => handleRemoveBlock(block.id)} style={{ color: 'red' }}>Remove</button>
+                            </div>
+                        ))}
                         <button className="add-block-button" onClick={handleAddBlock}>+ Add Block</button>
                     </div>
 
-                    {/* SECTION 2: REFRESH */}
+                    {/* SECTION 3: ASSIGN TILES */}
                     <div className="admin-section">
-                        <h3>2. Auto-Refresh Interval</h3>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <input
-                                type="number"
-                                min="1"
-                                value={refreshValue}
-                                onChange={e => setRefreshValue(parseInt(e.target.value) || 1)}
-                                style={{ padding: '5px', width: '60px' }}
-                            />
-                            <select
-                                value={refreshUnit}
-                                onChange={e => setRefreshUnit(e.target.value)}
-                                style={{ padding: '6px' }}
-                            >
-                                <option value="minutes">Minutes</option>
-                                <option value="hours">Hours</option>
-                            </select>
+                        <h3>3. Assign Tiles to your Blocks</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>Drag lists into blocks. Configure list colors and order.</p>
+
+                        <DragDropContext onDragEnd={onDragEnd}>
+                            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
+                                {/* UNASSIGNED */}
+                                <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                    <h4>Available Lists</h4>
+                                    <Droppable droppableId="unassigned">
+                                        {(provided) => (
+                                            <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
+                                                {unassignedLists.map((list, index) => (
+                                                    <Draggable key={list.id} draggableId={list.id} index={index}>
+                                                        {(provided) => (
+                                                            <div
+                                                                ref={provided.innerRef}
+                                                                {...provided.draggableProps}
+                                                                {...provided.dragHandleProps}
+                                                                style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                            >
+                                                                {list.name}
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                            </div>
+                                        )}
+                                    </Droppable>
+                                </div>
+
+                                {/* BLOCKS */}
+                                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                    {blocks.map(block => (
+                                        <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <h4 style={{ margin: 0 }}>{block.name}</h4>
+
+                                                {/* Block-level Map Icon */}
+                                                {(block.includeOnMap !== false) && (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8em' }}>
+                                                        Block Marker:
+                                                        <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <Droppable droppableId={block.id}>
+                                                {(provided) => (
+                                                    <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px', marginTop: '10px' }}>
+                                                        {block.listIds.map((listId, index) => {
+                                                            const list = allLists.find(l => l.id === listId);
+                                                            if (!list) return null;
+
+                                                            const color = listColors[listId] || 'blue';
+
+                                                            return (
+                                                                <Draggable key={listId} draggableId={listId} index={index}>
+                                                                    {(provided) => (
+                                                                        <div
+                                                                            ref={provided.innerRef}
+                                                                            {...provided.draggableProps}
+                                                                            {...provided.dragHandleProps}
+                                                                            style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
+                                                                        >
+                                                                            <span>{list.name}</span>
+                                                                            {/* List Color Picker */}
+                                                                            <ColorPicker selectedColor={color} onChange={c => setListColors({ ...listColors, [listId]: c })} />
+                                                                        </div>
+                                                                    )}
+                                                                </Draggable>
+                                                            );
+                                                        })}
+                                                        {provided.placeholder}
+                                                    </div>
+                                                )}
+                                            </Droppable>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </DragDropContext>
+                    </div>
+
+                    {/* SECTION 4: OTHER */}
+                    <div className="admin-section">
+                        <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
+                            <div>
+                                <label>Refresh Interval</label>
+                                <div style={{ marginTop: '5px' }}>
+                                    <input type="number" min="1" value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
+                                    <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px' }}>
+                                        <option value="minutes">Minutes</option>
+                                        <option value="hours">Hours</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Features</label>
+                                <div style={{ marginTop: '5px' }}>
+                                    <label style={{ display: 'block' }}><input type="checkbox" checked={showClock} onChange={e => setShowClock(e.target.checked)} /> Show Clock</label>
+                                    <label style={{ display: 'block' }}><input type="checkbox" checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} /> Ignore Template Cards</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '20px', padding: '10px', background: '#fff', border: '1px solid #eee', borderRadius: '4px' }}>
+                            <h5>Block Display Options</h5>
+                            {blocks.map(b => (
+                                <div key={b.id} style={{ marginBottom: '5px', fontSize: '0.9em', display: 'flex', gap: '15px' }}>
+                                    <span style={{ fontWeight: 'bold', width: '150px' }}>{b.name}:</span>
+                                    <label><input type="checkbox" checked={b.ignoreFirstCard} onChange={e => handleUpdateBlockProp(b.id, 'ignoreFirstCard', e.target.checked)} /> Ignore First Card</label>
+                                    <label><input type="checkbox" checked={b.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(b.id, 'displayFirstCardDescription', e.target.checked)} /> Show Desc</label>
+                                    <label><input type="checkbox" checked={b.includeOnMap} onChange={e => handleUpdateBlockProp(b.id, 'includeOnMap', e.target.checked)} /> Show on Map</label>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
-                    {/* SECTION 3: CLOCK */}
+                    {/* SECTION 5: MAP */}
                     <div className="admin-section">
-                        <h3>3. Digital Clock</h3>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <input type="checkbox" checked={showClock} onChange={e => setShowClock(e.target.checked)} />
-                            Show Digital Clock in Header
-                        </label>
-                    </div>
-
-                    {/* SECTION 4: TEMPLATE CARDS */}
-                    <div className="admin-section">
-                        <h3>4. Template Cards</h3>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <input type="checkbox" checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
-                            Ignore Template Cards (exclude from counts/map)
-                        </label>
-                    </div>
-
-                    {/* SECTION 5: MAP VIEW (Restored) */}
-                    <div className="admin-section">
-                        <h3>5. Map View Configuration</h3>
-
-                        <div className="settings-row" style={{ marginTop: '8px' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <label className="switch">
-                                    <input
-                                        type="checkbox"
-                                        id="enable-map-view-check"
-                                        checked={enableMapView}
-                                        onChange={e => setEnableMapView(e.target.checked)}
-                                    />
-                                    <span className="slider round"></span>
-                                </label>
-                                <label htmlFor="enable-map-view-check">Enable Map View Button on Dashboard</label>
-                            </span>
+                        <h3>5. Map view for {selectedBoard.name}</h3>
+                        <div className="settings-row">
+                            <label className="switch">
+                                <input type="checkbox" checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
+                                <span className="slider round"></span>
+                            </label>
+                            <span style={{ marginLeft: '10px' }}>Enable Map View</span>
                         </div>
 
                         {enableMapView && (
-                            <div style={{ marginTop: '12px' }}>
-                                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Geocoding Mode</label>
-                                <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                                    <label>
-                                        <input type="radio" name="mapGeocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={() => setMapGeocodeMode('store')} />
-                                        <span style={{ marginLeft: '6px' }}>Local Only</span>
-                                    </label>
-                                    <label>
-                                        <input type="radio" name="mapGeocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={() => setMapGeocodeMode('update')} />
-                                        <span style={{ marginLeft: '6px' }}>Update Trello Cards</span>
-                                    </label>
-                                </div>
+                            <div style={{ marginTop: '15px' }}>
+                                <h4>Marker Variants</h4>
+                                <div className="rules-list">
+                                    {markerRules.map((rule, idx) => (
+                                        <div key={rule.id} className="rule-item" style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '5px', marginBottom: '5px', border: '1px solid #eee' }}>
+                                            <strong>#{idx + 1}</strong>
+                                            <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
+                                                <option value="">-- Label --</option>
+                                                {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
+                                            </select>
+                                            <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
+                                            <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
 
-                                <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid var(--border-color)' }}>
-                                    <h4 style={{ marginBottom: '5px' }}>Marker Customization (Label Rules)</h4>
-                                    <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '15px' }}>
-                                        Override icon or color based on Trello Labels.
-                                    </p>
-                                    <div className="rules-list">
-                                        {markerRules.map((rule, idx) => {
-                                            const labelInfo = boardLabels.find(l => l.id === rule.labelId);
-                                            return (
-                                                <div key={rule.id} className="rule-item" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px', marginBottom: '8px' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                                        <strong>Rule #{idx + 1}</strong>
-                                                        <div style={{ display: 'flex', gap: '5px' }}>
-                                                            <button onClick={() => moveRule(idx, 'up')} disabled={idx === 0}>↑</button>
-                                                            <button onClick={() => moveRule(idx, 'down')} disabled={idx === markerRules.length - 1}>↓</button>
-                                                            <button onClick={() => removeRule(rule.id)} style={{ color: 'red' }}>✕</button>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ display: 'flex', gap: '15px' }}>
-                                                        <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)} style={{ flex: 1 }}>
-                                                            <option value="">-- Label --</option>
-                                                            {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
-                                                        </select>
-                                                        <div>
-                                                            <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
-                                                            <label style={{ marginLeft: '8px' }}><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ marginTop: '8px' }}>
-                                                        {rule.overrideType === 'color' ? (
-                                                            <ColorPicker selectedColor={rule.overrideValue} onChange={val => handleUpdateRule(rule.id, 'overrideValue', val)} />
-                                                        ) : (
-                                                            <IconPicker selectedIcon={rule.overrideValue} onChange={val => handleUpdateRule(rule.id, 'overrideValue', val)} />
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <button className="button-secondary" onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+                                            {rule.overrideType === 'color' ?
+                                                <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
+                                                <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
+                                            }
+
+                                            <div style={{ marginLeft: 'auto' }}>
+                                                <button onClick={() => moveRule(idx, 'up')}>↑</button>
+                                                <button onClick={() => moveRule(idx, 'down')}>↓</button>
+                                                <button onClick={() => removeRule(rule.id)} style={{ color: 'red' }}>X</button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
+                                <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
                             </div>
                         )}
                     </div>
@@ -507,19 +472,10 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
             <div className="actions-container">
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
-                <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More options...</button>
+                <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
             </div>
 
-            {showMoreOptions && (
-                <MoreOptionsModal
-                    onClose={() => setShowMoreOptions(false)}
-                    onExport={() => alert("Feature simplified for restoration.")}
-                    onImport={() => alert("Feature simplified for restoration.")}
-                    onReset={handleClearBoardConfig}
-                    boardName={selectedBoard ? selectedBoard.name : ''}
-                    selectedBoardId={selectedBoardId}
-                />
-            )}
+            {showMoreOptions && <MoreOptionsModal onClose={() => setShowMoreOptions(false)} onReset={handleClearBoardConfig} boardName={selectedBoard?.name} />}
         </div>
     );
 };
