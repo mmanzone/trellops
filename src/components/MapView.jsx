@@ -63,10 +63,8 @@ const getMarkerConfig = (card) => {
 };
 
 // --- GEOCODING UTILS ---
-// --- GEOCODING UTILS ---
 async function geocodeAddress(address) {
     try {
-        // 1. Direct Coordinate Match
         const coordMatch = address.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
         if (coordMatch) {
             return {
@@ -75,53 +73,6 @@ async function geocodeAddress(address) {
             };
         }
 
-        // 2. Handle URL-like addresses (short links or full URLs passed as address)
-        if (address.match(/^https?:\/\//i)) {
-            let finalUrl = address;
-
-            // Attempt to resolve short links if possible (client-side restriction applies)
-            // Note: This often fails due to CORS if the shortener redirects to a different origin.
-            // We'll try a HEAD request or just fetch. If it fails, we parse what we have.
-            if (address.includes('goo.gl') || address.includes('bit.ly') || address.includes('t.co')) {
-                try {
-                    const resp = await fetch(address, { method: 'HEAD', mode: 'no-cors' }); // no-cors limits access to headers/url, but sometimes browser follows
-                    // Actually, with no-cors we can't see the final URL.
-                    // Realistically, without a backend proxy, we can't reliably resolve short links that do 301.
-                    // However, sometimes the "address" passed in IS the resolution if `parseAddressFromDescription` did its job poorly.
-                    // But `parseAddressFromDescription` (below) returns the URL if it can't parse it.
-                } catch (e) {
-                    // Ignore
-                }
-            }
-
-            // Retry parsing the URL (in case it wasn't parsed fully before or we can extract more)
-            // If it's still just a generic URL without coords, we can't match it.
-            // But if it's a "search" URL, we can extract the query.
-            try {
-                const urlObj = new URL(finalUrl);
-                const lat = urlObj.searchParams.get('lat');
-                const lng = urlObj.searchParams.get('lng');
-                if (lat && lng) return { lat: parseFloat(lat), lng: parseFloat(lng) };
-
-                // q param
-                const q = urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
-                if (q) {
-                    // If q contains coords
-                    const qCoords = q.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
-                    if (qCoords) return { lat: parseFloat(qCoords[1]), lng: parseFloat(qCoords[2]) };
-
-                    // Otherwise treat q as the address to search via Nominatim
-                    // Recursive call with the extracted query string
-                    return geocodeAddress(q);
-                }
-            } catch (e) { /* invalid url */ }
-
-            // If we still have a URL and no coords, we CANNOT send the URL to Nominatim. It will fail.
-            // So we return null here to avoid the specific error the user saw ("Nominatim returned no valid results").
-            return null;
-        }
-
-        // 3. Nominatim Fallback
         const encoded = encodeURIComponent(address);
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1`;
         const resp = await fetch(url, { headers: { 'User-Agent': 'TrellopsDashboard/1.0' } });
@@ -132,8 +83,7 @@ async function geocodeAddress(address) {
             }
         }
     } catch (e) {
-        console.warn("Geocoding/Nominatim error:", e);
-        // Don't throw, just return null so we handle it gracefully
+        throw new Error("Nominatim Error");
     }
     return null;
 }
@@ -141,64 +91,29 @@ async function geocodeAddress(address) {
 const parseAddressFromDescription = (desc) => {
     if (!desc || !desc.trim()) return null;
 
-    // 1. Check for explicit Google Maps URL formats
-
-    // a) @lat,lon
-    const atStatsMatch = desc.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (atStatsMatch) return `${atStatsMatch[1]},${atStatsMatch[2]}`;
-
-    // b) search?q=lat,lon or ?q=Address
-    // We look for the URL first
-    const urlMatch = desc.match(/https?:\/\/[^\s]+/i);
-    if (urlMatch) {
-        const urlStr = urlMatch[0];
+    const mapsPlaceMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\/\s]+\/maps\/place\/([^\s)]+)/i);
+    if (mapsPlaceMatch) {
+        const placePart = mapsPlaceMatch[1];
+        const mapsUrlFullMatch = desc.match(/https?:\/\/(?:www\.)?google\.[^\s]+/i);
+        const mapsUrlFull = mapsUrlFullMatch ? mapsUrlFullMatch[0] : null;
+        if (mapsUrlFull) {
+            const coordMatch = mapsUrlFull.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (coordMatch) {
+                return `${coordMatch[1]},${coordMatch[2]}`;
+            }
+        }
         try {
-            const urlObj = new URL(urlStr);
-
-            // ?q=... or ?query=...
-            const q = urlObj.searchParams.get('q') || urlObj.searchParams.get('query');
-            if (q) {
-                // Check if q is coordinates
-                const qCoord = q.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
-                if (qCoord) return `${qCoord[1]},${qCoord[2]}`;
-                // Return the query itself (e.g. "Toorak VIC")
-                return decodeURIComponent(q.replace(/\+/g, ' '));
-            }
-
-            // /maps/place/Address/@...
-            if (urlStr.includes('/maps/place/')) {
-                const parts = urlObj.pathname.split('/maps/place/');
-                if (parts[1]) {
-                    const addressPart = parts[1].split('/')[0];
-                    return decodeURIComponent(addressPart.replace(/\+/g, ' '));
-                }
-            }
-
-            // Shortened links: maps.app.goo.gl or goo.gl
-            if (urlStr.includes('goo.gl') || urlStr.includes('maps.app.goo.gl')) {
-                // Return the URL itself. `geocodeAddress` will attempt to handle it 
-                // (though primarily by returning null if it can't resolve, preventing the "valid results" error 
-                // effectively by not sending garbage to Nominatim).
-                return urlStr;
-            }
-
+            return decodeURIComponent(placePart.replace(/\+/g, ' '));
         } catch (e) {
-            // URL parsing failed, fall back to regex
+            return placePart.replace(/\+/g, ' ');
         }
     }
 
-    // 2. Explicit Coords in text
     const coordMatch = desc.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
     if (coordMatch) {
-        // Enforce reasonable lat/lng ranges to avoid version numbers (e.g. 1.0.2)
-        const lat = parseFloat(coordMatch[1]);
-        const lng = parseFloat(coordMatch[2]);
-        if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
-            return `${lat},${lng}`;
-        }
+        return `${coordMatch[1]},${coordMatch[2]}`;
     }
 
-    // 3. Address Heuristics
     const addressPatterns = [
         /^\d+\s+[A-Za-z\s]+(?:St|Street|Ave|Avenue|Rd|Road|Ln|Lane|Dr|Drive|Way|Court|Ct|Place|Pl|Parkway|Crescent|Cres|Boulevard|Blvd)[^\n]*/i,
         /(?:CNR|Corner)\s+[A-Za-z\s]+[&\/]\s+[A-Za-z\s]+[^\n]*/i,
@@ -213,11 +128,9 @@ const parseAddressFromDescription = (desc) => {
         }
     }
 
-    // 4. Fallback: First line if it looks like an address
     const lines = desc.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length > 0 && lines[0].length > 5) {
-        // Exclude things that look like IDs
-        if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0]) && !lines[0].startsWith('http')) {
+        if (!/^S\d+|^[A-Z]{2}\d+/.test(lines[0])) {
             return lines[0];
         }
     }
@@ -270,12 +183,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
     const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
 
-    const [showClock, setShowClock] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false');
-
-    useEffect(() => {
-        // Ensure clock setting is up to date when board changes or component mounts
-        setShowClock(localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false');
-    }, [boardId]);
+    const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
 
     const saveLocalGeocode = (cId, coords) => {
         try {
@@ -286,14 +194,24 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         } catch (e) { }
     };
 
+    // Helper to Reset Cache
+    const resetLocalGeocodingCache = () => {
+        if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
+            try {
+                const key = `MAP_GEOCODING_CACHE_${boardId}`;
+                localStorage.removeItem(key);
+                loadData(true); // reload to reflect cleared cache
+            } catch (e) {
+                console.error("Failed to clear cache", e);
+            }
+        }
+    };
+
     const updateTrelloCardCoordinates = async (cardId, coords) => {
         if (!updateTrelloCoordinates) return;
         try {
             await trelloFetch(`/cards/${cardId}`, user.token, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` })
             });
         } catch (e) { console.warn("Failed to write back coords", e); }
@@ -309,7 +227,13 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             setBlocks(currentLayout);
 
             if (!isRefresh) {
-                const initialVisible = new Set(currentLayout.filter(b => b.includeOnMap !== false).map(b => b.id));
+                // Initialize visibility based on setting
+                // Filter first: only enable blocks that are allowed on map
+                const initialVisible = new Set(
+                    currentLayout
+                        .filter(b => b.includeOnMap !== false) // Check "Include on Map" setting
+                        .map(b => b.id)
+                );
                 setVisibleBlockIds(initialVisible);
             }
 
@@ -319,27 +243,25 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
             const processedCards = cardsData.map(c => {
                 let coords = null;
-                let source = 'none';
-
                 if (c.coordinates) {
                     if (typeof c.coordinates === 'string' && c.coordinates.includes(',')) {
                         const parts = c.coordinates.split(',');
-                        if (parts.length === 2) {
-                            coords = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
-                            source = 'api';
-                        }
+                        if (parts.length === 2) coords = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
                     } else if (typeof c.coordinates === 'object') {
-                        coords = c.coordinates;
-                        source = 'api';
+                        // Trello often returns { latitude: ..., longitude: ... }
+                        // We must map it to { lat: ..., lng: ... } for Leaflet
+                        const lat = c.coordinates.lat || c.coordinates.latitude;
+                        const lng = c.coordinates.lng || c.coordinates.long || c.coordinates.longitude;
+                        if (lat && lng) {
+                            coords = { lat: parseFloat(lat), lng: parseFloat(lng) };
+                        }
                     }
                 }
 
-                if ((!coords || !coords.lat) && cache[c.id]) {
-                    coords = cache[c.id];
-                    source = 'cache';
-                }
+                // Fallback to cache if Trello didn't have coordinates
+                if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
 
-                return { ...c, coordinates: coords, source };
+                return { ...c, coordinates: coords };
             });
 
             setCards(processedCards);
@@ -352,42 +274,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             if (!isRefresh) setStatus('');
         }
     }, [user, boardId]);
-
-    // --- SYNC LOOP FOR TRELLO COORDINATES ---
-    useEffect(() => {
-        if (!updateTrelloCoordinates || cards.length === 0) return;
-
-        // Find cards that have coordinates (from cache or geocoding) but NOT from API
-        // and haven't been marked as 'synced' yet (to avoid loops, though source check helps)
-        const toSync = cards.filter(c =>
-            c.coordinates &&
-            c.coordinates.lat &&
-            (c.source === 'cache' || c.source === 'new')
-        );
-
-        if (toSync.length === 0) return;
-
-        const syncCards = async () => {
-            for (const card of toSync) {
-                // Double check it hasn't been updated in the meantime (e.g. by another process)
-                // We optimistically mark it as 'api' locally after sync to stop retries
-                try {
-                    await updateTrelloCardCoordinates(card.id, card.coordinates);
-                    // Update local state to reflect it's now synced (prevents loop)
-                    setCards(prev => prev.map(p =>
-                        p.id === card.id ? { ...p, source: 'api' } : p
-                    ));
-                    // Small delay to be nice to API
-                    await new Promise(r => setTimeout(r, 500));
-                } catch (e) {
-                    console.warn(`Failed to sync card ${card.name}`, e);
-                }
-            }
-        };
-
-        syncCards();
-    }, [cards, updateTrelloCoordinates]);
-
 
     useEffect(() => {
         loadData(false);
@@ -428,9 +314,13 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
         const needGeocoding = cards.filter(c => {
-            if (cache[c.id]) return false;
-            if (c.coordinates && c.coordinates.lat) return false;
+            // Priority 1: Already has coordinates (from Trello or Cache logic above)
+            if (c.coordinates && c.coordinates.lat && c.coordinates.lng) return false;
 
+            // Priority 2: Cache check (redundant if loadData is correct, but safe)
+            if (cache[c.id]) return false;
+
+            // Only queue if it LOOKS like it has an address
             const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
             if (!addressCandidate) return false;
 
@@ -485,7 +375,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     if (address) {
                         const coords = await geocodeAddress(address);
                         if (coords) {
-                            setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords, source: 'new' } : c));
+                            setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
                             saveLocalGeocode(cardId, coords);
                             if (updateTrelloCoordinates) {
                                 updateTrelloCardCoordinates(cardId, coords);
@@ -603,69 +493,59 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         return null;
     };
 
-    console.log("[MapView] Render. Board:", boardName, "Show Clock:", showClock, "UpdateTrelloCoords:", updateTrelloCoordinates);
-
-    return (
     return (
         <div className="map-container">
             <div className="map-header">
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
                     <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName} - Map View</h1>
+                    <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        {blocks.filter(b => b.includeOnMap !== false).map(b => (
+                            <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={visibleBlockIds.has(b.id)}
+                                    onChange={e => handleBlockToggle(b.id, e.target.checked)}
+                                />
+                                {b.name} ({getBlockCount(b)})
+                            </label>
+                        ))}
+                    </div>
                 </div>
                 <div className="map-header-actions">
-                    <span className="map-card-count">{cards.length} Cards</span>
+                    <span className="map-card-count">{markers.length} mapped cards</span>
                     <select
                         value={baseMap}
-                        onChange={(e) => {
-                            setBaseMap(e.target.value);
-                            localStorage.setItem('MAP_TILE_LAYER', e.target.value);
-                        }}
-                        style={{ padding: '5px', borderRadius: '4px' }}
+                        onChange={e => setBaseMap(e.target.value)}
+                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd' }}
                     >
-                        {Object.keys(TILE_LAYERS).map(key => <option key={key} value={key}>{TILE_LAYERS[key].name}</option>)}
+                        {Object.entries(TILE_LAYERS).map(([key, config]) => (
+                            <option key={key} value={key}>{config.name}</option>
+                        ))}
                     </select>
+
+                    <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '5px' }}>
+                        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                    </button>
                 </div>
             </div>
 
             <div id="map">
-                <MapContainer
-                    center={[20, 0]}
-                    zoom={2}
-                    style={{ height: '100%', width: '100%' }}
-                    maxBounds={[[-90, -180], [90, 180]]}
-                    maxBoundsViscosity={1.0}
-                >
+                <MapContainer center={[51.505, -0.09]} zoom={2} style={{ height: "100%", width: "100%" }}>
                     <TileLayer
-                        url={TILE_LAYERS[baseMap].url}
                         attribution={TILE_LAYERS[baseMap].attribution}
+                        url={TILE_LAYERS[baseMap].url}
                     />
                     {markers}
                     <MapBounds />
                 </MapContainer>
-
-                {status && (
-                    <div className={`status-message ${status ? '' : 'hidden'}`}>
-                        {loading && <div className="spinner"></div>}
-                        <div className="status-content">
-                            {status}
-                            {geocodingQueue.length > 0 && (
-                                <div className="status-progress">
-                                    <div
-                                        className="bar"
-                                        style={{ width: `${Math.min(100, Math.round(((cards.length - geocodingQueue.length) / cards.length) * 100))}%` }}
-                                    ></div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
             </div>
 
             <div className="map-footer">
                 <div className="map-footer-left">
                     <span style={{ fontSize: '0.85em', marginRight: '15px', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
                         Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
+                        <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a> |
                         Geocoding: <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
                     </span>
                 </div>
@@ -675,16 +555,37 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                             Next refresh in {countdown}s
                         </span>
                     )}
+                    <button className="settings-button" onClick={resetLocalGeocodingCache} title="Clear locally cached addresses">
+                        Reset Location Cache
+                    </button>
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
                     <button className="refresh-button" onClick={() => loadData(true)}>Refresh Map</button>
                     <button className="settings-button" onClick={() => {
-                        console.log('Open Settings clicked');
                         if (onShowSettings) onShowSettings();
                         else onClose();
                     }}>Settings</button>
                     <button className="logout-button" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
+
+            {status && (
+                <div className="status-message">
+                    <div className="spinner"></div>
+                    <span>{status}</span>
+                </div>
+            )}
+
+            {errorState && (
+                <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', maxWidth: '400px', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
+                    <span style={{ color: '#333', fontSize: '0.9em' }}>{errorState.message}</span>
+                    {errorState.cardUrl && (
+                        <a href={errorState.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', marginTop: '4px', textDecoration: 'underline' }}>
+                            View Card
+                        </a>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
