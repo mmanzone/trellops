@@ -109,6 +109,7 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         setSelectedBoardId(boardId);
         setBlocks([]);
         setListColors({});
+        setMarkerRules([]);
         if (boardId) await fetchBoardData(boardId);
         else setAllLists([]);
     };
@@ -116,7 +117,7 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
     // --- Actions ---
 
     const handleAddBlock = () => {
-        const newBlock = {
+        setBlocks([...blocks, {
             id: `block-${Date.now()}`,
             name: 'New Block',
             listIds: [],
@@ -124,8 +125,7 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
             mapIcon: 'map-marker',
             ignoreFirstCard: false,
             displayFirstCardDescription: false
-        };
-        setBlocks([...blocks, newBlock]);
+        }]);
     };
 
     const handleRemoveBlock = (blockId) => {
@@ -144,33 +144,37 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
 
     // Drag and Drop Logic
     const onDragEnd = (result) => {
-        const { source, destination, draggableId } = result;
+        const { source, destination, draggableId, type } = result;
         if (!destination) return;
 
-        // Moving between blocks or unassigned
-        // Source Droppable ID: 'unassigned' or blockId
-        // Dest Droppable ID: 'unassigned' or blockId
+        // BLOCK REORDERING
+        if (type === 'BLOCK') {
+            const newBlocks = Array.from(blocks);
+            const [movedBlock] = newBlocks.splice(source.index, 1);
+            newBlocks.splice(destination.index, 0, movedBlock);
+            setBlocks(newBlocks);
+            return;
+        }
+
+        // LIST ASSIGNMENT
+        const listId = draggableId;
+        const sourceId = source.droppableId;
+        const destId = destination.droppableId;
 
         // Helper to remove listId from a block
-        const removeListFromBlock = (blockId, listId) => {
+        const removeListFromBlock = (blockId, lId) => {
             const block = blocks.find(b => b.id === blockId);
-            const newListIds = Array.from(block.listIds);
-            const index = newListIds.indexOf(listId);
-            if (index > -1) newListIds.splice(index, 1);
+            const newListIds = block.listIds.filter(id => id !== lId);
             return { ...block, listIds: newListIds };
         };
 
         // Helper to add listId to a block
-        const addListToBlock = (blockId, listId, index) => {
+        const addListToBlock = (blockId, lId, index) => {
             const block = blocks.find(b => b.id === blockId);
             const newListIds = Array.from(block.listIds);
-            newListIds.splice(index, 0, listId);
+            newListIds.splice(index, 0, lId);
             return { ...block, listIds: newListIds };
         };
-
-        const listId = draggableId;
-        const sourceId = source.droppableId;
-        const destId = destination.droppableId;
 
         // Case 1: Reordering within same block
         if (sourceId === destId && sourceId !== 'unassigned') {
@@ -233,20 +237,23 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
             // Flatten all lists assigned to blocks
             const assignedLists = blocks.flatMap(b => b.listIds.map(lId => allLists.find(l => l.id === lId))).filter(Boolean);
 
+            const newSettings = {
+                boardId: selectedBoardId,
+                boardName: selectedBoard ? selectedBoard.name : 'Trello Board',
+                selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
+                enableMapView,
+                mapGeocodeMode
+            };
+
             const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
             storedData[user.id] = {
                 ...storedData[user.id],
-                settings: {
-                    boardId: selectedBoardId,
-                    boardName: selectedBoard ? selectedBoard.name : 'Trello Board',
-                    selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
-                    enableMapView,
-                    mapGeocodeMode
-                }
+                settings: newSettings
             };
             localStorage.setItem('trelloUserData', JSON.stringify(storedData));
 
-            onSave();
+            // Call onSave with newSettings to update App.jsx state IMMEDIATELY
+            onSave(newSettings);
         } catch (e) {
             console.error(e);
             setError("Failed to save settings.");
@@ -281,111 +288,158 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
             </div>
 
             {selectedBoard && (
-                <>
+                <DragDropContext onDragEnd={onDragEnd}>
                     {/* SECTION 2: BLOCKS */}
                     <div className="admin-section">
-                        <h3>2. Manage your Trellops Blocks</h3>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>Create sections for your dashboard.</p>
-                        {blocks.map(block => (
-                            <div key={block.id} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
-                                <input
-                                    type="text"
-                                    value={block.name}
-                                    onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
-                                    className="block-name-input"
-                                />
-                                <button onClick={() => handleRemoveBlock(block.id)} style={{ color: 'red' }}>Remove</button>
-                            </div>
-                        ))}
-                        <button className="add-block-button" onClick={handleAddBlock}>+ Add Block</button>
+                        <h3>2. Manage your Trellops blocks</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                            A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
+                        </p>
+                        <Droppable droppableId="blocks-list" type="BLOCK">
+                            {(provided) => (
+                                <div ref={provided.innerRef} {...provided.droppableProps}>
+                                    {blocks.map((block, index) => (
+                                        <Draggable key={block.id} draggableId={block.id} index={index}>
+                                            {(provided) => (
+                                                <div
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: '#fff', padding: '8px', border: '1px solid #eee', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                >
+                                                    <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                    <input
+                                                        type="text"
+                                                        value={block.name}
+                                                        onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
+                                                        className="block-name-input"
+                                                    />
+                                                    <button onClick={() => handleRemoveBlock(block.id)} style={{ color: 'red', marginLeft: 'auto' }}>Remove</button>
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    ))}
+                                    {provided.placeholder}
+                                </div>
+                            )}
+                        </Droppable>
+                        <button className="add-block-button" onClick={handleAddBlock} style={{ marginTop: '10px' }}>+ Add Block</button>
                     </div>
 
                     {/* SECTION 3: ASSIGN TILES */}
                     <div className="admin-section">
-                        <h3>3. Assign Tiles to your Blocks</h3>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>Drag lists into blocks. Configure list colors and order.</p>
+                        <h3>3. Assign tiles to your block</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                            Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
+                        </p>
 
-                        <DragDropContext onDragEnd={onDragEnd}>
-                            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
-                                {/* UNASSIGNED */}
-                                <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
-                                    <h4>Available Lists</h4>
-                                    <Droppable droppableId="unassigned">
-                                        {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
-                                                {unassignedLists.map((list, index) => (
-                                                    <Draggable key={list.id} draggableId={list.id} index={index}>
-                                                        {(provided) => (
-                                                            <div
-                                                                ref={provided.innerRef}
-                                                                {...provided.draggableProps}
-                                                                {...provided.dragHandleProps}
-                                                                style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
-                                                            >
-                                                                {list.name}
-                                                            </div>
-                                                        )}
-                                                    </Draggable>
-                                                ))}
-                                                {provided.placeholder}
+                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
+                            {/* UNASSIGNED */}
+                            <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                <h4>Available Lists</h4>
+                                <Droppable droppableId="unassigned" type="LIST">
+                                    {(provided) => (
+                                        <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
+                                            {unassignedLists.map((list, index) => (
+                                                <Draggable key={list.id} draggableId={list.id} index={index}>
+                                                    {(provided) => (
+                                                        <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            {...provided.dragHandleProps}
+                                                            style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                        >
+                                                            {list.name}
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            ))}
+                                            {provided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
+                            </div>
+
+                            {/* BLOCKS TARGETS */}
+                            <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                {blocks.map(block => (
+                                    <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
+                                        <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
+
+                                        {/* Block Options Inside Section 3 */}
+                                        <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
+                                            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <input type="checkbox" checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
+                                                    <span style={{ marginLeft: '5px' }}>Do not count the first card in the total</span>
+                                                </label>
+                                                {block.ignoreFirstCard && (
+                                                    <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                        <input type="checkbox" checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
+                                                        <span style={{ marginLeft: '5px' }}>Display the first card as tile description</span>
+                                                    </label>
+                                                )}
+                                            </div>
+                                            <div style={{ marginTop: '5px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <input type="checkbox" checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
+                                                    <span style={{ marginLeft: '5px' }}>Show on map</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <Droppable droppableId={block.id} type="LIST">
+                                            {(provided) => (
+                                                <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px' }}>
+                                                    {block.listIds.map((listId, index) => {
+                                                        const list = allLists.find(l => l.id === listId);
+                                                        if (!list) return null;
+                                                        const color = listColors[listId] || '#0079bf';
+                                                        return (
+                                                            <Draggable key={listId} draggableId={listId} index={index}>
+                                                                {(provided) => (
+                                                                    <div
+                                                                        ref={provided.innerRef}
+                                                                        {...provided.draggableProps}
+                                                                        {...provided.dragHandleProps}
+                                                                        style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
+                                                                    >
+                                                                        <span>{list.name}</span>
+                                                                        <input
+                                                                            type="color"
+                                                                            value={color}
+                                                                            onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
+                                                                            style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                                                            title="Tile Colour"
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </Draggable>
+                                                        );
+                                                    })}
+                                                    {provided.placeholder}
+                                                </div>
+                                            )}
+                                        </Droppable>
+
+                                        {/* Block Marker - Full Width at Bottom */}
+                                        {block.includeOnMap && (
+                                            <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                                                <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Block Marker Icon:</label>
+                                                <div style={{ width: '100%' }}>
+                                                    <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
+                                                </div>
                                             </div>
                                         )}
-                                    </Droppable>
-                                </div>
-
-                                {/* BLOCKS */}
-                                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                    {blocks.map(block => (
-                                        <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <h4 style={{ margin: 0 }}>{block.name}</h4>
-
-                                                {/* Block-level Map Icon */}
-                                                {(block.includeOnMap !== false) && (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8em' }}>
-                                                        Block Marker:
-                                                        <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <Droppable droppableId={block.id}>
-                                                {(provided) => (
-                                                    <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px', marginTop: '10px' }}>
-                                                        {block.listIds.map((listId, index) => {
-                                                            const list = allLists.find(l => l.id === listId);
-                                                            if (!list) return null;
-
-                                                            const color = listColors[listId] || 'blue';
-
-                                                            return (
-                                                                <Draggable key={listId} draggableId={listId} index={index}>
-                                                                    {(provided) => (
-                                                                        <div
-                                                                            ref={provided.innerRef}
-                                                                            {...provided.draggableProps}
-                                                                            {...provided.dragHandleProps}
-                                                                            style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
-                                                                        >
-                                                                            <span>{list.name}</span>
-                                                                            {/* List Color Picker */}
-                                                                            <ColorPicker selectedColor={color} onChange={c => setListColors({ ...listColors, [listId]: c })} />
-                                                                        </div>
-                                                                    )}
-                                                                </Draggable>
-                                                            );
-                                                        })}
-                                                        {provided.placeholder}
-                                                    </div>
-                                                )}
-                                            </Droppable>
-                                        </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                ))}
                             </div>
-                        </DragDropContext>
+                        </div>
                     </div>
+                </DragDropContext>
+            )}
 
+            {selectedBoard && (
+                <>
                     {/* SECTION 4: OTHER */}
                     <div className="admin-section">
                         <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
@@ -407,18 +461,6 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                                     <label style={{ display: 'block' }}><input type="checkbox" checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} /> Ignore Template Cards</label>
                                 </div>
                             </div>
-                        </div>
-
-                        <div style={{ marginTop: '20px', padding: '10px', background: '#fff', border: '1px solid #eee', borderRadius: '4px' }}>
-                            <h5>Block Display Options</h5>
-                            {blocks.map(b => (
-                                <div key={b.id} style={{ marginBottom: '5px', fontSize: '0.9em', display: 'flex', gap: '15px' }}>
-                                    <span style={{ fontWeight: 'bold', width: '150px' }}>{b.name}:</span>
-                                    <label><input type="checkbox" checked={b.ignoreFirstCard} onChange={e => handleUpdateBlockProp(b.id, 'ignoreFirstCard', e.target.checked)} /> Ignore First Card</label>
-                                    <label><input type="checkbox" checked={b.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(b.id, 'displayFirstCardDescription', e.target.checked)} /> Show Desc</label>
-                                    <label><input type="checkbox" checked={b.includeOnMap} onChange={e => handleUpdateBlockProp(b.id, 'includeOnMap', e.target.checked)} /> Show on Map</label>
-                                </div>
-                            ))}
                         </div>
                     </div>
 

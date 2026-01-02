@@ -237,7 +237,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
         fetchListCounts();
 
         return () => clearInterval(interval);
-    }, [fetchListCounts, refreshIntervalMs]);
+    }, [fetchListCounts, refreshIntervalMs, settings]);
 
 
     const handleTileClick = (listId, listName, color) => {
