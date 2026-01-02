@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { trelloFetch } from '/src/api/trello';
+import { trelloFetch } from '../api/trello';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
 import IconPicker from './common/IconPicker';
 import ColorPicker from './common/ColorPicker';
-import { STORAGE_KEYS } from '/src/utils/constants';
-import { setPersistentColors, getPersistentColors } from '/src/utils/persistence';
-import '/src/styles/settings.css';
+import { STORAGE_KEYS } from '../utils/constants';
+import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
+import '../styles/settings.css';
 
-const SettingsScreen = ({ user, onClose, onSave }) => {
+const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
     // --- State ---
     const [boards, setBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
@@ -51,11 +51,17 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                     setSelectedBoardId(bId);
                     await fetchBoardData(bId);
 
-                    // Load Layout
-                    const layoutKey = `TRELLO_DASHBOARD_LAYOUT_${bId}`;
-                    const savedLayout = localStorage.getItem(layoutKey);
+                    // Load Layout - Prefer persistence helper logic
+                    const allUserData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                    const savedLayout = allUserData[user.id]?.dashboardLayout?.[bId];
+
                     if (savedLayout) {
-                        setBlocks(JSON.parse(savedLayout));
+                        setBlocks(savedLayout);
+                    } else {
+                        // Fallback to legacy key if exists (migration)
+                        const legacyKey = `TRELLO_DASHBOARD_LAYOUT_${bId}`;
+                        const legacyLayout = localStorage.getItem(legacyKey);
+                        if (legacyLayout) setBlocks(JSON.parse(legacyLayout));
                     }
 
                     // Load Colors
@@ -79,6 +85,7 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                     const rulesKey = `TRELLO_MARKER_RULES_${bId}`;
                     const savedRules = localStorage.getItem(rulesKey);
                     if (savedRules) setMarkerRules(JSON.parse(savedRules));
+
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
                 }
@@ -147,6 +154,15 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         const { source, destination, draggableId, type } = result;
         if (!destination) return;
 
+        // RULE REORDERING
+        if (type === 'RULE') {
+            const newRules = Array.from(markerRules);
+            const [movedRule] = newRules.splice(source.index, 1);
+            newRules.splice(destination.index, 0, movedRule);
+            setMarkerRules(newRules);
+            return;
+        }
+
         // BLOCK REORDERING
         if (type === 'BLOCK') {
             const newBlocks = Array.from(blocks);
@@ -161,14 +177,12 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         const sourceId = source.droppableId;
         const destId = destination.droppableId;
 
-        // Helper to remove listId from a block
         const removeListFromBlock = (blockId, lId) => {
             const block = blocks.find(b => b.id === blockId);
             const newListIds = block.listIds.filter(id => id !== lId);
             return { ...block, listIds: newListIds };
         };
 
-        // Helper to add listId to a block
         const addListToBlock = (blockId, lId, index) => {
             const block = blocks.find(b => b.id === blockId);
             const newListIds = Array.from(block.listIds);
@@ -205,12 +219,6 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
     const handleAddRule = () => setMarkerRules([...markerRules, { id: `rule-${Date.now()}`, labelId: '', overrideType: 'color', overrideValue: 'red' }]);
     const handleUpdateRule = (id, f, v) => setMarkerRules(markerRules.map(r => r.id === id ? { ...r, [f]: v } : r));
     const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
-    const moveRule = (idx, dir) => {
-        const newRules = [...markerRules];
-        const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-        [newRules[idx], newRules[swapIdx]] = [newRules[swapIdx], newRules[idx]];
-        setMarkerRules(newRules);
-    };
 
     const handleSave = () => {
         if (!selectedBoardId) return alert("Select a board first.");
@@ -218,9 +226,8 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
         try {
-            // 1. Save Blocks Layout
-            const layoutKey = `TRELLO_DASHBOARD_LAYOUT_${selectedBoardId}`;
-            localStorage.setItem(layoutKey, JSON.stringify(blocks));
+            // 1. Save Blocks Layout (Correct Persistence)
+            setPersistentLayout(user.id, selectedBoardId, blocks);
 
             // 2. Save Colors
             setPersistentColors(user.id, selectedBoardId, listColors);
@@ -231,9 +238,9 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
             localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
 
             // 4. Save Map Config
-            localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId)));
+            localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
 
-            // 5. Save User Settings (CRITICAL: Populate selectedLists for Dashboard.jsx)
+            // 5. Update User Settings (CRITICAL: Populate selectedLists for Dashboard.jsx)
             // Flatten all lists assigned to blocks
             const assignedLists = blocks.flatMap(b => b.listIds.map(lId => allLists.find(l => l.id === lId))).filter(Boolean);
 
@@ -268,6 +275,57 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
         }
     };
 
+    const handleExportConfig = () => {
+        if (!selectedBoardId) return;
+        const config = {
+            boardId: selectedBoardId,
+            blocks,
+            listColors,
+            markerRules,
+            refreshValue,
+            refreshUnit,
+            showClock,
+            ignoreTemplateCards,
+            enableMapView,
+            mapGeocodeMode
+        };
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trellops-config-${selectedBoardId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleImportConfig = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            try {
+                const config = JSON.parse(evt.target.result);
+                if (config.boardId && config.boardId !== selectedBoardId) {
+                    if (!window.confirm(`This config is for board ${config.boardId}, but you are on ${selectedBoardId}. Import anyway?`)) return;
+                }
+                if (config.blocks) setBlocks(config.blocks);
+                if (config.listColors) setListColors(config.listColors);
+                if (config.markerRules) setMarkerRules(config.markerRules);
+                if (config.refreshValue) setRefreshValue(config.refreshValue);
+                if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
+                if (config.showClock !== undefined) setShowClock(config.showClock);
+                if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
+                if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
+                if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+                alert("Configuration imported! Click Save to persist changes.");
+            } catch (err) {
+                console.error(err);
+                alert("Failed to parse configuration file.");
+            }
+        };
+        reader.readAsText(file);
+    };
+
     // Helper: Get Unassigned Lists
     const assignedListIds = new Set(blocks.flatMap(b => b.listIds));
     const unassignedLists = allLists.filter(l => !assignedListIds.has(l.id));
@@ -275,7 +333,7 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
     const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
     return (
-        <div className="settings-container">
+        <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
             <h2>Dashboard Settings</h2>
 
             {/* SECTION 1: BOARD */}
@@ -435,11 +493,7 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                             </div>
                         </div>
                     </div>
-                </DragDropContext>
-            )}
 
-            {selectedBoard && (
-                <>
                     {/* SECTION 4: OTHER */}
                     <div className="admin-section">
                         <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
@@ -447,8 +501,9 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                             <div>
                                 <label>Refresh Interval</label>
                                 <div style={{ marginTop: '5px' }}>
-                                    <input type="number" min="1" value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
+                                    <input type="number" min={refreshUnit === 'seconds' ? 30 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
                                     <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px' }}>
+                                        <option value="seconds">Seconds</option>
                                         <option value="minutes">Minutes</option>
                                         <option value="hours">Hours</option>
                                     </select>
@@ -477,36 +532,68 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
 
                         {enableMapView && (
                             <div style={{ marginTop: '15px' }}>
-                                <h4>Marker Variants</h4>
-                                <div className="rules-list">
-                                    {markerRules.map((rule, idx) => (
-                                        <div key={rule.id} className="rule-item" style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '5px', marginBottom: '5px', border: '1px solid #eee' }}>
-                                            <strong>#{idx + 1}</strong>
-                                            <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
-                                                <option value="">-- Label --</option>
-                                                {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
-                                            </select>
-                                            <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
-                                            <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
-
-                                            {rule.overrideType === 'color' ?
-                                                <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
-                                                <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
-                                            }
-
-                                            <div style={{ marginLeft: 'auto' }}>
-                                                <button onClick={() => moveRule(idx, 'up')}>↑</button>
-                                                <button onClick={() => moveRule(idx, 'down')}>↓</button>
-                                                <button onClick={() => removeRule(rule.id)} style={{ color: 'red' }}>X</button>
-                                            </div>
-                                        </div>
-                                    ))}
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Geocoding behavior:</label>
+                                    <label style={{ display: 'block', marginBottom: '3px' }}>
+                                        <input type="radio" name="geocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={e => setMapGeocodeMode(e.target.value)} />
+                                        Store geolocation data locally (default)
+                                    </label>
+                                    <label style={{ display: 'block' }}>
+                                        <input type="radio" name="geocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={e => setMapGeocodeMode(e.target.value)} />
+                                        Update the Trello card coordinates (beta feature - only for demo purposes)
+                                    </label>
                                 </div>
+
+                                <h4>Marker Variants</h4>
+                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                    Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
+                                </p>
+
+                                <Droppable droppableId="marker-rules" type="RULE">
+                                    {(provided) => (
+                                        <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
+                                            {markerRules.map((rule, idx) => (
+                                                <Draggable key={rule.id} draggableId={rule.id} index={idx}>
+                                                    {(provided) => (
+                                                        <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            className="rule-item"
+                                                            style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                        >
+                                                            <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                            <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
+                                                                <option value="">-- Label --</option>
+                                                                {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
+                                                            </select>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
+                                                                <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                                            </div>
+
+                                                            <div style={{ flex: 1, minWidth: '200px' }}>
+                                                                {rule.overrideType === 'color' ?
+                                                                    <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
+                                                                    <div style={{ width: '100%' }}>
+                                                                        <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
+                                                                    </div>
+                                                                }
+                                                            </div>
+
+                                                            <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
+                                                        </div>
+                                                    )}
+                                                </Draggable>
+                                            ))}
+                                            {provided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
                                 <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
                             </div>
                         )}
                     </div>
-                </>
+                </DragDropContext>
             )}
 
             {error && <div className="error">{error}</div>}
@@ -517,7 +604,16 @@ const SettingsScreen = ({ user, onClose, onSave }) => {
                 <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
             </div>
 
-            {showMoreOptions && <MoreOptionsModal onClose={() => setShowMoreOptions(false)} onReset={handleClearBoardConfig} boardName={selectedBoard?.name} />}
+            {showMoreOptions && (
+                <MoreOptionsModal
+                    onClose={() => setShowMoreOptions(false)}
+                    onReset={handleClearBoardConfig}
+                    onExport={handleExportConfig}
+                    onImport={handleImportConfig}
+                    selectedBoardId={selectedBoardId}
+                    boardName={selectedBoard?.name}
+                />
+            )}
         </div>
     );
 };
