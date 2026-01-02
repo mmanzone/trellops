@@ -224,8 +224,8 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
         if (!selectedBoardId) return alert("Select a board first.");
 
         // VALIDATION: Refresh Interval 
-        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 30) {
-            alert("Refresh interval must be at least 30 seconds.");
+        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
+            alert("Refresh interval must be at least 15 seconds.");
             return;
         }
 
@@ -353,6 +353,9 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
             {/* SECTION 1: BOARD */}
             <div className="admin-section">
                 <h3>1. Choose your Trello Board</h3>
+                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                    Boards are pulled directly from your Trello account, across all workspaces.
+                </p>
                 <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
                     <option value="">-- Choose a Board --</option>
                     {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -385,7 +388,13 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                                                         onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
                                                         className="block-name-input"
                                                     />
-                                                    <button onClick={() => handleRemoveBlock(block.id)} style={{ color: 'red', marginLeft: 'auto' }}>Remove</button>
+                                                    <button
+                                                        onClick={() => handleRemoveBlock(block.id)}
+                                                        style={{ color: 'red', marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                        title="Remove Block"
+                                                    >
+                                                        X
+                                                    </button>
                                                 </div>
                                             )}
                                         </Draggable>
@@ -515,7 +524,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                             <div>
                                 <label>Refresh Interval</label>
                                 <div style={{ marginTop: '5px' }}>
-                                    <input type="number" min={refreshUnit === 'seconds' ? 30 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
+                                    <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
                                     <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px' }}>
                                         <option value="seconds">Seconds</option>
                                         <option value="minutes">Minutes</option>

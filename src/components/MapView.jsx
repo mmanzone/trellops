@@ -10,6 +10,7 @@ import { STORAGE_KEYS } from '/src/utils/constants';
 import { convertIntervalToSeconds, getLabelTextColor } from '/src/utils/helpers';
 import DigitalClock from './common/DigitalClock';
 import { ICONS } from './common/IconPicker'; // Import the SVG paths
+import { marked } from 'marked';
 
 // --- ICONS LOGIC ---
 const getMarkerIcon = (markerConfig) => {
@@ -171,6 +172,7 @@ const TILE_LAYERS = {
 
 const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [cards, setCards] = useState([]);
+    const [lists, setLists] = useState([]); // NEW: Store lists
     const [status, setStatus] = useState('');
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
@@ -178,7 +180,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [visibleBlockIds, setVisibleBlockIds] = useState(new Set());
     const [baseMap, setBaseMap] = useState('topo');
     const [errorState, setErrorState] = useState(null);
-    const [markerRules, setMarkerRules] = useState([]); // State for Rules
+    const [markerRules, setMarkerRules] = useState([]);
 
     const [countdown, setCountdown] = useState(null);
 
@@ -269,6 +271,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 );
                 setVisibleBlockIds(initialVisible);
             }
+
+            // FETCH LISTS
+            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
+            setLists(listsData);
 
             const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates`, user.token);
             const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
@@ -459,6 +465,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             .map(c => {
                 const block = blocks.find(b => b.listIds.includes(c.idList));
                 const config = getMarkerConfig(c, block, markerRules);
+                const listName = lists.find(l => l.id === c.idList)?.name || '';
 
                 return (
                     <Marker
@@ -469,6 +476,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         <Popup>
                             <div className="popup-card">
                                 <a href={c.shortUrl} target="_blank" rel="noreferrer"><strong>{c.name}</strong></a>
+                                {listName && <div style={{ fontWeight: 'bold', fontSize: '0.85em', color: '#666', marginBottom: '4px' }}>{listName}</div>}
                                 {c.labels && c.labels.length > 0 && (
                                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '4px 0' }}>
                                         {c.labels.map((l, i) => (
@@ -486,13 +494,20 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                                         ))}
                                     </div>
                                 )}
-                                <div className="popup-desc" style={{ whiteSpace: 'pre-wrap' }}>{c.desc}</div>
+                                <div className="popup-desc" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }} dangerouslySetInnerHTML={{ __html: marked.parse(c.desc || '') }}></div>
+                                {c.coordinates && (
+                                    <div style={{ marginTop: '8px', fontSize: '0.8em' }}>
+                                        <a href={`https://www.google.com/maps?q=${c.coordinates.lat},${c.coordinates.lng}`} target="_blank" rel="noreferrer" style={{ color: '#0079bf' }}>
+                                            {c.coordinates.lat.toFixed(5)}, {c.coordinates.lng.toFixed(5)}
+                                        </a>
+                                    </div>
+                                )}
                             </div>
                         </Popup>
                     </Marker>
                 );
             });
-    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, markerRules]);
+    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, markerRules, lists]);
 
     const getBlockCount = (block) => {
         return cards.filter(c => {
@@ -538,7 +553,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                                     checked={visibleBlockIds.has(b.id)}
                                     onChange={e => handleBlockToggle(b.id, e.target.checked)}
                                 />
-                                {/* Render Icon */}
+                                {/* Render Icon - Correctly */}
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#555', marginTop: '-1px' }}>
                                     <path d={ICONS[b.mapIcon ? b.mapIcon.toLowerCase() : 'map-marker'] || ICONS['map-marker']} />
                                 </svg>

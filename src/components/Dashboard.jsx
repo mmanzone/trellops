@@ -220,11 +220,14 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
             clearInterval(timerRef.current);
         }
 
+        const calculatedSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+        const effectiveSeconds = calculatedSeconds < 15 ? 15 : calculatedSeconds;
+
         const interval = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
                     fetchListCounts();
-                    return convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+                    return effectiveSeconds;
                 }
                 return prev - 1;
             });
@@ -233,11 +236,11 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
         timerRef.current = interval;
 
         // Set initial countdown value and fetch
-        setCountdown(convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit));
+        setCountdown(effectiveSeconds);
         fetchListCounts();
 
         return () => clearInterval(interval);
-    }, [fetchListCounts, refreshIntervalMs, settings]);
+    }, [fetchListCounts, refreshIntervalMs, settings, refreshSetting]);
 
 
     const handleTileClick = (listId, listName, color) => {
