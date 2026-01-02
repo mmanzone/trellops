@@ -85,10 +85,19 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
     };
 
     // NEW: Get refresh interval setting
-    const defaultRefreshSetting = { value: 1, unit: 'minutes' };
-    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
-    const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
-    const refreshIntervalMs = convertIntervalToMilliseconds(refreshSetting.value, refreshSetting.unit);
+    // NEW: Get refresh interval setting
+    const effectiveSeconds = React.useMemo(() => {
+        try {
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
+            const defaultRefreshSetting = { value: 1, unit: 'minutes' };
+            const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
+            const calculatedSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+            return calculatedSeconds < 15 ? 15 : calculatedSeconds;
+        } catch (e) {
+            return 60; // default to 60s on error
+        }
+    }, [boardId]);
+
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
 
 
@@ -259,9 +268,6 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
         if (timerRef.current) {
             clearInterval(timerRef.current);
         }
-
-        const calculatedSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
-        const effectiveSeconds = calculatedSeconds < 15 ? 15 : calculatedSeconds;
 
         const interval = setInterval(() => {
             setCountdown(prev => {
