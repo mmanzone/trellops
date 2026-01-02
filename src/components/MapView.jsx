@@ -281,11 +281,25 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
             setLists(listsData);
 
-            const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates`, user.token);
+            const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete`, user.token);
             const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
             const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
-            const processedCards = cardsData.map(c => {
+            const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+            const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+
+            const processedCards = [];
+
+            for (const c of cardsData) {
+                // 1. FILTERING
+                if (ignoreTemplateCards && c.isTemplate) continue;
+                if (ignoreCompletedCards && c.dueComplete) continue;
+
+                // Note: We don't filter by block existence here yet, because some users might 
+                // want to see all geocoded cards even if not in a "Block" (legacy behavior).
+                // However, the previous logic did not filter by block either at this stage, 
+                // it just processed coordinates. Block filtering happens in renderMarkers.
+
                 let coords = null;
                 if (c.coordinates) {
                     if (typeof c.coordinates === 'string' && c.coordinates.includes(',')) {
@@ -300,8 +314,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     }
                 }
                 if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
-                return { ...c, coordinates: coords };
-            });
+                processedCards.push({ ...c, coordinates: coords });
+            }
 
             setCards(processedCards);
 

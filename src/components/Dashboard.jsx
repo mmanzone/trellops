@@ -99,6 +99,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
     }, [boardId]);
 
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+    const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
 
 
     const isFetchingRef = useRef(false);
@@ -120,6 +121,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
         // const dateFilterParam = calculateDateFilter(timeFilter); 
         const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
         const ignoreTemplateCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+        const ignoreCompletedCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
 
         if (uniqueListIds.size === 0) {
             setCounts(new Map());
@@ -133,7 +135,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
             // We fetch 'name' and 'pos' to determine the "first card" locally.
             // We fetch 'dateLastActivity' to filter by time locally.
             const allCards = await trelloFetch(
-                `/boards/${boardId}/cards?fields=id,idList,pos,name,isTemplate,dateLastActivity`,
+                `/boards/${boardId}/cards?fields=id,idList,pos,name,isTemplate,dateLastActivity,dueComplete`,
                 user.token
             );
 
@@ -170,6 +172,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
             const cardsForProcessing = allCards.filter(c => {
                 // Template Filter
                 if (ignoreTemplateCardsSetting && c.isTemplate) return false;
+
+                // Completed Filter (NEW)
+                if (ignoreCompletedCardsSetting && c.dueComplete) return false;
 
                 // Time Filter
                 if (sinceDate || beforeDate) {

@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
     CLOCK_SETTING: 'dashboardClockSetting_',
     REFRESH_INTERVAL: 'dashboardRefreshInterval_',
     IGNORE_TEMPLATE_CARDS: 'dashboardIgnoreTemplateCards_',
+    IGNORE_COMPLETED_CARDS: 'dashboardIgnoreCompletedCards_',
     RANDOM_COLORS_CACHE: 'dashboardRandomColors'
 };
 

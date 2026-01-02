@@ -24,6 +24,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
     const [refreshUnit, setRefreshUnit] = useState('minutes');
     const [showClock, setShowClock] = useState(true);
     const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(true);
+    const [ignoreCompletedCards, setIgnoreCompletedCards] = useState(false);
 
     // Map View
     const [enableMapView, setEnableMapView] = useState(false);
@@ -80,6 +81,10 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
 
                     const savedIgnore = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + bId);
                     if (savedIgnore === 'false') setIgnoreTemplateCards(false);
+
+                    const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + bId);
+                    if (savedIgnoreCompleted === 'true') setIgnoreCompletedCards(true);
+                    else setIgnoreCompletedCards(false);
 
                     // Load Map Config
                     const rulesKey = `TRELLO_MARKER_RULES_${bId}`;
@@ -224,8 +229,9 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
         if (!selectedBoardId) return alert("Select a board first.");
 
         // VALIDATION: Refresh Interval 
-        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
-            alert("Refresh interval must be at least 15 seconds.");
+        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 10) {
+            setError("Refresh interval must be at least 10 seconds.");
+            window.scrollTo(0, 0);
             return;
         }
 
@@ -242,6 +248,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
             localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
             localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
             localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
+            localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
 
             // 4. Save Map Config
             localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
@@ -292,6 +299,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
             refreshUnit,
             showClock,
             ignoreTemplateCards,
+            ignoreCompletedCards,
             enableMapView,
             mapGeocodeMode
         };
@@ -321,6 +329,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                 if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
                 if (config.showClock !== undefined) setShowClock(config.showClock);
                 if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
+                if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
                 if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
                 alert("Configuration imported! Click Save to persist changes.");
@@ -348,7 +357,18 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
 
     return (
         <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
+            {/* Breadcrumb Navigation */}
+            <div style={{ marginBottom: '20px', fontSize: '0.9em' }}>
+                <a href="#section-1" onClick={(e) => { e.preventDefault(); document.getElementById('section-1').scrollIntoView({ behavior: 'smooth' }); }}>1. Board</a> |
+                <a href="#section-2" onClick={(e) => { e.preventDefault(); document.getElementById('section-2').scrollIntoView({ behavior: 'smooth' }); }}> 2. Blocks</a> |
+                <a href="#section-3" onClick={(e) => { e.preventDefault(); document.getElementById('section-3').scrollIntoView({ behavior: 'smooth' }); }}> 3. Assign</a> |
+                <a href="#section-4" onClick={(e) => { e.preventDefault(); document.getElementById('section-4').scrollIntoView({ behavior: 'smooth' }); }}> 4. Dashboard Settings</a> |
+                <a href="#section-5" onClick={(e) => { e.preventDefault(); document.getElementById('section-5').scrollIntoView({ behavior: 'smooth' }); }}> 5. Map Settings</a>
+            </div>
+
             <h2>Dashboard Settings</h2>
+
+            {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2' }}>{error}</div>}
 
             {/* SECTION 1: BOARD */}
             <div className="admin-section">
@@ -365,7 +385,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
             {selectedBoard && (
                 <DragDropContext onDragEnd={onDragEnd}>
                     {/* SECTION 2: BLOCKS */}
-                    <div className="admin-section">
+                    <div className="admin-section" id="section-2">
                         <h3>2. Manage your Trellops blocks</h3>
                         <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
                             A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
@@ -407,8 +427,8 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                     </div>
 
                     {/* SECTION 3: ASSIGN TILES */}
-                    <div className="admin-section">
-                        <h3>3. Assign tiles to your block</h3>
+                    <div className="admin-section" id="section-3">
+                        <h3>3. Assign tiles to your blocks</h3>
                         <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
                             Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
                         </p>
@@ -518,8 +538,11 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                     </div>
 
                     {/* SECTION 4: OTHER */}
-                    <div className="admin-section">
+                    <div className="admin-section" id="section-4">
                         <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                            These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
+                        </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
                             <div>
                                 <label>Refresh Interval</label>
@@ -539,9 +562,13 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                                         <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
                                         <span style={{ marginLeft: '5px' }}>Show Clock</span>
                                     </label>
-                                    <label style={{ display: 'flex', alignItems: 'center' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
                                         <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
                                         <span style={{ marginLeft: '5px' }}>Ignore Template Cards</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center' }}>
+                                        <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
+                                        <span style={{ marginLeft: '5px' }}>Ignore Completed Cards</span>
                                     </label>
                                 </div>
                             </div>
@@ -549,8 +576,11 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                     </div>
 
                     {/* SECTION 5: MAP */}
-                    <div className="admin-section">
+                    <div className="admin-section" id="section-5">
                         <h3>5. Map view for {selectedBoard.name}</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                            Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
+                        </p>
                         <div className="settings-row">
                             <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
                             <span style={{ marginLeft: '10px' }}>Enable Map View</span>
@@ -568,6 +598,11 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                                         <input type="radio" name="geocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={e => setMapGeocodeMode(e.target.value)} />
                                         Update the Trello card coordinates (beta feature - only for demo purposes)
                                     </label>
+                                    {mapGeocodeMode === 'update' && (
+                                        <p style={{ color: '#d32f2f', fontSize: '0.85em', marginTop: '5px', marginLeft: '20px', fontStyle: 'italic' }}>
+                                            Note: this will update each card in your Trello board with Lat/Long Coordinates in the Location field. Only enable if you want to update each card in Trello.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <h4>Marker Variants</h4>
@@ -622,7 +657,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                 </DragDropContext>
             )}
 
-            {error && <div className="error">{error}</div>}
+
 
             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v3.0.0</span>
