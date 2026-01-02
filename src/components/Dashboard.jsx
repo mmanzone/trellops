@@ -92,10 +92,16 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
 
 
+    const isFetchingRef = useRef(false);
+
     const fetchListCounts = useCallback(async (manual = false) => {
         if (manual || loading) {
             setLoading(true);
         }
+
+        if (isFetchingRef.current) return;
+        isFetchingRef.current = true;
+
         setError('');
 
         const persistentColorsCopy = getPersistentColors(user.id);
@@ -243,6 +249,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
                 setError(e.message);
             }
         } finally {
+            isFetchingRef.current = false;
             setLoading(false);
         }
     }, [user.token, listsFromSettings.length, boardId, sectionsLayout.length, timeFilter]);

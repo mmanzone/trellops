@@ -245,8 +245,13 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         } catch (e) { console.warn("Failed to write back coords", e); }
     };
 
+    const isFetchingRef = useRef(false);
+
     const loadData = useCallback(async (isRefresh = false) => {
         if (!user || !boardId) return;
+        if (isFetchingRef.current) return; // Prevent overlapping fetches
+
+        isFetchingRef.current = true;
         if (!isRefresh) setLoading(true);
         if (!isRefresh) setStatus('Loading cards...');
 
@@ -304,6 +309,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             console.error(e);
             setStatus(`Error: ${e.message}`);
         } finally {
+            isFetchingRef.current = false;
             if (!isRefresh) setLoading(false);
             if (!isRefresh) setStatus('');
         }
