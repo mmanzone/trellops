@@ -173,7 +173,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     };
     const storedSettings = getStoredSettings();
     const boardId = settings?.boardId || storedSettings.boardId;
-    const boardName = settings?.boardName || storedSettings.boardName || 'Trello Board';
+    // Ensure boardName is never undefined. Fallback to 'Trello Board' if strictly missing.
+    // If settings.boardName is "" (empty string), we might want to still show it or fallback.
+    const boardName = (settings && settings.boardName)
+        ? settings.boardName
+        : (storedSettings.boardName || 'Trello Board');
 
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
@@ -183,7 +187,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
     const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
 
-    const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
+    // Fallback: Default to TRUE if not set (null), otherwise parse 'false'
+    const storedClockSetting = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId);
+    const showClock = storedClockSetting !== 'false';
 
     const saveLocalGeocode = (cId, coords) => {
         try {
@@ -194,13 +200,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         } catch (e) { }
     };
 
-    // Helper to Reset Cache
     const resetLocalGeocodingCache = () => {
         if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
             try {
                 const key = `MAP_GEOCODING_CACHE_${boardId}`;
                 localStorage.removeItem(key);
-                loadData(true); // reload to reflect cleared cache
+                loadData(true);
             } catch (e) {
                 console.error("Failed to clear cache", e);
             }
@@ -227,11 +232,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             setBlocks(currentLayout);
 
             if (!isRefresh) {
-                // Initialize visibility based on setting
-                // Filter first: only enable blocks that are allowed on map
                 const initialVisible = new Set(
                     currentLayout
-                        .filter(b => b.includeOnMap !== false) // Check "Include on Map" setting
+                        .filter(b => b.includeOnMap !== false)
                         .map(b => b.id)
                 );
                 setVisibleBlockIds(initialVisible);
@@ -248,8 +251,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         const parts = c.coordinates.split(',');
                         if (parts.length === 2) coords = { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
                     } else if (typeof c.coordinates === 'object') {
-                        // Trello often returns { latitude: ..., longitude: ... }
-                        // We must map it to { lat: ..., lng: ... } for Leaflet
                         const lat = c.coordinates.lat || c.coordinates.latitude;
                         const lng = c.coordinates.lng || c.coordinates.long || c.coordinates.longitude;
                         if (lat && lng) {
@@ -257,10 +258,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         }
                     }
                 }
-
-                // Fallback to cache if Trello didn't have coordinates
                 if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
-
                 return { ...c, coordinates: coords };
             });
 
@@ -314,13 +312,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
         const needGeocoding = cards.filter(c => {
-            // Priority 1: Already has coordinates (from Trello or Cache logic above)
             if (c.coordinates && c.coordinates.lat && c.coordinates.lng) return false;
 
-            // Priority 2: Cache check (redundant if loadData is correct, but safe)
             if (cache[c.id]) return false;
 
-            // Only queue if it LOOKS like it has an address
             const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
             if (!addressCandidate) return false;
 
