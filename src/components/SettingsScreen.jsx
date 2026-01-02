@@ -229,8 +229,8 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
         if (!selectedBoardId) return alert("Select a board first.");
 
         // VALIDATION: Refresh Interval 
-        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 10) {
-            setError("Refresh interval must be at least 10 seconds.");
+        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
+            setError("Refresh interval must be at least 15 seconds.");
             window.scrollTo(0, 0);
             return;
         }
@@ -357,16 +357,16 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
 
     return (
         <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
+            <h2>Dashboard Settings</h2>
+
             {/* Breadcrumb Navigation */}
             <div style={{ marginBottom: '20px', fontSize: '0.9em' }}>
-                <a href="#section-1" onClick={(e) => { e.preventDefault(); document.getElementById('section-1').scrollIntoView({ behavior: 'smooth' }); }}>1. Board</a> |
-                <a href="#section-2" onClick={(e) => { e.preventDefault(); document.getElementById('section-2').scrollIntoView({ behavior: 'smooth' }); }}> 2. Blocks</a> |
-                <a href="#section-3" onClick={(e) => { e.preventDefault(); document.getElementById('section-3').scrollIntoView({ behavior: 'smooth' }); }}> 3. Assign</a> |
-                <a href="#section-4" onClick={(e) => { e.preventDefault(); document.getElementById('section-4').scrollIntoView({ behavior: 'smooth' }); }}> 4. Dashboard Settings</a> |
-                <a href="#section-5" onClick={(e) => { e.preventDefault(); document.getElementById('section-5').scrollIntoView({ behavior: 'smooth' }); }}> 5. Map Settings</a>
+                <a href="#section-1" onClick={(e) => { e.preventDefault(); document.getElementById('section-1').scrollIntoView({ behavior: 'smooth' }); }}>1. Choose your board</a> |
+                <a href="#section-2" onClick={(e) => { e.preventDefault(); document.getElementById('section-2').scrollIntoView({ behavior: 'smooth' }); }}> 2. Manage Blocks</a> |
+                <a href="#section-3" onClick={(e) => { e.preventDefault(); document.getElementById('section-3').scrollIntoView({ behavior: 'smooth' }); }}> 3. Assign tiles</a> |
+                <a href="#section-4" onClick={(e) => { e.preventDefault(); document.getElementById('section-4').scrollIntoView({ behavior: 'smooth' }); }}> 4. Other settings</a> |
+                <a href="#section-5" onClick={(e) => { e.preventDefault(); document.getElementById('section-5').scrollIntoView({ behavior: 'smooth' }); }}> 5. Map view</a>
             </div>
-
-            <h2>Dashboard Settings</h2>
 
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2' }}>{error}</div>}
 

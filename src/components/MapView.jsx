@@ -568,7 +568,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             <div className="map-header">
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName} - Map View</h1>
+                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName}</h1>
                     <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         {blocks.filter(b => b.includeOnMap !== false).map(b => (
                             <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em', cursor: 'pointer' }}>
@@ -638,7 +638,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         Reset Location Cache
                     </button>
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
-                    <button className="refresh-button" onClick={() => loadData(true)}>Refresh Map</button>
+                    <button className="refresh-button" onClick={() => {
+                        loadData(true);
+                        setCountdown(refreshIntervalSeconds);
+                    }}>Refresh Map</button>
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();
