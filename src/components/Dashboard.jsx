@@ -402,7 +402,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
 
             {/* NEW: Fixed Footer Action Bar */}
             <div className="footer-action-bar">
-                <span className="version">v.3</span>
+
                 <span className="countdown">Next refresh in {countdown}s</span>
                 <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
                 {enableMapView && (

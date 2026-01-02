@@ -538,6 +538,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                                     checked={visibleBlockIds.has(b.id)}
                                     onChange={e => handleBlockToggle(b.id, e.target.checked)}
                                 />
+                                {/* Render Icon */}
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style={{ color: '#555', marginTop: '-1px' }}>
+                                    <path d={ICONS[b.mapIcon ? b.mapIcon.toLowerCase() : 'map-marker'] || ICONS['map-marker']} />
+                                </svg>
                                 {b.name} ({getBlockCount(b)})
                             </label>
                         ))}

@@ -223,6 +223,12 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
     const handleSave = () => {
         if (!selectedBoardId) return alert("Select a board first.");
 
+        // VALIDATION: Refresh Interval 
+        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 30) {
+            alert("Refresh interval must be at least 30 seconds.");
+            return;
+        }
+
         const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
         try {
@@ -332,6 +338,14 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
 
     const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
+    // Reuse Switch Component
+    const ToggleSwitch = ({ checked, onChange }) => (
+        <label className="switch">
+            <input type="checkbox" checked={checked} onChange={onChange} />
+            <span className="slider round"></span>
+        </label>
+    );
+
     return (
         <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
             <h2>Dashboard Settings</h2>
@@ -427,19 +441,19 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                                         <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
                                             <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
                                                 <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <input type="checkbox" checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
+                                                    <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
                                                     <span style={{ marginLeft: '5px' }}>Do not count the first card in the total</span>
                                                 </label>
                                                 {block.ignoreFirstCard && (
                                                     <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                        <input type="checkbox" checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
+                                                        <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
                                                         <span style={{ marginLeft: '5px' }}>Display the first card as tile description</span>
                                                     </label>
                                                 )}
                                             </div>
                                             <div style={{ marginTop: '5px' }}>
                                                 <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <input type="checkbox" checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
+                                                    <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
                                                     <span style={{ marginLeft: '5px' }}>Show on map</span>
                                                 </label>
                                             </div>
@@ -512,8 +526,14 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                             <div>
                                 <label>Features</label>
                                 <div style={{ marginTop: '5px' }}>
-                                    <label style={{ display: 'block' }}><input type="checkbox" checked={showClock} onChange={e => setShowClock(e.target.checked)} /> Show Clock</label>
-                                    <label style={{ display: 'block' }}><input type="checkbox" checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} /> Ignore Template Cards</label>
+                                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                        <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
+                                        <span style={{ marginLeft: '5px' }}>Show Clock</span>
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center' }}>
+                                        <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
+                                        <span style={{ marginLeft: '5px' }}>Ignore Template Cards</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -523,10 +543,7 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
                     <div className="admin-section">
                         <h3>5. Map view for {selectedBoard.name}</h3>
                         <div className="settings-row">
-                            <label className="switch">
-                                <input type="checkbox" checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
-                                <span className="slider round"></span>
-                            </label>
+                            <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
                             <span style={{ marginLeft: '10px' }}>Enable Map View</span>
                         </div>
 
@@ -598,7 +615,8 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
 
             {error && <div className="error">{error}</div>}
 
-            <div className="actions-container">
+            <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v3.0.0</span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
                 <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
