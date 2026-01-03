@@ -553,7 +553,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             <div className="tab-content">
                                 {/* SECTION 5: MAP */}
                                 <div className="admin-section" id="section-5">
-                                    <h3>5. Map view for {selectedBoard.name}</h3>
+                                    <h3>Map View Settings for {selectedBoard.name}</h3>
                                     <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
                                         Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
                                     </p>
@@ -609,7 +609,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 ))}
                                             </div>
 
-                                            <h4>Marker Variants</h4>
+                                            <h3>Marker Variants</h3>
                                             <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
                                                 Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
                                             </p>
@@ -667,16 +667,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         <div className="tab-content">
                             {/* SECTION 4: OTHER */}
                             <div className="admin-section" id="section-4">
-                                <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
+                                <h3>Other Settings for {selectedBoard.name}</h3>
                                 <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                    These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
+                                    These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
                                 </p>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                     <div>
-                                        <label>Refresh Interval</label>
-                                        <div style={{ marginTop: '5px' }}>
-                                            <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
-                                            <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px' }}>
+                                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Refresh Interval</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                                            <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}>
                                                 <option value="seconds">Seconds</option>
                                                 <option value="minutes">Minutes</option>
                                                 <option value="hours">Hours</option>
@@ -684,19 +684,24 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
                                     </div>
                                     <div>
-                                        <label>Features</label>
-                                        <div style={{ marginTop: '5px' }}>
-                                            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center' }}>
                                                 <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
-                                                <span style={{ marginLeft: '5px' }}>Show Clock</span>
+                                                <span style={{ marginLeft: '10px' }}>Show Clock</span>
+                                                {showClock && (
+                                                    <span style={{ marginLeft: '15px', color: '#555', fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                                                        {new Date().toLocaleTimeString()}
+                                                    </span>
+                                                )}
                                             </label>
-                                            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center' }}>
                                                 <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
-                                                <span style={{ marginLeft: '5px' }}>Ignore Template Cards</span>
+                                                <span style={{ marginLeft: '10px' }}>Ignore Template Cards</span>
                                             </label>
                                             <label style={{ display: 'flex', alignItems: 'center' }}>
                                                 <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
-                                                <span style={{ marginLeft: '5px' }}>Ignore Completed Cards</span>
+                                                <span style={{ marginLeft: '10px' }}>Ignore Completed Cards</span>
                                             </label>
                                         </div>
                                     </div>
@@ -710,7 +715,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v3.0.0</span>
+                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v4.0.0 - Jan 03, 2026</span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
                 <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
