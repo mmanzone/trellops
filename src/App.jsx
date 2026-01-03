@@ -14,6 +14,7 @@ const App = () => {
     const [view, setView] = useState('landing'); // 'landing', 'settings', 'dashboard', 'map'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [settingsTab, setSettingsTab] = useState('dashboard'); // 'dashboard', 'map', 'other'
 
     const [previousView, setPreviousView] = useState(null);
 
@@ -154,6 +155,7 @@ const App = () => {
                 }}
                 onShowSettings={() => {
                     setPreviousView('map');
+                    setSettingsTab('map');
                     setView('settings');
                     window.history.pushState({}, '', '/');
                 }}
@@ -173,6 +175,7 @@ const App = () => {
                 settings={settings}
                 onShowSettings={() => {
                     setPreviousView('dashboard');
+                    setSettingsTab('dashboard');
                     setView('settings');
                 }}
                 onLogout={handleLogout}
@@ -184,6 +187,7 @@ const App = () => {
         return (
             <SettingsScreen
                 user={user}
+                initialTab={settingsTab}
                 onSave={handleSaveSettings}
                 onClose={() => {
                     if (previousView === 'map') {

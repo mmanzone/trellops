@@ -8,7 +8,7 @@ import { STORAGE_KEYS } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import '../styles/settings.css';
 
-const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout }) => {
     // --- State ---
     const [boards, setBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
@@ -34,6 +34,11 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
     const [error, setError] = useState('');
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [loadingLists, setLoadingLists] = useState(false);
+    const [activeTab, setActiveTab] = useState(initialTab); // 'dashboard', 'map', 'other'
+
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
 
     // Initial Load
     useEffect(() => {
@@ -359,302 +364,347 @@ const SettingsScreen = ({ user, onClose, onSave, onLogout }) => {
         <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
             <h2>Dashboard Settings</h2>
 
-            {/* Breadcrumb Navigation */}
-            <div style={{ marginBottom: '20px', fontSize: '0.9em' }}>
-                <a href="#section-1" onClick={(e) => { e.preventDefault(); document.getElementById('section-1').scrollIntoView({ behavior: 'smooth' }); }}>1. Choose your board</a> |
-                <a href="#section-2" onClick={(e) => { e.preventDefault(); document.getElementById('section-2').scrollIntoView({ behavior: 'smooth' }); }}> 2. Manage Blocks</a> |
-                <a href="#section-3" onClick={(e) => { e.preventDefault(); document.getElementById('section-3').scrollIntoView({ behavior: 'smooth' }); }}> 3. Assign tiles</a> |
-                <a href="#section-4" onClick={(e) => { e.preventDefault(); document.getElementById('section-4').scrollIntoView({ behavior: 'smooth' }); }}> 4. Other settings</a> |
-                <a href="#section-5" onClick={(e) => { e.preventDefault(); document.getElementById('section-5').scrollIntoView({ behavior: 'smooth' }); }}> 5. Map view</a>
+            {/* TABS HEADER */}
+            <div className="settings-tabs">
+                <button
+                    className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('dashboard')}
+                >
+                    Dashboard View Settings
+                </button>
+                <button
+                    className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('map')}
+                >
+                    Map View Settings
+                </button>
+                <button
+                    className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('other')}
+                >
+                    Other Settings
+                </button>
             </div>
 
-            {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2' }}>{error}</div>}
-
-            {/* SECTION 1: BOARD */}
-            <div className="admin-section">
-                <h3>1. Choose your Trello Board</h3>
-                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                    Boards are pulled directly from your Trello account, across all workspaces.
-                </p>
-                <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
-                    <option value="">-- Choose a Board --</option>
-                    {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-            </div>
+            {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
 
             {selectedBoard && (
-                <DragDropContext onDragEnd={onDragEnd}>
-                    {/* SECTION 2: BLOCKS */}
-                    <div className="admin-section" id="section-2">
-                        <h3>2. Manage your Trellops blocks</h3>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                            A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
-                        </p>
-                        <Droppable droppableId="blocks-list" type="BLOCK">
-                            {(provided) => (
-                                <div ref={provided.innerRef} {...provided.droppableProps}>
-                                    {blocks.map((block, index) => (
-                                        <Draggable key={block.id} draggableId={block.id} index={index}>
-                                            {(provided) => (
-                                                <div
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: '#fff', padding: '8px', border: '1px solid #eee', borderRadius: '4px', ...provided.draggableProps.style }}
-                                                >
-                                                    <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
-                                                    <input
-                                                        type="text"
-                                                        value={block.name}
-                                                        onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
-                                                        className="block-name-input"
-                                                    />
-                                                    <button
-                                                        onClick={() => handleRemoveBlock(block.id)}
-                                                        style={{ color: 'red', marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: 'bold' }}
-                                                        title="Remove Block"
-                                                    >
-                                                        X
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </Draggable>
-                                    ))}
-                                    {provided.placeholder}
+                <>
+                    <DragDropContext onDragEnd={onDragEnd}>
+                        {/* TAB CONTENT: DASHBOARD */}
+                        {activeTab === 'dashboard' && (
+                            <div className="tab-content">
+
+                                {/* SECTION 1: BOARD */}
+                                <div className="admin-section">
+                                    <h3>1. Choose your Trello Board</h3>
+                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                        Boards are pulled directly from your Trello account, across all workspaces.
+                                    </p>
+                                    <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
+                                        <option value="">-- Choose a Board --</option>
+                                        {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
                                 </div>
-                            )}
-                        </Droppable>
-                        <button className="add-block-button" onClick={handleAddBlock} style={{ marginTop: '10px' }}>+ Add Block</button>
-                    </div>
 
-                    {/* SECTION 3: ASSIGN TILES */}
-                    <div className="admin-section" id="section-3">
-                        <h3>3. Assign tiles to your blocks</h3>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                            Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
-                        </p>
-
-                        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
-                            {/* UNASSIGNED */}
-                            <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
-                                <h4>Available Lists</h4>
-                                <Droppable droppableId="unassigned" type="LIST">
-                                    {(provided) => (
-                                        <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
-                                            {unassignedLists.map((list, index) => (
-                                                <Draggable key={list.id} draggableId={list.id} index={index}>
-                                                    {(provided) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            {...provided.dragHandleProps}
-                                                            style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
-                                                        >
-                                                            {list.name}
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
-                                        </div>
-                                    )}
-                                </Droppable>
-                            </div>
-
-                            {/* BLOCKS TARGETS */}
-                            <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                {blocks.map(block => (
-                                    <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
-                                        <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
-
-                                        {/* Block Options Inside Section 3 */}
-                                        <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
-                                            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                                                <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
-                                                    <span style={{ marginLeft: '5px' }}>Do not count the first card in the total</span>
-                                                </label>
-                                                {block.ignoreFirstCard && (
-                                                    <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                        <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
-                                                        <span style={{ marginLeft: '5px' }}>Display the first card as tile description</span>
-                                                    </label>
-                                                )}
+                                {/* SECTION 2: BLOCKS */}
+                                <div className="admin-section" id="section-2">
+                                    <h3>2. Manage your Trellops blocks</h3>
+                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                        A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
+                                    </p>
+                                    <Droppable droppableId="blocks-list" type="BLOCK">
+                                        {(provided) => (
+                                            <div ref={provided.innerRef} {...provided.droppableProps}>
+                                                {blocks.map((block, index) => (
+                                                    <Draggable key={block.id} draggableId={block.id} index={index}>
+                                                        {(provided) => (
+                                                            <div
+                                                                ref={provided.innerRef}
+                                                                {...provided.draggableProps}
+                                                                style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: '#fff', padding: '8px', border: '1px solid #eee', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                            >
+                                                                <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                <input
+                                                                    type="text"
+                                                                    value={block.name}
+                                                                    onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
+                                                                    className="block-name-input"
+                                                                />
+                                                                <button
+                                                                    onClick={() => handleRemoveBlock(block.id)}
+                                                                    style={{ color: 'red', marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                                    title="Remove Block"
+                                                                >
+                                                                    X
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
                                             </div>
-                                            <div style={{ marginTop: '5px' }}>
-                                                <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
-                                                    <span style={{ marginLeft: '5px' }}>Show on map</span>
-                                                </label>
-                                            </div>
-                                        </div>
+                                        )}
+                                    </Droppable>
+                                    <button className="add-block-button" onClick={handleAddBlock} style={{ marginTop: '10px' }}>+ Add Block</button>
+                                </div>
 
-                                        <Droppable droppableId={block.id} type="LIST">
-                                            {(provided) => (
-                                                <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px' }}>
-                                                    {block.listIds.map((listId, index) => {
-                                                        const list = allLists.find(l => l.id === listId);
-                                                        if (!list) return null;
-                                                        const color = listColors[listId] || '#0079bf';
-                                                        return (
-                                                            <Draggable key={listId} draggableId={listId} index={index}>
+                                {/* SECTION 3: ASSIGN TILES */}
+                                <div className="admin-section" id="section-3">
+                                    <h3>3. Assign tiles to your blocks</h3>
+                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                        Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
+                                    </p>
+
+                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
+                                        {/* UNASSIGNED */}
+                                        <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                            <h4>Available Lists</h4>
+                                            <Droppable droppableId="unassigned" type="LIST">
+                                                {(provided) => (
+                                                    <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
+                                                        {unassignedLists.map((list, index) => (
+                                                            <Draggable key={list.id} draggableId={list.id} index={index}>
                                                                 {(provided) => (
                                                                     <div
                                                                         ref={provided.innerRef}
                                                                         {...provided.draggableProps}
                                                                         {...provided.dragHandleProps}
-                                                                        style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
+                                                                        style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
                                                                     >
-                                                                        <span>{list.name}</span>
-                                                                        <input
-                                                                            type="color"
-                                                                            value={color}
-                                                                            onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
-                                                                            style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
-                                                                            title="Tile Colour"
-                                                                        />
+                                                                        {list.name}
                                                                     </div>
                                                                 )}
                                                             </Draggable>
-                                                        );
-                                                    })}
-                                                    {provided.placeholder}
-                                                </div>
-                                            )}
-                                        </Droppable>
-
-                                        {/* Block Marker - Full Width at Bottom */}
-                                        {block.includeOnMap && (
-                                            <div style={{ marginTop: '15px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-                                                <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Block Marker Icon:</label>
-                                                <div style={{ width: '100%' }}>
-                                                    <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SECTION 4: OTHER */}
-                    <div className="admin-section" id="section-4">
-                        <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                            These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
-                        </p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
-                            <div>
-                                <label>Refresh Interval</label>
-                                <div style={{ marginTop: '5px' }}>
-                                    <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
-                                    <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px' }}>
-                                        <option value="seconds">Seconds</option>
-                                        <option value="minutes">Minutes</option>
-                                        <option value="hours">Hours</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label>Features</label>
-                                <div style={{ marginTop: '5px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                        <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
-                                        <span style={{ marginLeft: '5px' }}>Show Clock</span>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                        <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
-                                        <span style={{ marginLeft: '5px' }}>Ignore Template Cards</span>
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center' }}>
-                                        <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
-                                        <span style={{ marginLeft: '5px' }}>Ignore Completed Cards</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SECTION 5: MAP */}
-                    <div className="admin-section" id="section-5">
-                        <h3>5. Map view for {selectedBoard.name}</h3>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                            Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
-                        </p>
-                        <div className="settings-row">
-                            <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
-                            <span style={{ marginLeft: '10px' }}>Enable Map View</span>
-                        </div>
-
-                        {enableMapView && (
-                            <div style={{ marginTop: '15px' }}>
-                                <div style={{ marginBottom: '15px' }}>
-                                    <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Geocoding behavior:</label>
-                                    <label style={{ display: 'block', marginBottom: '3px' }}>
-                                        <input type="radio" name="geocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={e => setMapGeocodeMode(e.target.value)} />
-                                        Store geolocation data locally (default)
-                                    </label>
-                                    <label style={{ display: 'block' }}>
-                                        <input type="radio" name="geocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={e => setMapGeocodeMode(e.target.value)} />
-                                        Update the Trello card coordinates (beta feature - only for demo purposes)
-                                    </label>
-                                    {mapGeocodeMode === 'update' && (
-                                        <p style={{ color: '#d32f2f', fontSize: '0.85em', marginTop: '5px', marginLeft: '20px', fontStyle: 'italic' }}>
-                                            Note: this will update each card in your Trello board with Lat/Long Coordinates in the Location field. Only enable if you want to update each card in Trello.
-                                        </p>
-                                    )}
-                                </div>
-
-                                <h4>Marker Variants</h4>
-                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                    Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
-                                </p>
-
-                                <Droppable droppableId="marker-rules" type="RULE">
-                                    {(provided) => (
-                                        <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
-                                            {markerRules.map((rule, idx) => (
-                                                <Draggable key={rule.id} draggableId={rule.id} index={idx}>
-                                                    {(provided) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            className="rule-item"
-                                                            style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
-                                                        >
-                                                            <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
-                                                            <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
-                                                                <option value="">-- Label --</option>
-                                                                {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
-                                                            </select>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
-                                                                <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
-                                                            </div>
-
-                                                            <div style={{ flex: 1, minWidth: '200px' }}>
-                                                                {rule.overrideType === 'color' ?
-                                                                    <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
-                                                                    <div style={{ width: '100%' }}>
-                                                                        <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
-                                                                    </div>
-                                                                }
-                                                            </div>
-
-                                                            <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
+                                                        ))}
+                                                        {provided.placeholder}
+                                                    </div>
+                                                )}
+                                            </Droppable>
                                         </div>
-                                    )}
-                                </Droppable>
-                                <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+
+                                        {/* BLOCKS TARGETS */}
+                                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                            {blocks.map(block => (
+                                                <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
+                                                    <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
+
+                                                    {/* Block Options Inside Section 3 */}
+                                                    <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
+                                                        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                                            <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                                <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
+                                                                <span style={{ marginLeft: '5px' }}>Do not count the first card in the total</span>
+                                                            </label>
+                                                            {block.ignoreFirstCard && (
+                                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                                    <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
+                                                                    <span style={{ marginLeft: '5px' }}>Display the first card as tile description</span>
+                                                                </label>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <Droppable droppableId={block.id} type="LIST">
+                                                        {(provided) => (
+                                                            <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px' }}>
+                                                                {block.listIds.map((listId, index) => {
+                                                                    const list = allLists.find(l => l.id === listId);
+                                                                    if (!list) return null;
+                                                                    const color = listColors[listId] || '#0079bf';
+                                                                    return (
+                                                                        <Draggable key={listId} draggableId={listId} index={index}>
+                                                                            {(provided) => (
+                                                                                <div
+                                                                                    ref={provided.innerRef}
+                                                                                    {...provided.draggableProps}
+                                                                                    {...provided.dragHandleProps}
+                                                                                    style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
+                                                                                >
+                                                                                    <span>{list.name}</span>
+                                                                                    <input
+                                                                                        type="color"
+                                                                                        value={color}
+                                                                                        onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
+                                                                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                                                                        title="Tile Colour"
+                                                                                    />
+                                                                                </div>
+                                                                            )}
+                                                                        </Draggable>
+                                                                    );
+                                                                })}
+                                                                {provided.placeholder}
+                                                            </div>
+                                                        )}
+                                                    </Droppable>
+
+
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
-                    </div>
-                </DragDropContext>
+
+                        {/* TAB CONTENT: MAP */}
+                        {activeTab === 'map' && (
+                            <div className="tab-content">
+                                {/* SECTION 5: MAP */}
+                                <div className="admin-section" id="section-5">
+                                    <h3>5. Map view for {selectedBoard.name}</h3>
+                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                        Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
+                                    </p>
+                                    <div className="settings-row">
+                                        <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
+                                        <span style={{ marginLeft: '10px' }}>Enable Map View</span>
+                                    </div>
+
+                                    {enableMapView && (
+                                        <div style={{ marginTop: '15px' }}>
+                                            <div style={{ marginBottom: '15px' }}>
+                                                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Geocoding behavior:</label>
+                                                <label style={{ display: 'block', marginBottom: '3px' }}>
+                                                    <input type="radio" name="geocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={e => setMapGeocodeMode(e.target.value)} />
+                                                    Store geolocation data locally (default)
+                                                </label>
+                                                <label style={{ display: 'block' }}>
+                                                    <input type="radio" name="geocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={e => setMapGeocodeMode(e.target.value)} />
+                                                    Update the Trello card coordinates (beta feature - only for demo purposes)
+                                                </label>
+                                                {mapGeocodeMode === 'update' && (
+                                                    <p style={{ color: '#d32f2f', fontSize: '0.85em', marginTop: '5px', marginLeft: '20px', fontStyle: 'italic' }}>
+                                                        Note: this will update each card in your Trello board with Lat/Long Coordinates in the Location field. Only enable if you want to update each card in Trello.
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}
+                                            <h4>Block Map Options</h4>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                                Choose which blocks appear on the map and customize their markers.
+                                            </p>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+                                                {blocks.map(block => (
+                                                    <div key={block.id} style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <h4 style={{ margin: 0 }}>{block.name}</h4>
+                                                            <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                                <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
+                                                                <span style={{ marginLeft: '5px' }}>Show on map</span>
+                                                            </label>
+                                                        </div>
+
+                                                        {block.includeOnMap && (
+                                                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                                                                <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Block Marker Icon:</label>
+                                                                <div style={{ width: '100%' }}>
+                                                                    <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <h4>Marker Variants</h4>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                                Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
+                                            </p>
+
+                                            <Droppable droppableId="marker-rules" type="RULE">
+                                                {(provided) => (
+                                                    <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
+                                                        {markerRules.map((rule, idx) => (
+                                                            <Draggable key={rule.id} draggableId={rule.id} index={idx}>
+                                                                {(provided) => (
+                                                                    <div
+                                                                        ref={provided.innerRef}
+                                                                        {...provided.draggableProps}
+                                                                        className="rule-item"
+                                                                        style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                                    >
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                        <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
+                                                                            <option value="">-- Label --</option>
+                                                                            {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
+                                                                        </select>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                            <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
+                                                                            <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                                                        </div>
+
+                                                                        <div style={{ flex: 1, minWidth: '200px' }}>
+                                                                            {rule.overrideType === 'color' ?
+                                                                                <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
+                                                                                <div style={{ width: '100%' }}>
+                                                                                    <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
+                                                                                </div>
+                                                                            }
+                                                                        </div>
+
+                                                                        <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
+                                                                    </div>
+                                                                )}
+                                                            </Draggable>
+                                                        ))}
+                                                        {provided.placeholder}
+                                                    </div>
+                                                )}
+                                            </Droppable>
+                                            <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </DragDropContext>
+
+                    {/* TAB CONTENT: OTHER */}
+                    {activeTab === 'other' && (
+                        <div className="tab-content">
+                            {/* SECTION 4: OTHER */}
+                            <div className="admin-section" id="section-4">
+                                <h3>4. Other Dashboard Settings for {selectedBoard.name}</h3>
+                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                    These settings are saved separately for each Trello board. Auto-refresh must be at least 10 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
+                                </p>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
+                                    <div>
+                                        <label>Refresh Interval</label>
+                                        <div style={{ marginTop: '5px' }}>
+                                            <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '50px', padding: '5px' }} />
+                                            <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px' }}>
+                                                <option value="seconds">Seconds</option>
+                                                <option value="minutes">Minutes</option>
+                                                <option value="hours">Hours</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label>Features</label>
+                                        <div style={{ marginTop: '5px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
+                                                <span style={{ marginLeft: '5px' }}>Show Clock</span>
+                                            </label>
+                                            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
+                                                <span style={{ marginLeft: '5px' }}>Ignore Template Cards</span>
+                                            </label>
+                                            <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
+                                                <span style={{ marginLeft: '5px' }}>Ignore Completed Cards</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
 
