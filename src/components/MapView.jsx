@@ -202,6 +202,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         ? settings.boardName
         : (storedSettings.boardName || 'Trello Board');
 
+    // Geocoding Settings
+    const mapGeocodeMode = (settings && settings.mapGeocodeMode) ? settings.mapGeocodeMode
+        : (storedSettings.mapGeocodeMode || 'store'); // 'store' or 'disabled'
+
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
 
@@ -237,10 +241,14 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
     const updateTrelloCardCoordinates = async (cardId, coords) => {
         if (!updateTrelloCoordinates) return;
+
         try {
             await trelloFetch(`/cards/${cardId}`, user.token, {
                 method: 'PUT',
-                body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` })
+                body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
         } catch (e) { console.warn("Failed to write back coords", e); }
     };
@@ -373,6 +381,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
             if (cache[c.id]) return false;
 
+            // If local geocoding is disabled, stop here
+            if (mapGeocodeMode === 'disabled') return false;
+
             const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
             if (!addressCandidate) return false;
 
@@ -398,7 +409,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             });
         }
 
-    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, boardId]);
+    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, boardId, mapGeocodeMode]);
 
 
     useEffect(() => {
@@ -634,9 +645,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                             Next refresh in {countdown}s
                         </span>
                     )}
-                    <button className="settings-button" onClick={resetLocalGeocodingCache} title="Clear locally cached addresses">
-                        Reset Location Cache
-                    </button>
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
                     <button className="refresh-button" onClick={() => {
                         loadData(true);

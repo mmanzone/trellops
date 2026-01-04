@@ -18,6 +18,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
     const [countdown, setCountdown] = useState(30);
     const [timeFilter, setTimeFilter] = useState('all');
     const [enableMapView, setEnableMapView] = useState(() => {
+        if (settings && settings.enableMapView !== undefined) return settings.enableMapView;
         const boardIdLocal = settings?.boardId;
         if (!boardIdLocal) return false;
         const stored = localStorage.getItem(`ENABLE_MAP_VIEW_${boardIdLocal}`);
@@ -40,16 +41,19 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
     };
 
     // Update enableMapView when selected board changes
+    // Sync enableMapView with settings prop changes
     useEffect(() => {
-        const boardIdLocal = settings?.boardId;
-        if (!boardIdLocal) return;
-        try {
-            const stored = localStorage.getItem(`ENABLE_MAP_VIEW_${boardIdLocal}`);
-            setEnableMapView(stored === 'true');
-        } catch (e) {
-            // ignore
+        if (settings) {
+            if (settings.enableMapView !== undefined) {
+                setEnableMapView(settings.enableMapView);
+            } else if (settings.boardId) {
+                try {
+                    const stored = localStorage.getItem(`ENABLE_MAP_VIEW_${settings.boardId}`);
+                    setEnableMapView(stored === 'true');
+                } catch (e) { }
+            }
         }
-    }, [settings?.boardId]);
+    }, [settings]);
 
     const buildNumber = (() => {
         const now = new Date();
