@@ -30,13 +30,28 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [enableMapView, setEnableMapView] = useState(false);
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
+    const [enableCardMove, setEnableCardMove] = useState(false); // NEW
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
 
     const [error, setError] = useState('');
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [loadingLists, setLoadingLists] = useState(false);
-    const [activeTab, setActiveTab] = useState(initialTab); // 'dashboard', 'map', 'other'
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Initial check on mount
+    useEffect(() => {
+        if (user?.token) {
+            trelloAuth.checkTokenScopes(user.token).then(scopes => {
+                const canWrite = scopes.includes('write');
+                setHasWritePermission(canWrite);
+                if (!canWrite) {
+                    setUpdateTrelloCoordinates(false);
+                    setEnableCardMove(false);
+                }
+            });
+        }
+    }, [user]);
 
     useEffect(() => {
         setActiveTab(initialTab);
@@ -55,6 +70,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         // If user doesn't have write permission, uncheck the update toggle
         if (!canWrite) {
             setUpdateTrelloCoordinates(false);
+            setEnableCardMove(false);
         }
     };
 
@@ -119,6 +135,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                     const savedUpdateTrello = localStorage.getItem('updateTrelloCoordinates_' + bId);
                     if (savedUpdateTrello === 'true') setUpdateTrelloCoordinates(true);
+
+                    const savedEnableCardMove = localStorage.getItem('enableCardMove_' + bId);
+                    if (savedEnableCardMove === 'true') setEnableCardMove(true);
                 }
             } catch (e) {
                 console.warn("Error loading settings", e);
@@ -283,6 +302,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
             localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, safeUpdateTrello ? 'true' : 'false');
 
+            const safeEnableCardMove = enableCardMove && hasWritePermission;
+            localStorage.setItem('enableCardMove_' + selectedBoardId, safeEnableCardMove ? 'true' : 'false');
+
             // If enabling Trello updates, reset the cache to force decoding and updating
             if (safeUpdateTrello) {
                 const cacheKey = `MAP_GEOCODING_CACHE_${selectedBoardId}`;
@@ -301,7 +323,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 boardName: selectedBoard ? selectedBoard.name : 'Trello Board',
                 selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                 enableMapView,
-                mapGeocodeMode
+                mapGeocodeMode,
+                enableCardMove: enableCardMove && hasWritePermission
             };
 
             const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
@@ -340,7 +363,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             ignoreTemplateCards,
             ignoreCompletedCards,
             enableMapView,
-            mapGeocodeMode
+            mapGeocodeMode,
+            enableCardMove
         };
         const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -371,6 +395,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
                 if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+                if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
                 alert("Configuration imported! Click Save to persist changes.");
             } catch (err) {
                 console.error(err);
@@ -718,52 +743,93 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             ))}
                                         </div>
 
-                                        <h3>Marker Variants</h3>
-                                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                            Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
-                                        </p>
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <h3>Marker Variants</h3>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                                Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
+                                            </p>
 
-                                        <Droppable droppableId="marker-rules" type="RULE">
-                                            {(provided) => (
-                                                <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
-                                                    {markerRules.map((rule, idx) => (
-                                                        <Draggable key={rule.id} draggableId={rule.id} index={idx}>
-                                                            {(provided) => (
-                                                                <div
-                                                                    ref={provided.innerRef}
-                                                                    {...provided.draggableProps}
-                                                                    className="rule-item"
-                                                                    style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
-                                                                >
-                                                                    <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
-                                                                    <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
-                                                                        <option value="">-- Label --</option>
-                                                                        {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
-                                                                    </select>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                        <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
-                                                                        <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                            <Droppable droppableId="marker-rules" type="RULE">
+                                                {(provided) => (
+                                                    <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
+                                                        {markerRules.map((rule, idx) => (
+                                                            <Draggable key={rule.id} draggableId={rule.id} index={idx}>
+                                                                {(provided) => (
+                                                                    <div
+                                                                        ref={provided.innerRef}
+                                                                        {...provided.draggableProps}
+                                                                        className="rule-item"
+                                                                        style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                                    >
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                        <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
+                                                                            <option value="">-- Label --</option>
+                                                                            {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
+                                                                        </select>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                            <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
+                                                                            <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                                                        </div>
+
+                                                                        <div style={{ flex: 1, minWidth: '200px' }}>
+                                                                            {rule.overrideType === 'color' ?
+                                                                                <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
+                                                                                <div style={{ width: '100%' }}>
+                                                                                    <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
+                                                                                </div>
+                                                                            }
+                                                                        </div>
+
+                                                                        <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
                                                                     </div>
+                                                                )}
+                                                            </Draggable>
+                                                        ))}
+                                                        {provided.placeholder}
+                                                    </div>
+                                                )}
+                                            </Droppable>
+                                            <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+                                        </div>
 
-                                                                    <div style={{ flex: 1, minWidth: '200px' }}>
-                                                                        {rule.overrideType === 'color' ?
-                                                                            <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
-                                                                            <div style={{ width: '100%' }}>
-                                                                                <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
-                                                                            </div>
-                                                                        }
-                                                                    </div>
+                                        {/* MOVING CARDS SETTING */}
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                <ToggleSwitch
+                                                    checked={enableCardMove}
+                                                    onChange={e => {
+                                                        if (e.target.checked && !hasWritePermission) {
+                                                            // Logic handled by banner display
+                                                        }
+                                                        setEnableCardMove(e.target.checked);
+                                                    }}
+                                                />
+                                                <span style={{ marginLeft: '10px' }}>
+                                                    <strong>Enable card move from the map view</strong><br />
+                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                        Display a dropdown allowing to move a card to another list from the visible block directly from a marker on the map. This requires "write" access to your Trello board for Trellops to move the cards on your behalf
+                                                    </span>
+                                                </span>
+                                            </label>
 
-                                                                    <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
-                                                                </div>
-                                                            )}
-                                                        </Draggable>
-                                                    ))}
-                                                    {provided.placeholder}
+                                            {enableCardMove && !hasWritePermission && (
+                                                <div style={{ marginTop: '10px', padding: '10px', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9em' }}>
+                                                    <strong>Permission Required:</strong> To move cards, you must grant Trello "Write" access.<br />
+                                                    <button
+                                                        onClick={() => trelloAuth.login('read,write')}
+                                                        style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: '#1976d2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                                    >
+                                                        Authorize Write Access (Re-Login)
+                                                    </button>
                                                 </div>
                                             )}
-                                        </Droppable>
-                                        <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+
+                                            {enableCardMove && hasWritePermission && (
+                                                <div style={{ marginTop: '5px', color: 'green', fontSize: '0.9em', display: 'flex', alignItems: 'center' }}>
+                                                    <span style={{ marginRight: '5px' }}>✅</span> Write permissions successfully granted.
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {/* RESET CACHE SECTION */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>

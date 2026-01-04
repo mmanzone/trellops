@@ -268,6 +268,23 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         } catch (e) { console.warn("Failed to write back coords", e); }
     };
 
+    // MOVE CARD LOGIC
+    const handleMoveCard = async (cardId, listId) => {
+        try {
+            // Optimistic update? No, safer to wait for API then refresh.
+            // Or show spinner?
+            await trelloFetch(`/cards/${cardId}?idList=${listId}&pos=bottom`, user.token, {
+                method: 'PUT'
+            });
+            // Refresh Data
+            loadData(true);
+        } catch (e) {
+            console.error("Failed to move card", e);
+            alert("Failed to move card to new list.");
+        }
+    };
+
+
     const isFetchingRef = useRef(false);
 
     const loadData = useCallback(async (isRefresh = false) => {
@@ -303,7 +320,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             // FETCH LISTS & LABELS
             const listsPromise = trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
             const labelsPromise = trelloFetch(`/boards/${boardId}/labels`, user.token);
-            const cardsPromise = trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete`, user.token);
+            const cardsPromise = trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete&_=${Date.now()}`, user.token);
 
             const [listsData, labelsData, cardsData] = await Promise.all([listsPromise, labelsPromise, cardsPromise]);
 
@@ -549,6 +566,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
                 // 3. Rule Visibility Check
                 const config = getMarkerConfig(c, block, markerRules);
+
                 // If the card matches ANY hidden rule from its active rules, should it be hidden?
                 // OR: If the card has NO visible active rules?
                 // Logic: A card matches a set of 'activeRuleIds'.
@@ -598,11 +616,42 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                                     </div>
                                 )}
                                 <div className="popup-desc" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }} dangerouslySetInnerHTML={{ __html: marked.parse(c.desc || '') }}></div>
-                                {c.coordinates && (
-                                    <div style={{ marginTop: '8px', fontSize: '0.8em' }}>
-                                        <a href={`https://www.google.com/maps?q=${c.coordinates.lat},${c.coordinates.lng}`} target="_blank" rel="noreferrer" style={{ color: '#0079bf' }}>
-                                            {c.coordinates.lat.toFixed(5)}, {c.coordinates.lng.toFixed(5)}
-                                        </a>
+                                <div style={{ marginTop: '8px', fontSize: '0.8em' }}>
+                                    <a href={`https://www.google.com/maps?q=${c.coordinates.lat},${c.coordinates.lng}`} target="_blank" rel="noreferrer" style={{ color: '#0079bf' }}>
+                                        {c.coordinates.lat.toFixed(5)}, {c.coordinates.lng.toFixed(5)}
+                                    </a>
+                                </div>
+
+
+                                {settings?.enableCardMove && (
+                                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
+                                        <select
+                                            value=""
+                                            onChange={(e) => {
+                                                if (e.target.value) handleMoveCard(c.id, e.target.value);
+                                            }}
+                                            style={{ width: '100%', fontSize: '0.85em', padding: '2px' }}
+                                        >
+                                            <option value="">Move to...</option>
+                                            {blocks.filter(b => b.includeOnMap !== false).map(block => (
+                                                <optgroup key={block.id} label={block.name} style={{ fontWeight: 'bold' }}>
+                                                    {block.listIds.map(lId => {
+                                                        const list = lists.find(l => l.id === lId);
+                                                        if (!list) return null;
+                                                        return (
+                                                            <option
+                                                                key={lId}
+                                                                value={lId}
+                                                                disabled={lId === c.idList}
+                                                                style={{ fontWeight: 'normal', color: lId === c.idList ? '#aaa' : 'inherit' }}
+                                                            >
+                                                                {list.name}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </optgroup>
+                                            ))}
+                                        </select>
                                     </div>
                                 )}
                             </div>
