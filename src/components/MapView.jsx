@@ -9,8 +9,9 @@ import { useDarkMode } from '/src/context/DarkModeContext';
 import { STORAGE_KEYS } from '/src/utils/constants';
 import { convertIntervalToSeconds, getLabelTextColor } from '/src/utils/helpers';
 import DigitalClock from './common/DigitalClock';
-import { ICONS } from './common/IconPicker'; // Import the SVG paths
+import { ICONS } from './common/IconPicker';
 import { marked } from 'marked';
+import MapFilters from './MapFilters';
 
 // --- ICONS LOGIC ---
 const getMarkerIcon = (markerConfig) => {
@@ -55,34 +56,43 @@ const getMarkerIcon = (markerConfig) => {
 
 const getMarkerConfig = (card, block, markerRules) => {
     // 1. Initial Defaults
-    // Block Icon takes precedence over generic default
     let icon = block.mapIcon || 'map-marker';
     let color = 'blue'; // Default color
+    const activeRuleIds = ['default']; // Always include default base
 
-    // 2. Apply Rules (Top to Bottom priority - First Match Wins per property?)
-    // User Requirement: "if there is a conflict... only the highest setting in the list should be applied."
-    // Implementation: Iterate rules. Once we find a rule that sets 'icon', we lock 'icon'. Same for 'color'.
-
+    // 2. Apply Rules
     let iconSet = false;
     let colorSet = false;
 
     if (markerRules && markerRules.length > 0) {
         for (const rule of markerRules) {
-            if (iconSet && colorSet) break; // All done
+            if (iconSet && colorSet) break;
 
             if (card.labels && card.labels.some(l => l.id === rule.labelId)) {
                 if (rule.overrideType === 'icon' && !iconSet) {
                     icon = rule.overrideValue;
                     iconSet = true;
+                    // Replace 'default' if we have a specific rule? 
+                    // Or just add this rule ID.
+                    activeRuleIds.push(rule.id);
                 } else if (rule.overrideType === 'color' && !colorSet) {
                     color = rule.overrideValue;
                     colorSet = true;
+                    activeRuleIds.push(rule.id);
                 }
             }
         }
     }
 
-    return { icon, color };
+    // If any rule was applied, we might want to remove 'default' if 'default' implies "No Rule Applied".
+    // But for filtering "Default / No Rule", we usually mean "Cards that didn't trigger any custom rule".
+    // So if (activeRuleIds.length > 1), we remove 'default'.
+    if (activeRuleIds.length > 1) {
+        const index = activeRuleIds.indexOf('default');
+        if (index > -1) activeRuleIds.splice(index, 1);
+    }
+
+    return { icon, color, activeRuleIds };
 };
 
 // --- GEOCODING UTILS ---
@@ -177,7 +187,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
     const [blocks, setBlocks] = useState([]);
-    const [visibleBlockIds, setVisibleBlockIds] = useState(new Set());
+
+    // FILTER STATE
+    const [visibleListIds, setVisibleListIds] = useState(new Set());
+    const [visibleRuleIds, setVisibleRuleIds] = useState(new Set(['default']));
+
     const [baseMap, setBaseMap] = useState('topo');
     const [errorState, setErrorState] = useState(null);
     const [markerRules, setMarkerRules] = useState([]);
@@ -277,12 +291,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             }
 
             if (!isRefresh) {
-                const initialVisible = new Set(
-                    currentLayout
-                        .filter(b => b.includeOnMap !== false)
-                        .map(b => b.id)
-                );
-                setVisibleBlockIds(initialVisible);
+                // Initialize Visibility
+                const allListIds = currentLayout.filter(b => b.includeOnMap !== false).flatMap(b => b.listIds);
+                setVisibleListIds(new Set(allListIds));
+
+                const allRuleIds = (savedRules ? JSON.parse(savedRules) : []).map(r => r.id).concat(['default']);
+                setVisibleRuleIds(new Set(allRuleIds));
             }
 
             // FETCH LISTS
@@ -409,7 +423,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             });
         }
 
-    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, boardId, mapGeocodeMode]);
+    }, [cards, visibleListIds, blocks, ignoreTemplateCards, boardId, mapGeocodeMode]);
 
 
     useEffect(() => {
@@ -468,15 +482,44 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
     }, [geocodingQueue, cards, status, updateTrelloCoordinates]);
 
-    const handleBlockToggle = (blockId, isChecked) => {
-        const next = new Set(visibleBlockIds);
-        if (isChecked) {
-            next.add(blockId);
-            loadData(true);
+    // --- FILTER HANDLERS ---
+    const handleToggleList = (listId) => {
+        const next = new Set(visibleListIds);
+        if (next.has(listId)) next.delete(listId);
+        else next.add(listId);
+        setVisibleListIds(next);
+        // Force bounds update? Markers useMemo will handle it.
+    };
+
+    const handleToggleBlock = (blockId, isChecked) => {
+        const block = blocks.find(b => b.id === blockId);
+        if (!block) return;
+
+        const next = new Set(visibleListIds);
+        block.listIds.forEach(lId => {
+            if (isChecked) next.add(lId);
+            else next.delete(lId);
+        });
+        setVisibleListIds(next);
+    };
+
+    const handleToggleRule = (ruleId) => {
+        const next = new Set(visibleRuleIds);
+        if (next.has(ruleId)) next.delete(ruleId);
+        else next.add(ruleId);
+        setVisibleRuleIds(next);
+    };
+
+    const handleToggleAll = (show) => {
+        if (show) {
+            const allListIds = blocks.filter(b => b.includeOnMap !== false).flatMap(b => b.listIds);
+            setVisibleListIds(new Set(allListIds));
+            const allRuleIds = markerRules.map(r => r.id).concat(['default']);
+            setVisibleRuleIds(new Set(allRuleIds));
         } else {
-            next.delete(blockId);
+            setVisibleListIds(new Set());
+            setVisibleRuleIds(new Set());
         }
-        setVisibleBlockIds(next);
     };
 
     const markers = useMemo(() => {
@@ -484,18 +527,35 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             .filter(c => c.coordinates && c.coordinates.lat && c.coordinates.lng)
             .filter(c => {
                 if (ignoreTemplateCards && c.isTemplate) return false;
+
+                // 1. List/Block Visibility Check
+                if (!visibleListIds.has(c.idList)) return false;
+
+                // 2. Block Logic (Ignore First Card)
                 const block = blocks.find(b => b.listIds.includes(c.idList));
-                if (!block || !visibleBlockIds.has(block.id)) return false;
-                if (block.ignoreFirstCard) {
+                if (block && block.ignoreFirstCard) {
                     const cardsInList = cards.filter(pc => pc.idList === c.idList);
                     const minPos = cardsInList.reduce((min, cur) => (cur.pos < min ? cur.pos : min), Infinity);
                     if (c.pos === minPos) return false;
                 }
+
+                // 3. Rule Visibility Check
+                const config = getMarkerConfig(c, block, markerRules);
+                // If the card matches ANY hidden rule from its active rules, should it be hidden?
+                // OR: If the card has NO visible active rules?
+                // Logic: A card matches a set of 'activeRuleIds'.
+                // If `activeRuleIds` contains 'default' only -> visible if 'default' is visible.
+                // If `activeRuleIds` contains ['ruleA', 'ruleB'] -> Visible if Rule A AND Rule B are visible?
+                // Usually "Show cards with Variant A".
+                // If I uncheck Variant A, cards with Variant A should hide.
+                // So if ANY active rule is NOT in visibleRuleIds, hide.
+                if (config.activeRuleIds.some(id => !visibleRuleIds.has(id))) return false;
+
                 return true;
             })
             .map(c => {
                 const block = blocks.find(b => b.listIds.includes(c.idList));
-                const config = getMarkerConfig(c, block, markerRules);
+                const config = getMarkerConfig(c, block || {}, markerRules);
                 const listName = lists.find(l => l.id === c.idList)?.name || '';
 
                 return (
@@ -542,7 +602,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     </Marker>
                 );
             });
-    }, [cards, visibleBlockIds, blocks, ignoreTemplateCards, markerRules, lists]);
+    }, [cards, visibleListIds, visibleRuleIds, blocks, ignoreTemplateCards, markerRules, lists]);
 
     const getBlockCount = (block) => {
         return cards.filter(c => {
@@ -580,26 +640,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
                     <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>{boardName}</h1>
-                    <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        {blocks.filter(b => b.includeOnMap !== false).map(b => (
-                            <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9em', cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={visibleBlockIds.has(b.id)}
-                                    onChange={e => handleBlockToggle(b.id, e.target.checked)}
-                                />
-                                {/* Render Icon - Correctly using dangerouslySetInnerHTML because ICONS contains raw HTML strings */}
-                                <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill="currentColor"
-                                    style={{ color: '#555', marginTop: '-1px' }}
-                                    dangerouslySetInnerHTML={{ __html: ICONS[b.mapIcon ? b.mapIcon.toLowerCase() : 'map-marker'] || ICONS['map-marker'] }}
-                                />
-                                {b.name} ({getBlockCount(b)})
-                            </label>
-                        ))}
+                    <div style={{ marginLeft: '20px' }}>
+                        {/* Filters have been moved to MapFilters overlay */}
                     </div>
                 </div>
                 <div className="map-header-actions">
@@ -626,6 +668,19 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         attribution={TILE_LAYERS[baseMap].attribution}
                         url={TILE_LAYERS[baseMap].url}
                     />
+
+                    <MapFilters
+                        blocks={blocks}
+                        lists={lists}
+                        markerRules={markerRules}
+                        visibleListIds={visibleListIds}
+                        visibleRuleIds={visibleRuleIds}
+                        onToggleList={handleToggleList}
+                        onToggleBlock={handleToggleBlock}
+                        onToggleRule={handleToggleRule}
+                        onToggleAll={handleToggleAll}
+                    />
+
                     {markers}
                     <MapBounds />
                 </MapContainer>
