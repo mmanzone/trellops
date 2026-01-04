@@ -29,6 +29,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     // Map View
     const [enableMapView, setEnableMapView] = useState(false);
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
+    const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [markerRules, setMarkerRules] = useState([]);
 
     const [error, setError] = useState('');
@@ -98,6 +99,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
+
+                    const savedUpdateTrello = localStorage.getItem('updateTrelloCoordinates_' + bId);
+                    if (savedUpdateTrello === 'true') setUpdateTrelloCoordinates(true);
                 }
             } catch (e) {
                 console.warn("Error loading settings", e);
@@ -257,6 +261,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             // 4. Save Map Config
             localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
+            localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, updateTrelloCoordinates ? 'true' : 'false');
 
             // 5. Update User Settings (CRITICAL: Populate selectedLists for Dashboard.jsx)
             // Flatten all lists assigned to blocks
@@ -564,21 +569,79 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                     {enableMapView && (
                                         <div style={{ marginTop: '15px' }}>
-                                            <div style={{ marginBottom: '15px' }}>
-                                                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Geocoding behavior:</label>
-                                                <label style={{ display: 'block', marginBottom: '3px' }}>
-                                                    <input type="radio" name="geocodeMode" value="store" checked={mapGeocodeMode === 'store'} onChange={e => setMapGeocodeMode(e.target.value)} />
-                                                    Store geolocation data locally (default)
+                                            <div style={{ marginBottom: '15px', background: '#f8f9fa', padding: '10px', borderRadius: '4px', border: '1px solid #eee' }}>
+                                                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Geocoding behavior:</label>
+
+                                                {/* Option 1: Always Read (Visual Confirmation) */}
+                                                <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px', opacity: 0.7 }}>
+                                                    <input type="checkbox" checked={true} disabled style={{ marginTop: '3px' }} />
+                                                    <span style={{ marginLeft: '8px' }}>
+                                                        Read the coordinates from the Trello card to display the card location
+                                                    </span>
                                                 </label>
-                                                <label style={{ display: 'block' }}>
-                                                    <input type="radio" name="geocodeMode" value="update" checked={mapGeocodeMode === 'update'} onChange={e => setMapGeocodeMode(e.target.value)} />
-                                                    Update the Trello card coordinates (beta feature - only for demo purposes)
+
+                                                {/* Option 2: Enable Local Geocoding (Nominatim) */}
+                                                <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={mapGeocodeMode !== 'disabled'}
+                                                        onChange={e => setMapGeocodeMode(e.target.checked ? 'store' : 'disabled')}
+                                                        style={{ marginTop: '3px' }}
+                                                    />
+                                                    <span style={{ marginLeft: '8px' }}>
+                                                        If no coordinates are present in the card, parse the card description to decode the coordinates for the card.<br />
+                                                        <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                            Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache (experimental)
+                                                        </span>
+                                                    </span>
                                                 </label>
-                                                {mapGeocodeMode === 'update' && (
-                                                    <p style={{ color: '#d32f2f', fontSize: '0.85em', marginTop: '5px', marginLeft: '20px', fontStyle: 'italic' }}>
-                                                        Note: this will update each card in your Trello board with Lat/Long Coordinates in the Location field. Only enable if you want to update each card in Trello.
-                                                    </p>
-                                                )}
+
+                                                {/* Option 3: Update Trello Cards */}
+                                                <label style={{ display: 'flex', alignItems: 'flex-start' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={updateTrelloCoordinates} // We need to expose this state
+                                                        onChange={e => {
+                                                            // We need to manage updateTrelloCoordinates state.
+                                                            // For now assuming we will add this state variable/setter.
+                                                            // The previous logic used mapGeocodeMode='update'. 
+                                                            // We will decouple this.
+                                                            setUpdateTrelloCoordinates(e.target.checked);
+                                                        }}
+                                                        style={{ marginTop: '3px' }}
+                                                    />
+                                                    <span style={{ marginLeft: '8px' }}>
+                                                        Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
+                                                        <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                            It is recommended to only have one dashboard enabled with this feature for each Trello board)
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </div>
+
+                                            {/* RESET CACHE SECTION */}
+                                            <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                                <h3>Reset coordinates cache</h3>
+                                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                                    Use this button to remove all card coordinates on your local computer. This is to be used for troubleshooting purposes and will trigger a re-fetch using Nominatim
+                                                </p>
+                                                <button
+                                                    className="button-secondary"
+                                                    style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+                                                    onClick={() => {
+                                                        if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
+                                                            try {
+                                                                const key = `MAP_GEOCODING_CACHE_${selectedBoard.id}`;
+                                                                localStorage.removeItem(key);
+                                                                alert('Cache cleared successfully.');
+                                                            } catch (e) {
+                                                                alert('Failed to clear cache');
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    Reset Location Cache
+                                                </button>
                                             </div>
 
                                             {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}
