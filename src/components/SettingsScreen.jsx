@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { trelloFetch } from '../api/trello';
+import { trelloFetch, trelloAuth } from '../api/trello';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
 import IconPicker from './common/IconPicker';
@@ -31,6 +31,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [markerRules, setMarkerRules] = useState([]);
+    const [hasWritePermission, setHasWritePermission] = useState(false);
 
     const [error, setError] = useState('');
     const [showMoreOptions, setShowMoreOptions] = useState(false);
@@ -39,7 +40,23 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     useEffect(() => {
         setActiveTab(initialTab);
-    }, [initialTab]);
+        if (initialTab === 'map' && user?.token) {
+            checkPermissions();
+        }
+    }, [initialTab, user]);
+
+    const checkPermissions = async () => {
+        if (!user?.token) return;
+        const scopes = await trelloAuth.checkTokenScopes(user.token);
+        const canWrite = scopes.includes('write');
+        setHasWritePermission(canWrite);
+        console.log("Token scopes:", scopes, "Can write:", canWrite);
+
+        // If user doesn't have write permission, uncheck the update toggle
+        if (!canWrite) {
+            setUpdateTrelloCoordinates(false);
+        }
+    };
 
     // Initial Load
     useEffect(() => {
@@ -379,7 +396,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('map')}
+                    onClick={() => {
+                        setActiveTab('map');
+                        checkPermissions();
+                    }}
                 >
                     Map View Settings
                 </button>
@@ -607,7 +627,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 </span>
                                             </label>
 
-                                            {/* Option 3: Update Trello Cards (Nested) */}
+                                            {/* Option 3: Update Trello Cards (Nested with Upsell) */}
                                             <div style={{ marginLeft: '25px', marginBottom: '15px' }}>
                                                 <label style={{
                                                     display: 'flex',
@@ -618,7 +638,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <input
                                                         type="checkbox"
                                                         checked={updateTrelloCoordinates}
-                                                        onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
+                                                        onChange={e => {
+                                                            if (e.target.checked && !hasWritePermission) {
+                                                                // Show visual cue or just let the banner appear (handled below)
+                                                            }
+                                                            setUpdateTrelloCoordinates(e.target.checked);
+                                                        }}
                                                         disabled={mapGeocodeMode === 'disabled'}
                                                         style={{ marginTop: '3px' }}
                                                     />
@@ -629,6 +654,19 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         </span>
                                                     </span>
                                                 </label>
+
+                                                {/* Permission Upsell Banner */}
+                                                {updateTrelloCoordinates && !hasWritePermission && (
+                                                    <div style={{ marginTop: '10px', padding: '10px', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9em' }}>
+                                                        <strong>Permission Required:</strong> To update card coordinates, you must grant Trello "Write" access.
+                                                        <button
+                                                            onClick={() => trelloAuth.login('read,write')}
+                                                            style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: '#1976d2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                                        >
+                                                            Authorize Write Access (Re-Login)
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -650,7 +688,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                     {block.includeOnMap && (
                                                         <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Block Marker Icon:</label>
+                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{block.name} icon:</label>
                                                             <div style={{ width: '100%' }}>
                                                                 <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
                                                             </div>

@@ -1,11 +1,11 @@
 import { TRELLO_API_BASE, TRELLO_API_KEY } from '../utils/constants';
 
 export const trelloAuth = {
-    login: () => {
+    login: (scope = 'read') => {
         const appName = "Trello Stats Dashboard";
         // Remove hash from current location
         const returnUrl = window.location.href.split('#')[0];
-        const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=read,write&response_type=token&key=${TRELLO_API_KEY}&return_url=${encodeURIComponent(returnUrl)}`;
+        const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=${scope}&response_type=token&key=${TRELLO_API_KEY}&return_url=${encodeURIComponent(returnUrl)}`;
         window.location.href = authUrl;
     },
     getTokenFromUrl: () => {
@@ -21,6 +21,19 @@ export const trelloAuth = {
     logout: (callback) => {
         // For OAuth, logout is primarily a client-side action (clearing token)
         if (callback) callback();
+    },
+    checkTokenScopes: async (token) => {
+        if (!token) return [];
+        try {
+            const response = await fetch(`${TRELLO_API_BASE}/tokens/${token}?key=${TRELLO_API_KEY}&token=${token}`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.permissions ? data.permissions.map(p => p.read === true ? 'read' : '').concat(data.permissions.map(p => p.write === true ? 'write' : '')).filter(Boolean) : [];
+            }
+        } catch (e) {
+            console.warn("Failed to check token scopes", e);
+        }
+        return [];
     }
 };
 
