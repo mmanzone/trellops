@@ -28,7 +28,8 @@ export const trelloFetch = async (path, token, options = {}) => {
     if (!token) {
         throw new Error("Trello authentication token not provided.");
     }
-    const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${TRELLO_API_KEY}&token=${token}`;
+    const apiKey = options.apiKey || TRELLO_API_KEY;
+    const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${apiKey}&token=${token}`;
 
     console.log(`[TrelloAPI] ${options.method || 'GET'} ${path}`, { options, url });
 

@@ -243,6 +243,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         if (!updateTrelloCoordinates) return;
 
         const token = process.env.TRELLO_WRITE_TOKEN || user.token;
+        const writeKey = process.env.TRELLO_WRITE_KEY;
 
         try {
             await trelloFetch(`/cards/${cardId}`, token, {
@@ -250,7 +251,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` }),
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                apiKey: writeKey
             });
         } catch (e) { console.warn("Failed to write back coords", e); }
     };

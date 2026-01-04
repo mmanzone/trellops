@@ -393,27 +393,27 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
 
-            {/* SECTION 1: BOARD */}
-            <div className="admin-section">
-                <h3>1. Choose your Trello Board</h3>
-                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                    Boards are pulled directly from your Trello account, across all workspaces.
-                </p>
-                <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
-                    <option value="">-- Choose a Board --</option>
-                    {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-            </div>
-
-            {selectedBoard && (
-                <>
-                    <DragDropContext onDragEnd={onDragEnd}>
-                        {/* TAB CONTENT: DASHBOARD */}
-                        {activeTab === 'dashboard' && (
-                            <div className="tab-content">
 
 
+            <DragDropContext onDragEnd={onDragEnd}>
+                {/* TAB CONTENT: DASHBOARD */}
+                {activeTab === 'dashboard' && (
+                    <div className="tab-content">
 
+                        {/* SECTION 1: BOARD */}
+                        <div className="admin-section">
+                            <h3>1. Choose your Trello Board</h3>
+                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                Boards are pulled directly from your Trello account, across all workspaces.
+                            </p>
+                            <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
+                                <option value="">-- Choose a Board --</option>
+                                {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        </div>
+
+                        {selectedBoard ? (
+                            <>
                                 {/* SECTION 2: BLOCKS */}
                                 <div className="admin-section" id="section-2">
                                     <h3>2. Manage your Trellops blocks</h3>
@@ -552,187 +552,185 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </>
+                        ) : (
+                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure blocks</div>
                         )}
+                    </div>
+                )}
 
-                        {/* TAB CONTENT: MAP */}
-                        {activeTab === 'map' && (
-                            <div className="tab-content">
-                                {/* SECTION 5: MAP */}
-                                <div className="admin-section" id="section-5">
-                                    <h3>Map View Settings for {selectedBoard.name}</h3>
-                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                        Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
-                                    </p>
-                                    <div className="settings-row">
-                                        <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
-                                        <span style={{ marginLeft: '10px' }}>Enable Map View</span>
-                                    </div>
-
-                                    {enableMapView && (
-                                        <div style={{ marginTop: '15px' }}>
-                                            <div style={{ marginBottom: '15px', background: '#f8f9fa', padding: '10px', borderRadius: '4px', border: '1px solid #eee' }}>
-                                                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Geocoding behavior:</label>
-
-                                                {/* Option 1: Always Read (Visual Confirmation) */}
-                                                <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px', opacity: 0.7 }}>
-                                                    <input type="checkbox" checked={true} disabled style={{ marginTop: '3px' }} />
-                                                    <span style={{ marginLeft: '8px' }}>
-                                                        Read the coordinates from the Trello card to display the card location
-                                                    </span>
-                                                </label>
-
-                                                {/* Option 2: Enable Local Geocoding (Nominatim) */}
-                                                <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={mapGeocodeMode !== 'disabled'}
-                                                        onChange={e => setMapGeocodeMode(e.target.checked ? 'store' : 'disabled')}
-                                                        style={{ marginTop: '3px' }}
-                                                    />
-                                                    <span style={{ marginLeft: '8px' }}>
-                                                        If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
-                                                        <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
-                                                            Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
-                                                        </span>
-                                                    </span>
-                                                </label>
-
-                                                {/* Option 3: Update Trello Cards */}
-                                                <label style={{ display: 'flex', alignItems: 'flex-start' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={updateTrelloCoordinates} // We need to expose this state
-                                                        onChange={e => {
-                                                            // We need to manage updateTrelloCoordinates state.
-                                                            // For now assuming we will add this state variable/setter.
-                                                            // The previous logic used mapGeocodeMode='update'. 
-                                                            // We will decouple this.
-                                                            setUpdateTrelloCoordinates(e.target.checked);
-                                                        }}
-                                                        style={{ marginTop: '3px' }}
-                                                    />
-                                                    <span style={{ marginLeft: '8px' }}>
-                                                        Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
-                                                        <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
-                                                            It is recommended to only have one dashboard enabled with this feature for each Trello board)
-                                                        </span>
-                                                    </span>
-                                                </label>
-                                            </div>
-
-
-
-                                            {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}
-                                            <h4>Block Map Options</h4>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                                Choose which blocks appear on the map and customize their markers.
-                                            </p>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
-                                                {blocks.map(block => (
-                                                    <div key={block.id} style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <h4 style={{ margin: 0 }}>{block.name}</h4>
-                                                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                                <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
-                                                                <span style={{ marginLeft: '5px' }}>Show on map</span>
-                                                            </label>
-                                                        </div>
-
-                                                        {block.includeOnMap && (
-                                                            <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-                                                                <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Block Marker Icon:</label>
-                                                                <div style={{ width: '100%' }}>
-                                                                    <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            <h3>Marker Variants</h3>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                                Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
-                                            </p>
-
-                                            <Droppable droppableId="marker-rules" type="RULE">
-                                                {(provided) => (
-                                                    <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
-                                                        {markerRules.map((rule, idx) => (
-                                                            <Draggable key={rule.id} draggableId={rule.id} index={idx}>
-                                                                {(provided) => (
-                                                                    <div
-                                                                        ref={provided.innerRef}
-                                                                        {...provided.draggableProps}
-                                                                        className="rule-item"
-                                                                        style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
-                                                                    >
-                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
-                                                                        <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
-                                                                            <option value="">-- Label --</option>
-                                                                            {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
-                                                                        </select>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                            <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
-                                                                            <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
-                                                                        </div>
-
-                                                                        <div style={{ flex: 1, minWidth: '200px' }}>
-                                                                            {rule.overrideType === 'color' ?
-                                                                                <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
-                                                                                <div style={{ width: '100%' }}>
-                                                                                    <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
-                                                                                </div>
-                                                                            }
-                                                                        </div>
-
-                                                                        <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
-                                                                    </div>
-                                                                )}
-                                                            </Draggable>
-                                                        ))}
-                                                        {provided.placeholder}
-                                                    </div>
-                                                )}
-                                            </Droppable>
-                                            <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
-
-                                            {/* RESET CACHE SECTION */}
-                                            <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                                <h3>Reset coordinates cache</h3>
-                                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                                    Use this button to remove all card coordinates on your local computer. This is to be used for troubleshooting purposes and will trigger a re-fetch using Nominatim
-                                                </p>
-                                                <button
-                                                    className="button-secondary"
-                                                    style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
-                                                    onClick={() => {
-                                                        if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
-                                                            try {
-                                                                const key = `MAP_GEOCODING_CACHE_${selectedBoard.id}`;
-                                                                localStorage.removeItem(key);
-                                                                alert('Cache cleared successfully.');
-                                                            } catch (e) {
-                                                                alert('Failed to clear cache');
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    Reset Location Cache
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
+                {/* TAB CONTENT: MAP */}
+                {activeTab === 'map' && (
+                    <div className="tab-content">
+                        {selectedBoard ? (
+                            <div className="admin-section" id="section-5">
+                                <h3>Map View Settings for {selectedBoard.name}</h3>
+                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                    Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
+                                </p>
+                                <div className="settings-row">
+                                    <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
+                                    <span style={{ marginLeft: '10px' }}>Enable Map View</span>
                                 </div>
-                            </div>
-                        )}
-                    </DragDropContext>
 
-                    {/* TAB CONTENT: OTHER */}
-                    {activeTab === 'other' && (
-                        <div className="tab-content">
-                            {/* SECTION 4: OTHER */}
+                                {enableMapView && (
+                                    <div style={{ marginTop: '15px' }}>
+                                        <div style={{ marginBottom: '15px', background: '#f8f9fa', padding: '10px', borderRadius: '4px', border: '1px solid #eee' }}>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Geocoding behavior:</label>
+
+                                            {/* Option 1: Always Read (Visual Confirmation) */}
+                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px', opacity: 0.7 }}>
+                                                <input type="checkbox" checked={true} disabled style={{ marginTop: '3px' }} />
+                                                <span style={{ marginLeft: '8px' }}>
+                                                    Read the coordinates from the Trello card to display the card location
+                                                </span>
+                                            </label>
+
+                                            {/* Option 2: Enable Local Geocoding (Nominatim) */}
+                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={mapGeocodeMode !== 'disabled'}
+                                                    onChange={e => setMapGeocodeMode(e.target.checked ? 'store' : 'disabled')}
+                                                    style={{ marginTop: '3px' }}
+                                                />
+                                                <span style={{ marginLeft: '8px' }}>
+                                                    If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
+                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                        Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
+                                                    </span>
+                                                </span>
+                                            </label>
+
+                                            {/* Option 3: Update Trello Cards */}
+                                            <label style={{ display: 'flex', alignItems: 'flex-start' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={updateTrelloCoordinates}
+                                                    onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
+                                                    style={{ marginTop: '3px' }}
+                                                />
+                                                <span style={{ marginLeft: '8px' }}>
+                                                    Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
+                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                        It is recommended to only have one dashboard enabled with this feature for each Trello board
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
+
+                                        {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}
+                                        <h4>Block Map Options</h4>
+                                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                            Choose which blocks appear on the map and customize their markers.
+                                        </p>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+                                            {blocks.map(block => (
+                                                <div key={block.id} style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <h4 style={{ margin: 0 }}>{block.name}</h4>
+                                                        <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                            <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
+                                                            <span style={{ marginLeft: '5px' }}>Show on map</span>
+                                                        </label>
+                                                    </div>
+
+                                                    {block.includeOnMap && (
+                                                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Block Marker Icon:</label>
+                                                            <div style={{ width: '100%' }}>
+                                                                <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <h3>Marker Variants</h3>
+                                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                            Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
+                                        </p>
+
+                                        <Droppable droppableId="marker-rules" type="RULE">
+                                            {(provided) => (
+                                                <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
+                                                    {markerRules.map((rule, idx) => (
+                                                        <Draggable key={rule.id} draggableId={rule.id} index={idx}>
+                                                            {(provided) => (
+                                                                <div
+                                                                    ref={provided.innerRef}
+                                                                    {...provided.draggableProps}
+                                                                    className="rule-item"
+                                                                    style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                                >
+                                                                    <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                    <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
+                                                                        <option value="">-- Label --</option>
+                                                                        {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
+                                                                    </select>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
+                                                                        <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                                                    </div>
+
+                                                                    <div style={{ flex: 1, minWidth: '200px' }}>
+                                                                        {rule.overrideType === 'color' ?
+                                                                            <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
+                                                                            <div style={{ width: '100%' }}>
+                                                                                <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
+                                                                            </div>
+                                                                        }
+                                                                    </div>
+
+                                                                    <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
+                                                                </div>
+                                                            )}
+                                                        </Draggable>
+                                                    ))}
+                                                    {provided.placeholder}
+                                                </div>
+                                            )}
+                                        </Droppable>
+                                        <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+
+                                        {/* RESET CACHE SECTION */}
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <h3>Reset coordinates cache</h3>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                                Use this button to remove all card coordinates on your local computer. This is to be used for troubleshooting purposes and will trigger a re-fetch using Nominatim
+                                            </p>
+                                            <button
+                                                className="button-secondary"
+                                                style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+                                                onClick={() => {
+                                                    if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
+                                                        try {
+                                                            const key = `MAP_GEOCODING_CACHE_${selectedBoard.id}`;
+                                                            localStorage.removeItem(key);
+                                                            alert('Cache cleared successfully.');
+                                                        } catch (e) {
+                                                            alert('Failed to clear cache');
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                Reset Location Cache
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure map settings</div>
+                        )}
+                    </div>
+                )}
+
+                {/* TAB CONTENT: OTHER */}
+                {activeTab === 'other' && (
+                    <div className="tab-content">
+                        {selectedBoard ? (
                             <div className="admin-section" id="section-4">
                                 <h3>Other Settings for {selectedBoard.name}</h3>
                                 <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
@@ -774,10 +772,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                </>
-            )}
+                        ) : (
+                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
+                        )}
+                    </div>
+                )}
+            </DragDropContext>
 
 
 
@@ -788,17 +788,19 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
             </div>
 
-            {showMoreOptions && (
-                <MoreOptionsModal
-                    onClose={() => setShowMoreOptions(false)}
-                    onReset={handleClearBoardConfig}
-                    onExport={handleExportConfig}
-                    onImport={handleImportConfig}
-                    selectedBoardId={selectedBoardId}
-                    boardName={selectedBoard?.name}
-                />
-            )}
-        </div>
+            {
+                showMoreOptions && (
+                    <MoreOptionsModal
+                        onClose={() => setShowMoreOptions(false)}
+                        onReset={handleClearBoardConfig}
+                        onExport={handleExportConfig}
+                        onImport={handleImportConfig}
+                        selectedBoardId={selectedBoardId}
+                        boardName={selectedBoard?.name}
+                    />
+                )
+            }
+        </div >
     );
 };
 
