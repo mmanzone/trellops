@@ -4,6 +4,8 @@ import { ICONS } from './common/IconPicker';
 const MapFilters = ({
     blocks,
     lists,
+    allLabels, // NEW: For label lookups
+    cards, // NEW: For counting
     markerRules,
     visibleListIds,
     visibleRuleIds,
@@ -13,6 +15,45 @@ const MapFilters = ({
     onToggleAll
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    // Count Helpers
+    const getListCount = (listId) => {
+        if (!cards) return 0;
+        return cards.filter(c => c.idList === listId && c.coordinates && c.coordinates.lat).length;
+    };
+
+    const getBlockCount = (block) => {
+        if (!cards || !block) return 0;
+        return cards.filter(c => block.listIds.includes(c.idList) && c.coordinates && c.coordinates.lat).length;
+    };
+
+    const getRuleCount = (rule, isDefault) => {
+        if (!cards) return 0;
+
+        // Filter for mapped cards first
+        const mappedCards = cards.filter(c => c.coordinates && c.coordinates.lat);
+
+        if (isDefault) {
+            // Count cards that match NO rule
+            return mappedCards.filter(c => {
+                for (const r of markerRules) {
+                    if (c.labels && c.labels.some(l => l.id === r.labelId)) return false;
+                }
+                return true;
+            }).length;
+        }
+
+        // Count cards matching specific rule
+        // Note: A card might match multiple rules if it has multiple labels.
+        // The display logic in MapView prioritizes them, but for filtering "Variant X", 
+        // we likely want to count all cards having Label X, as unchecking it hides them (if that rule was active).
+        // MapView logic: Active Rules = All matching rules + default.
+        // If I uncheck Rule A, cards matching Rule A hide? 
+        // Logic in MapView: "if(config.activeRuleIds.some(id => !visibleRuleIds.has(id))) return false;"
+        // So yes, if a card has Label A, and Rule A is unchecked, it hides.
+        return mappedCards.filter(c => c.labels && c.labels.some(l => l.id === rule.labelId)).length;
+    };
+
 
     // Helpers to render icons
     const renderIcon = (iconName) => (
@@ -49,7 +90,12 @@ const MapFilters = ({
     if (!isExpanded) {
         return (
             <div className="map-filters-overlay collapsed" onClick={() => setIsExpanded(true)}>
-                <span className="filter-icon">🌪️</span> Filters
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="filter-icon">
+                    <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7 12H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M10 18H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Filters
             </div>
         );
     }
@@ -91,7 +137,7 @@ const MapFilters = ({
                                         />
                                         <span className="label-text">
                                             {renderIcon(block.mapIcon)}
-                                            {block.name}
+                                            {block.name} <span style={{ opacity: 0.6, marginLeft: '4px' }}>({getBlockCount(block)})</span>
                                         </span>
                                     </label>
                                 </div>
@@ -107,7 +153,7 @@ const MapFilters = ({
                                                         checked={visibleListIds.has(listId)}
                                                         onChange={() => onToggleList(listId)}
                                                     />
-                                                    <span className="label-text">{list.name}</span>
+                                                    <span className="label-text">{list.name} <span style={{ opacity: 0.6, marginLeft: '4px' }}>({getListCount(listId)})</span></span>
                                                 </label>
                                             </div>
                                         );
@@ -132,7 +178,7 @@ const MapFilters = ({
                             />
                             <span className="label-text">
                                 {renderColorDot('blue')}
-                                Default / No Rule
+                                Default / No Rule <span style={{ opacity: 0.6, marginLeft: '4px' }}>({getRuleCount(null, true)})</span>
                             </span>
                         </label>
                     </div>
@@ -157,8 +203,12 @@ const MapFilters = ({
                                     />
                                     <span className="label-text">
                                         {rule.overrideType === 'color' ? renderColorDot(rule.overrideValue) : renderIcon(rule.overrideValue)}
-                                        {/* Ideally show the Label Name here if possible, passed as prop or just "Custom Rule" */}
-                                        {rule._labelName ? rule._labelName : `Variant (${rule.overrideType})`}
+                                        {/* Look up label name */}
+                                        {(() => {
+                                            const label = allLabels ? allLabels.find(l => l.id === rule.labelId) : null;
+                                            return label ? label.name : (rule.labelName || 'Unknown Label');
+                                        })()}
+                                        <span style={{ opacity: 0.6, marginLeft: '4px' }}>({getRuleCount(rule, false)})</span>
                                     </span>
                                 </label>
                             </div>

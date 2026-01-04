@@ -182,7 +182,8 @@ const TILE_LAYERS = {
 
 const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [cards, setCards] = useState([]);
-    const [lists, setLists] = useState([]); // NEW: Store lists
+    const [lists, setLists] = useState([]);
+    const [boardLabels, setBoardLabels] = useState([]); // NEW: Store labels for filter names
     const [status, setStatus] = useState('');
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
@@ -299,11 +300,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 setVisibleRuleIds(new Set(allRuleIds));
             }
 
-            // FETCH LISTS
-            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
-            setLists(listsData);
+            // FETCH LISTS & LABELS
+            const listsPromise = trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
+            const labelsPromise = trelloFetch(`/boards/${boardId}/labels`, user.token);
+            const cardsPromise = trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete`, user.token);
 
-            const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete`, user.token);
+            const [listsData, labelsData, cardsData] = await Promise.all([listsPromise, labelsPromise, cardsPromise]);
+
+            setLists(listsData);
+            setBoardLabels(labelsData);
             const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
             const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
 
@@ -675,6 +680,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     <MapFilters
                         blocks={blocks}
                         lists={lists}
+                        allLabels={boardLabels}
+                        cards={cards}
                         markerRules={markerRules}
                         visibleListIds={visibleListIds}
                         visibleRuleIds={visibleRuleIds}
