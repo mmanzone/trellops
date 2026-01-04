@@ -393,6 +393,18 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
 
+            {/* SECTION 1: BOARD */}
+            <div className="admin-section">
+                <h3>1. Choose your Trello Board</h3>
+                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                    Boards are pulled directly from your Trello account, across all workspaces.
+                </p>
+                <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
+                    <option value="">-- Choose a Board --</option>
+                    {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+            </div>
+
             {selectedBoard && (
                 <>
                     <DragDropContext onDragEnd={onDragEnd}>
@@ -400,17 +412,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         {activeTab === 'dashboard' && (
                             <div className="tab-content">
 
-                                {/* SECTION 1: BOARD */}
-                                <div className="admin-section">
-                                    <h3>1. Choose your Trello Board</h3>
-                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                                        Boards are pulled directly from your Trello account, across all workspaces.
-                                    </p>
-                                    <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
-                                        <option value="">-- Choose a Board --</option>
-                                        {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                    </select>
-                                </div>
+
 
                                 {/* SECTION 2: BLOCKS */}
                                 <div className="admin-section" id="section-2">
