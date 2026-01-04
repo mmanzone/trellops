@@ -566,6 +566,27 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
                 // 3. Rule Visibility Check
                 const config = getMarkerConfig(c, block, markerRules);
+
+                // DEBUG SPECIFIC CARD
+                if (c.id === '690bf47e3ce0685b094d1062') {
+                    console.log('[DEBUG CARD] Processing logic for target card:', c.name);
+                    console.log('- coords:', c.coordinates);
+                    console.log('- listId:', c.idList);
+                    console.log('- visibleListIds has list?', visibleListIds.has(c.idList));
+                    console.log('- block:', block ? block.name : 'NONE');
+                    if (block) {
+                        console.log('- ignoreFirstCard?', block.ignoreFirstCard);
+                        if (block.ignoreFirstCard) {
+                            const cardsInList = cards.filter(pc => pc.idList === c.idList);
+                            const minPos = cardsInList.reduce((min, cur) => (cur.pos < min ? cur.pos : min), Infinity);
+                            console.log('- minPos in list:', minPos, 'cardPos:', c.pos);
+                            console.log('- IS HIDDEN BY FIRST CARD?', c.pos === minPos);
+                        }
+                    }
+                    console.log('- activeRules:', config.activeRuleIds);
+                    console.log('- visibleRules:', Array.from(visibleRuleIds));
+                }
+
                 // If the card matches ANY hidden rule from its active rules, should it be hidden?
                 // OR: If the card has NO visible active rules?
                 // Logic: A card matches a set of 'activeRuleIds'.
