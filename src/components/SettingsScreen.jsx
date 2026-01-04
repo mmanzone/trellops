@@ -743,54 +743,54 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             ))}
                                         </div>
 
-                                        <h3>Marker Variants</h3>
-                                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                            Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
-                                        </p>
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <h3>Marker Variants</h3>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                                Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
+                                            </p>
 
-                                        <Droppable droppableId="marker-rules" type="RULE">
-                                            {(provided) => (
-                                                <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
-                                                    {markerRules.map((rule, idx) => (
-                                                        <Draggable key={rule.id} draggableId={rule.id} index={idx}>
-                                                            {(provided) => (
-                                                                <div
-                                                                    ref={provided.innerRef}
-                                                                    {...provided.draggableProps}
-                                                                    className="rule-item"
-                                                                    style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
-                                                                >
-                                                                    <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
-                                                                    <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
-                                                                        <option value="">-- Label --</option>
-                                                                        {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
-                                                                    </select>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                        <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
-                                                                        <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                            <Droppable droppableId="marker-rules" type="RULE">
+                                                {(provided) => (
+                                                    <div ref={provided.innerRef} {...provided.droppableProps} className="rules-list">
+                                                        {markerRules.map((rule, idx) => (
+                                                            <Draggable key={rule.id} draggableId={rule.id} index={idx}>
+                                                                {(provided) => (
+                                                                    <div
+                                                                        ref={provided.innerRef}
+                                                                        {...provided.draggableProps}
+                                                                        className="rule-item"
+                                                                        style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                                    >
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                        <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
+                                                                            <option value="">-- Label --</option>
+                                                                            {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
+                                                                        </select>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                            <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
+                                                                            <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
+                                                                        </div>
+
+                                                                        <div style={{ flex: 1, minWidth: '200px' }}>
+                                                                            {rule.overrideType === 'color' ?
+                                                                                <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
+                                                                                <div style={{ width: '100%' }}>
+                                                                                    <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
+                                                                                </div>
+                                                                            }
+                                                                        </div>
+
+                                                                        <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
                                                                     </div>
-
-                                                                    <div style={{ flex: 1, minWidth: '200px' }}>
-                                                                        {rule.overrideType === 'color' ?
-                                                                            <ColorPicker selectedColor={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} /> :
-                                                                            <div style={{ width: '100%' }}>
-                                                                                <IconPicker selectedIcon={rule.overrideValue} onChange={v => handleUpdateRule(rule.id, 'overrideValue', v)} />
-                                                                            </div>
-                                                                        }
-                                                                    </div>
-
-                                                                    <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
-                                                                </div>
-                                                            )}
-                                                        </Draggable>
-                                                    ))}
-                                                    {provided.placeholder}
-                                                </div>
-                                            )}
-                                        </Droppable>
-                                        <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
-
-                                        <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+                                                                )}
+                                                            </Draggable>
+                                                        ))}
+                                                        {provided.placeholder}
+                                                    </div>
+                                                )}
+                                            </Droppable>
+                                            <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+                                        </div>
 
                                         {/* MOVING CARDS SETTING */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
