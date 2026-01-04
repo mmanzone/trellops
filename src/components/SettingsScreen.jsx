@@ -278,7 +278,19 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             // 4. Save Map Config
             localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
-            localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, updateTrelloCoordinates ? 'true' : 'false');
+
+            // Only allow saving true if permission exists
+            const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
+            localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, safeUpdateTrello ? 'true' : 'false');
+
+            // If enabling Trello updates, reset the cache to force decoding and updating
+            if (safeUpdateTrello) {
+                const cacheKey = `MAP_GEOCODING_CACHE_${selectedBoardId}`;
+                if (localStorage.getItem(cacheKey)) {
+                    localStorage.removeItem(cacheKey);
+                    console.log("Cache cleared due to Trello Update enablement.");
+                }
+            }
 
             // 5. Update User Settings (CRITICAL: Populate selectedLists for Dashboard.jsx)
             // Flatten all lists assigned to blocks
@@ -658,13 +670,21 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 {/* Permission Upsell Banner */}
                                                 {updateTrelloCoordinates && !hasWritePermission && (
                                                     <div style={{ marginTop: '10px', padding: '10px', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9em' }}>
-                                                        <strong>Permission Required:</strong> To update card coordinates, you must grant Trello "Write" access.
+                                                        <strong>Permission Required:</strong> To update card coordinates, you must grant Trello "Write" access.<br />
+                                                        <span style={{ fontSize: '0.9em', marginTop: '5px', display: 'block' }}>The location cache on your computer will be reset for the cards to be decoded again.</span>
                                                         <button
                                                             onClick={() => trelloAuth.login('read,write')}
                                                             style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: '#1976d2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                                         >
                                                             Authorize Write Access (Re-Login)
                                                         </button>
+                                                    </div>
+                                                )}
+
+                                                {/* Success Indicator */}
+                                                {updateTrelloCoordinates && hasWritePermission && (
+                                                    <div style={{ marginTop: '5px', color: 'green', fontSize: '0.9em', display: 'flex', alignItems: 'center' }}>
+                                                        <span style={{ marginRight: '5px' }}>✅</span> Write permissions successfully granted.
                                                     </div>
                                                 )}
                                             </div>
