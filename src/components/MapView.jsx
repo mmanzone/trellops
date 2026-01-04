@@ -320,7 +320,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             // FETCH LISTS & LABELS
             const listsPromise = trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
             const labelsPromise = trelloFetch(`/boards/${boardId}/labels`, user.token);
-            const cardsPromise = trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete`, user.token);
+            const cardsPromise = trelloFetch(`/boards/${boardId}/cards?fields=id,name,desc,idList,labels,shortUrl,isTemplate,pos,coordinates,dueComplete&_=${Date.now()}`, user.token);
 
             const [listsData, labelsData, cardsData] = await Promise.all([listsPromise, labelsPromise, cardsPromise]);
 
@@ -624,7 +624,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
                                 {settings?.enableCardMove && (
                                     <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
-                                        <label style={{ fontSize: '0.75em', fontWeight: 'bold', display: 'block', marginBottom: '4px', color: '#555' }}>Move item:</label>
                                         <select
                                             value=""
                                             onChange={(e) => {
@@ -632,7 +631,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                                             }}
                                             style={{ width: '100%', fontSize: '0.85em', padding: '2px' }}
                                         >
-                                            <option value="">-- Select List --</option>
+                                            <option value="">Move to...</option>
                                             {blocks.filter(b => b.includeOnMap !== false).map(block => (
                                                 <optgroup key={block.id} label={block.name} style={{ fontWeight: 'bold' }}>
                                                     {block.listIds.map(lId => {
