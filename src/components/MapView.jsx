@@ -383,6 +383,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             if (countdownRef.current) clearInterval(countdownRef.current);
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [geocodingQueue.length, loading, refreshIntervalSeconds, loadData]);
 
 
@@ -404,7 +405,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             if (ignoreTemplateCards && c.isTemplate) return false;
 
             const block = blocks.find(b => b.listIds.includes(c.idList));
-            if (!block || !visibleBlockIds.has(block.id)) return false;
+            // if (!block || !visibleBlockIds.has(block.id)) return false; // OLD LOGIC
+            // NEW LOGIC: Check if list is visible
+            if (!visibleListIds.has(c.idList)) return false;
 
             if (block.ignoreFirstCard) {
                 const cardsInList = cards.filter(pc => pc.idList === c.idList);
