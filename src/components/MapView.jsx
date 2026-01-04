@@ -241,10 +241,16 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
     const updateTrelloCardCoordinates = async (cardId, coords) => {
         if (!updateTrelloCoordinates) return;
+
+        const token = process.env.TRELLO_WRITE_TOKEN || user.token;
+
         try {
-            await trelloFetch(`/cards/${cardId}`, user.token, {
+            await trelloFetch(`/cards/${cardId}`, token, {
                 method: 'PUT',
-                body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` })
+                body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
         } catch (e) { console.warn("Failed to write back coords", e); }
     };

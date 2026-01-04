@@ -589,9 +589,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         style={{ marginTop: '3px' }}
                                                     />
                                                     <span style={{ marginLeft: '8px' }}>
-                                                        If no coordinates are present in the card, parse the card description to decode the coordinates for the card.<br />
+                                                        If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
                                                         <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
-                                                            Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache (experimental)
+                                                            Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
                                                         </span>
                                                     </span>
                                                 </label>
@@ -619,30 +619,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 </label>
                                             </div>
 
-                                            {/* RESET CACHE SECTION */}
-                                            <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                                <h3>Reset coordinates cache</h3>
-                                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                                    Use this button to remove all card coordinates on your local computer. This is to be used for troubleshooting purposes and will trigger a re-fetch using Nominatim
-                                                </p>
-                                                <button
-                                                    className="button-secondary"
-                                                    style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
-                                                    onClick={() => {
-                                                        if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
-                                                            try {
-                                                                const key = `MAP_GEOCODING_CACHE_${selectedBoard.id}`;
-                                                                localStorage.removeItem(key);
-                                                                alert('Cache cleared successfully.');
-                                                            } catch (e) {
-                                                                alert('Failed to clear cache');
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    Reset Location Cache
-                                                </button>
-                                            </div>
+
 
                                             {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}
                                             <h4>Block Map Options</h4>
@@ -718,6 +695,31 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 )}
                                             </Droppable>
                                             <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+
+                                            {/* RESET CACHE SECTION */}
+                                            <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                                <h3>Reset coordinates cache</h3>
+                                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                                    Use this button to remove all card coordinates on your local computer. This is to be used for troubleshooting purposes and will trigger a re-fetch using Nominatim
+                                                </p>
+                                                <button
+                                                    className="button-secondary"
+                                                    style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+                                                    onClick={() => {
+                                                        if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
+                                                            try {
+                                                                const key = `MAP_GEOCODING_CACHE_${selectedBoard.id}`;
+                                                                localStorage.removeItem(key);
+                                                                alert('Cache cleared successfully.');
+                                                            } catch (e) {
+                                                                alert('Failed to clear cache');
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    Reset Location Cache
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
