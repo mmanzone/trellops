@@ -591,7 +591,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 <input
                                                     type="checkbox"
                                                     checked={mapGeocodeMode !== 'disabled'}
-                                                    onChange={e => setMapGeocodeMode(e.target.checked ? 'store' : 'disabled')}
+                                                    onChange={e => {
+                                                        const newVal = e.target.checked ? 'store' : 'disabled';
+                                                        setMapGeocodeMode(newVal);
+                                                        // If disabled, also uncheck the child option
+                                                        if (newVal === 'disabled') setUpdateTrelloCoordinates(false);
+                                                    }}
                                                     style={{ marginTop: '3px' }}
                                                 />
                                                 <span style={{ marginLeft: '8px' }}>
@@ -602,21 +607,29 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 </span>
                                             </label>
 
-                                            {/* Option 3: Update Trello Cards */}
-                                            <label style={{ display: 'flex', alignItems: 'flex-start' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={updateTrelloCoordinates}
-                                                    onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
-                                                    style={{ marginTop: '3px' }}
-                                                />
-                                                <span style={{ marginLeft: '8px' }}>
-                                                    Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
-                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
-                                                        It is recommended to only have one dashboard enabled with this feature for each Trello board
+                                            {/* Option 3: Update Trello Cards (Nested) */}
+                                            <div style={{ marginLeft: '25px', marginBottom: '15px' }}>
+                                                <label style={{
+                                                    display: 'flex',
+                                                    alignItems: 'flex-start',
+                                                    opacity: mapGeocodeMode === 'disabled' ? 0.5 : 1,
+                                                    pointerEvents: mapGeocodeMode === 'disabled' ? 'none' : 'auto'
+                                                }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={updateTrelloCoordinates}
+                                                        onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
+                                                        disabled={mapGeocodeMode === 'disabled'}
+                                                        style={{ marginTop: '3px' }}
+                                                    />
+                                                    <span style={{ marginLeft: '8px' }}>
+                                                        Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
+                                                        <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                            It is recommended to only have one dashboard enabled with this feature for each Trello board
+                                                        </span>
                                                     </span>
-                                                </span>
-                                            </label>
+                                                </label>
+                                            </div>
                                         </div>
 
                                         {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}

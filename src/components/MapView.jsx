@@ -242,17 +242,13 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const updateTrelloCardCoordinates = async (cardId, coords) => {
         if (!updateTrelloCoordinates) return;
 
-        const token = process.env.TRELLO_WRITE_TOKEN || user.token;
-        const writeKey = process.env.TRELLO_WRITE_KEY;
-
         try {
-            await trelloFetch(`/cards/${cardId}`, token, {
+            await trelloFetch(`/cards/${cardId}`, user.token, {
                 method: 'PUT',
                 body: JSON.stringify({ coordinates: `${coords.lat},${coords.lng}` }),
                 headers: {
                     'Content-Type': 'application/json'
-                },
-                apiKey: writeKey
+                }
             });
         } catch (e) { console.warn("Failed to write back coords", e); }
     };

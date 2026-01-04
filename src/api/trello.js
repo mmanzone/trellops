@@ -5,7 +5,7 @@ export const trelloAuth = {
         const appName = "Trello Stats Dashboard";
         // Remove hash from current location
         const returnUrl = window.location.href.split('#')[0];
-        const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=read&response_type=token&key=${TRELLO_API_KEY}&return_url=${encodeURIComponent(returnUrl)}`;
+        const authUrl = `https://trello.com/1/authorize?expiration=never&name=${encodeURIComponent(appName)}&scope=read,write&response_type=token&key=${TRELLO_API_KEY}&return_url=${encodeURIComponent(returnUrl)}`;
         window.location.href = authUrl;
     },
     getTokenFromUrl: () => {
