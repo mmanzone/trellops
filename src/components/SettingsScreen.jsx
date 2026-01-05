@@ -86,6 +86,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [homeCoordinates, setHomeCoordinates] = useState(null);
     const [homeIcon, setHomeIcon] = useState('home');
     const [validatingAddress, setValidatingAddress] = useState(false);
+    const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
+    const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
+    const addressInputRef = React.useRef(null);
 
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
@@ -115,6 +118,55 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             });
         }
     }, [user, importedConfig]);
+
+    // Load Google Maps Script if API key is present
+    useEffect(() => {
+        if (!googleMapsApiKey) return;
+
+        if (window.google && window.google.maps && window.google.maps.places) {
+            setIsGoogleMapsLoaded(true);
+            return;
+        }
+
+        const scriptId = 'google-maps-script';
+        if (document.getElementById(scriptId)) {
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.id = scriptId;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => setIsGoogleMapsLoaded(true);
+        script.onerror = () => console.error("Failed to load Google Maps script");
+        document.body.appendChild(script);
+    }, [googleMapsApiKey]);
+
+    // Google Autocomplete Effect
+    useEffect(() => {
+        if (isGoogleMapsLoaded && addressInputRef.current && enableHomeLocation) {
+            try {
+                const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
+                    fields: ["geometry", "formatted_address", "name"],
+                });
+
+                autocomplete.addListener("place_changed", () => {
+                    const place = autocomplete.getPlace();
+                    if (place.geometry && place.geometry.location) {
+                        setHomeAddress(place.formatted_address || place.name);
+                        setHomeCoordinates({
+                            lat: place.geometry.location.lat(),
+                            lon: place.geometry.location.lng(), // Use lon to match Nominatim format
+                            display_name: place.formatted_address || place.name
+                        });
+                    }
+                });
+            } catch (e) {
+                console.error("Google Autocomplete Error", e);
+            }
+        }
+    }, [isGoogleMapsLoaded, enableHomeLocation]);
 
     const applyImportedConfig = () => {
         if (!pendingImport) return;
@@ -258,6 +310,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             const savedHomeCoords = localStorage.getItem(`homeCoordinates_${boardId}`);
             setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
             setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
+            setGoogleMapsApiKey(localStorage.getItem(`googleMapsApiKey_${boardId}`) || '');
 
         } catch (e) {
             console.warn("Error loading board settings", e);
@@ -446,6 +499,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setPersistentColors(user.id, selectedBoardId, listColors);
 
             // 3. Save Other Settings
+            localStorage.setItem(`googleMapsApiKey_${selectedBoardId}`, googleMapsApiKey);
             localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
             localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
             localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
@@ -1076,47 +1130,67 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                             {enableHomeLocation && (
                                                 <div style={{ marginLeft: '50px', marginTop: '10px' }}>
+
+                                                    {/* Google Maps API Key Input */}
+                                                    <div style={{ marginBottom: '15px' }}>
+                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Google Maps Explorer API Key (Optional)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={googleMapsApiKey}
+                                                            onChange={(e) => setGoogleMapsApiKey(e.target.value)}
+                                                            placeholder="Enter your API Key for autocomplete"
+                                                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                        />
+                                                        <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                                                            If provided, uses Google Places Autocomplete. Otherwise, uses Nominatim (Manual Validation).
+                                                        </small>
+                                                    </div>
+
                                                     <div style={{ marginBottom: '10px' }}>
                                                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Home Address</label>
                                                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                             <input
+                                                                ref={addressInputRef}
                                                                 type="text"
                                                                 value={homeAddress}
                                                                 onChange={e => setHomeAddress(e.target.value)}
-                                                                placeholder="e.g. 123 Main St, New York, NY"
+                                                                placeholder={googleMapsApiKey ? "Start typing address..." : "e.g. 123 Main St, New York, NY"}
                                                                 style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                             />
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (!homeAddress) return;
-                                                                    setValidatingAddress(true);
-                                                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(homeAddress)}`)
-                                                                        .then(res => res.json())
-                                                                        .then(data => {
-                                                                            setValidatingAddress(false);
-                                                                            if (data && data.length > 0) {
-                                                                                setHomeCoordinates({
-                                                                                    lat: data[0].lat,
-                                                                                    lon: data[0].lon,
-                                                                                    display_name: data[0].display_name
-                                                                                });
-                                                                                setHomeAddress(data[0].display_name); // Replace with full address
-                                                                            } else {
-                                                                                alert('Could not resolve address. Please try a different query.');
-                                                                                setHomeCoordinates(null);
-                                                                            }
-                                                                        })
-                                                                        .catch(err => {
-                                                                            console.error('Geocoding error:', err);
-                                                                            setValidatingAddress(false);
-                                                                            alert('Error validating address');
-                                                                        });
-                                                                }}
-                                                                disabled={validatingAddress || !homeAddress}
-                                                                style={{ padding: '8px 12px', cursor: 'pointer' }}
-                                                            >
-                                                                {validatingAddress ? 'Validating...' : 'Validate'}
-                                                            </button>
+
+                                                            {!googleMapsApiKey && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (!homeAddress) return;
+                                                                        setValidatingAddress(true);
+                                                                        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(homeAddress)}`)
+                                                                            .then(res => res.json())
+                                                                            .then(data => {
+                                                                                setValidatingAddress(false);
+                                                                                if (data && data.length > 0) {
+                                                                                    setHomeCoordinates({
+                                                                                        lat: parseFloat(data[0].lat), // FIX: Parse float
+                                                                                        lon: parseFloat(data[0].lon), // FIX: Parse float
+                                                                                        display_name: data[0].display_name
+                                                                                    });
+                                                                                    setHomeAddress(data[0].display_name);
+                                                                                } else {
+                                                                                    alert('Could not resolve address. Please try a different query.');
+                                                                                    setHomeCoordinates(null);
+                                                                                }
+                                                                            })
+                                                                            .catch(err => {
+                                                                                console.error('Geocoding error:', err);
+                                                                                setValidatingAddress(false);
+                                                                                alert('Error validating address');
+                                                                            });
+                                                                    }}
+                                                                    disabled={validatingAddress || !homeAddress}
+                                                                    style={{ padding: '8px 12px', cursor: 'pointer' }}
+                                                                >
+                                                                    {validatingAddress ? 'Validating...' : 'Validate'}
+                                                                </button>
+                                                            )}
                                                         </div>
                                                         {homeCoordinates && (
                                                             <div style={{ fontSize: '0.85em', color: 'green', marginTop: '5px' }}>
