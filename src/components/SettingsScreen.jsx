@@ -91,6 +91,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingImport, setPendingImport] = useState(null);
+    const [showResetSection, setShowResetSection] = useState(false); // Collapsible Danger Zone toggle
 
     // Initial check on mount
     useEffect(() => {
@@ -1122,70 +1123,94 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
                         )}
 
-                        <div className="danger-zone" style={{ marginTop: '40px', borderTop: '2px solid #d32f2f', paddingTop: '20px' }}>
-                            <h4 style={{ color: '#d32f2f', margin: '0 0 10px 0' }}>⚠️ Danger Zone: Global Cache Reset</h4>
-                            <p style={{ fontSize: '0.9em', color: '#555' }}>
-                                Resetting your settings will remove any locally stored information including dashboard and map configuration for <strong>ALL boards</strong>, as well as decoded geolocations.
-                                Your Trello account will NOT be affected, nor will your Trellops subscriptions.
-                                Use the export function for each board you want to backup before the reset.
-                            </p>
-
-                            <div style={{ background: '#fff0f0', padding: '10px', borderRadius: '4px', border: '1px solid #ffcdcd', margin: '15px 0' }}>
-                                <strong>Ideally, export these configs first:</strong>
-                                <ul style={{ margin: '5px 0 10px 20px', fontSize: '0.85em' }}>
-                                    {(() => {
-                                        const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
-                                        // Find all boards that have data in trelloUserData OR have specific keys
-                                        // For simplicity, we scan trelloUserData.user.settings keys and dashboard keys
-                                        const userData = storedData[user?.id] || {};
-                                        const boardsWithLayout = Object.keys(userData.dashboardLayout || {});
-                                        const boardsWithColors = Object.keys(userData.listColors || {});
-
-                                        const allCachedBoardIds = new Set([...boardsWithLayout, ...boardsWithColors]);
-                                        // Also scan localStorage keys? (Optional but good for completeness)
-
-                                        if (allCachedBoardIds.size === 0) return <li>No cached configurations found.</li>;
-
-                                        return Array.from(allCachedBoardIds).map(bid => {
-                                            const bName = boards.find(b => b.id === bid)?.name || bid;
-                                            return <li key={bid}>{bName} <span style={{ color: '#999', fontSize: '0.8em' }}>({bid})</span></li>;
-                                        });
-                                    })()}
-                                </ul>
+                        <div className="danger-zone" style={{ marginTop: '40px', borderTop: '2px solid #d32f2f', paddingTop: '10px' }}>
+                            <style>{`
+                                .danger-header:hover { background-color: #fff0f0; }
+                             `}</style>
+                            <div
+                                className="danger-header"
+                                onClick={() => setShowResetSection(!showResetSection)}
+                                style={{
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '10px'
+                                }}
+                            >
+                                <h4 style={{ color: '#d32f2f', margin: 0 }}>⚠️ Global settings reset</h4>
+                                <span style={{ fontSize: '1.2em', color: '#d32f2f' }}>{showResetSection ? '▼' : '▶'}</span>
                             </div>
 
-                            <button
-                                onClick={() => {
-                                    if (confirm(`ARE YOU SURE you want to DELETE ALL LOCAL SETTINGS?\n\nThis cannot be undone.`)) {
-                                        // 1. Clear User Data
-                                        const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
-                                        if (user?.id) delete storedData[user.id];
-                                        localStorage.setItem('trelloUserData', JSON.stringify(storedData));
+                            {showResetSection && (
+                                <div style={{ backgroundColor: '#fff0f0', padding: '15px', borderRadius: '4px', border: '1px solid #ffcdcd', marginTop: '10px' }}>
 
-                                        // 2. Clear specific keys (Scanning all keys since we don't track them all perfectly)
-                                        const keysToRemove = [];
-                                        for (let i = 0; i < localStorage.length; i++) {
-                                            const key = localStorage.key(i);
-                                            if (key && (
-                                                key.startsWith('TRELLO_') ||
-                                                key.startsWith('MAP_GEOCODING_CACHE_') ||
-                                                key.startsWith('updateTrelloCoordinates_') ||
-                                                key.startsWith('enableCardMove_') ||
-                                                key.startsWith('refreshInterval_') // old keys might exist
-                                            )) {
-                                                keysToRemove.push(key);
+                                    <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '10px' }}>
+                                        Resetting your settings will remove any locally stored information including dashboard and map configuration for <strong>ALL boards</strong>, as well as decoded geolocations.
+                                    </p>
+                                    <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '15px' }}>
+                                        Your Trello account will NOT be affected, nor will your Trellops subscriptions.
+                                    </p>
+
+                                    <div style={{ marginBottom: '15px' }}>
+                                        <strong style={{ display: 'block', marginBottom: '5px', color: '#8b0000', fontSize: '0.85em' }}>
+                                            The reset will erase all the information stored below; it is recommended that you back up each configuration first.
+                                        </strong>
+                                        <ul style={{ margin: '5px 0 10px 20px', fontSize: '0.85em', color: '#8b0000' }}>
+                                            {(() => {
+                                                const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                                // Find all boards that have data in trelloUserData OR have specific keys
+                                                // For simplicity, we scan trelloUserData.user.settings keys and dashboard keys
+                                                const userData = storedData[user?.id] || {};
+                                                const boardsWithLayout = Object.keys(userData.dashboardLayout || {});
+                                                const boardsWithColors = Object.keys(userData.listColors || {});
+
+                                                const allCachedBoardIds = new Set([...boardsWithLayout, ...boardsWithColors]);
+
+                                                if (allCachedBoardIds.size === 0) return <li>No cached configurations found.</li>;
+
+                                                return Array.from(allCachedBoardIds).map(bid => {
+                                                    const bName = boards.find(b => b.id === bid)?.name || bid;
+                                                    return <li key={bid}>{bName} <span style={{ color: '#b71c1c', fontSize: '0.8em' }}>({bid})</span></li>;
+                                                });
+                                            })()}
+                                        </ul>
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            if (confirm(`ARE YOU SURE you want to DELETE ALL LOCAL SETTINGS?\n\nThis cannot be undone.`)) {
+                                                // 1. Clear User Data
+                                                const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                                if (user?.id) delete storedData[user.id];
+                                                localStorage.setItem('trelloUserData', JSON.stringify(storedData));
+
+                                                // 2. Clear specific keys (Scanning all keys since we don't track them all perfectly)
+                                                const keysToRemove = [];
+                                                for (let i = 0; i < localStorage.length; i++) {
+                                                    const key = localStorage.key(i);
+                                                    if (key && (
+                                                        key.startsWith('TRELLO_') ||
+                                                        key.startsWith('MAP_GEOCODING_CACHE_') ||
+                                                        key.startsWith('updateTrelloCoordinates_') ||
+                                                        key.startsWith('enableCardMove_') ||
+                                                        key.startsWith('refreshInterval_') // old keys might exist
+                                                    )) {
+                                                        keysToRemove.push(key);
+                                                    }
+                                                }
+                                                keysToRemove.forEach(k => localStorage.removeItem(k));
+
+                                                alert("All local cache has been reset. The application will reload.");
+                                                window.location.reload();
                                             }
-                                        }
-                                        keysToRemove.forEach(k => localStorage.removeItem(k));
-
-                                        alert("All local cache has been reset. The application will reload.");
-                                        window.location.reload();
-                                    }
-                                }}
-                                style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                            >
-                                Reset My Trellops Stored Cache
-                            </button>
+                                        }}
+                                        style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                    >
+                                        Reset My Trellops Stored Cache
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
