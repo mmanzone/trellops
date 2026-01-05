@@ -558,11 +558,34 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             setVisibleListIds(new Set(allListIds));
             const allRuleIds = markerRules.map(r => r.id).concat(['default']);
             setVisibleRuleIds(new Set(allRuleIds));
+            if (homeLocation) setShowHomeLocation(true);
         } else {
             setVisibleListIds(new Set());
             setVisibleRuleIds(new Set());
+            setShowHomeLocation(false);
         }
     };
+
+    const handleToggleAllBlocks = (show) => {
+        if (show) {
+            const allListIds = blocks.filter(b => b.includeOnMap !== false).flatMap(b => b.listIds);
+            setVisibleListIds(new Set(allListIds));
+        } else {
+            setVisibleListIds(new Set());
+        }
+    };
+
+    const handleToggleAllRules = (show) => {
+        if (show) {
+            const allRuleIds = markerRules.map(r => r.id).concat(['default']);
+            setVisibleRuleIds(new Set(allRuleIds));
+        } else {
+            setVisibleRuleIds(new Set());
+        }
+    };
+
+    const [showHomeLocation, setShowHomeLocation] = useState(true); // Default to visible
+    const handleToggleHome = () => setShowHomeLocation(prev => !prev);
 
     const markers = useMemo(() => {
         return cards
@@ -755,9 +778,14 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         onToggleBlock={handleToggleBlock}
                         onToggleRule={handleToggleRule}
                         onToggleAll={handleToggleAll}
+                        onToggleAllBlocks={handleToggleAllBlocks}
+                        onToggleAllRules={handleToggleAllRules}
+                        homeLocation={homeLocation}
+                        showHomeLocation={showHomeLocation}
+                        onToggleHome={handleToggleHome}
                     />
 
-                    {homeLocation && (
+                    {homeLocation && showHomeLocation && (
                         <Marker
                             position={[homeLocation.coords.lat, homeLocation.coords.lon]}
                             icon={getMarkerIcon({ icon: homeLocation.icon, color: 'purple' })}

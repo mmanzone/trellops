@@ -85,6 +85,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [homeAddress, setHomeAddress] = useState('');
     const [homeCoordinates, setHomeCoordinates] = useState(null);
     const [homeIcon, setHomeIcon] = useState('home');
+    const [validatingAddress, setValidatingAddress] = useState(false);
 
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
@@ -1077,34 +1078,45 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 <div style={{ marginLeft: '50px', marginTop: '10px' }}>
                                                     <div style={{ marginBottom: '10px' }}>
                                                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Home Address</label>
-                                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                             <input
                                                                 type="text"
                                                                 value={homeAddress}
                                                                 onChange={e => setHomeAddress(e.target.value)}
                                                                 placeholder="e.g. 123 Main St, New York, NY"
                                                                 style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                                                onBlur={() => {
+                                                            />
+                                                            <button
+                                                                onClick={() => {
                                                                     if (!homeAddress) return;
-                                                                    // Auto-fetch on blur if not already valid or changed
-                                                                    // For simplicity, we can let user click a resolve button or just auto-fetch
-                                                                    // Let's do a fetch here
+                                                                    setValidatingAddress(true);
                                                                     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(homeAddress)}`)
                                                                         .then(res => res.json())
                                                                         .then(data => {
+                                                                            setValidatingAddress(false);
                                                                             if (data && data.length > 0) {
                                                                                 setHomeCoordinates({
                                                                                     lat: data[0].lat,
                                                                                     lon: data[0].lon,
                                                                                     display_name: data[0].display_name
                                                                                 });
+                                                                                setHomeAddress(data[0].display_name); // Replace with full address
                                                                             } else {
                                                                                 alert('Could not resolve address. Please try a different query.');
+                                                                                setHomeCoordinates(null);
                                                                             }
                                                                         })
-                                                                        .catch(err => console.error('Geocoding error:', err));
+                                                                        .catch(err => {
+                                                                            console.error('Geocoding error:', err);
+                                                                            setValidatingAddress(false);
+                                                                            alert('Error validating address');
+                                                                        });
                                                                 }}
-                                                            />
+                                                                disabled={validatingAddress || !homeAddress}
+                                                                style={{ padding: '8px 12px', cursor: 'pointer' }}
+                                                            >
+                                                                {validatingAddress ? 'Validating...' : 'Validate'}
+                                                            </button>
                                                         </div>
                                                         {homeCoordinates && (
                                                             <div style={{ fontSize: '0.85em', color: 'green', marginTop: '5px' }}>
