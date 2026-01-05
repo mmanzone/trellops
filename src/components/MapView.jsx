@@ -196,8 +196,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
     const [baseMap, setBaseMap] = useState('topo');
     const [errorState, setErrorState] = useState(null);
+
     const [fitTrigger, setFitTrigger] = useState(0); // For manual fit bounds
-    const hasInitialZoom = useRef(false); // To prevent auto-zoom on refresh
+    // const hasInitialZoom = useRef(false); // REMOVED in favor of signature check
     const [markerRules, setMarkerRules] = useState([]);
     const [homeLocation, setHomeLocation] = useState(null);
 
@@ -736,19 +737,29 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             return points;
         };
 
-        // Auto Fit on Initial Load Only
-        useEffect(() => {
-            if (hasInitialZoom.current) return;
+        // Auto Fit on Data Change (Smart Zoom)
+        const prevSignature = useRef('');
 
-            const points = calculateBounds();
-            if (points.length > 0) {
-                const bounds = L.latLngBounds(points);
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50] });
-                    hasInitialZoom.current = true;
+        useEffect(() => {
+            // Generate content signature to detect ADD/REMOVE
+            // sorting keys ensures order independent signature
+            const cardKeys = markers.map(m => m.key).sort().join(',');
+            const homeKey = (homeLocation && showHomeLocation) ? 'HOME' : '';
+
+            const currentSignature = `${cardKeys}|${homeKey}`;
+
+            // If signature changes, content changed -> Re-fit
+            if (currentSignature !== prevSignature.current) {
+                const points = calculateBounds();
+                if (points.length > 0) {
+                    const bounds = L.latLngBounds(points);
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
                 }
+                prevSignature.current = currentSignature;
             }
-        }, [markers.length, homeLocation, showHomeLocation]);
+        }, [markers.length, markers, homeLocation, showHomeLocation]);
 
         // Manual Fit Trigger
         useEffect(() => {
