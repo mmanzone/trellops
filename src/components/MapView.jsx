@@ -196,6 +196,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
     const [baseMap, setBaseMap] = useState('topo');
     const [errorState, setErrorState] = useState(null);
+    const [fitTrigger, setFitTrigger] = useState(0); // For manual fit bounds
+    const hasInitialZoom = useRef(false); // To prevent auto-zoom on refresh
     const [markerRules, setMarkerRules] = useState([]);
     const [homeLocation, setHomeLocation] = useState(null);
 
@@ -714,20 +716,53 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         }).length;
     };
 
-    const MapBounds = () => {
+    const MapBounds = ({ fitTrigger }) => {
         const map = useMap();
-        useEffect(() => {
+
+        const calculateBounds = () => {
+            const points = [];
+            // Add Cards
             if (markers.length > 0) {
                 const validCards = cards.filter(c =>
                     c.coordinates && c.coordinates.lat && c.coordinates.lng &&
                     markers.some(m => m.key === c.id)
                 );
-                if (validCards.length > 0) {
-                    const bounds = L.latLngBounds(validCards.map(c => [c.coordinates.lat, c.coordinates.lng]));
+                validCards.forEach(c => points.push([c.coordinates.lat, c.coordinates.lng]));
+            }
+            // Add Home
+            if (homeLocation && showHomeLocation && homeLocation.coords) {
+                points.push([homeLocation.coords.lat, homeLocation.coords.lon]);
+            }
+            return points;
+        };
+
+        // Auto Fit on Initial Load Only
+        useEffect(() => {
+            if (hasInitialZoom.current) return;
+
+            const points = calculateBounds();
+            if (points.length > 0) {
+                const bounds = L.latLngBounds(points);
+                if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [50, 50] });
+                    hasInitialZoom.current = true;
                 }
             }
-        }, [markers.length]);
+        }, [markers.length, homeLocation, showHomeLocation]);
+
+        // Manual Fit Trigger
+        useEffect(() => {
+            if (fitTrigger > 0) {
+                const points = calculateBounds();
+                if (points.length > 0) {
+                    const bounds = L.latLngBounds(points);
+                    if (bounds.isValid()) {
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
+                }
+            }
+        }, [fitTrigger]);
+
         return null;
     };
 
@@ -799,7 +834,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         </Marker>
                     )}
                     {markers}
-                    <MapBounds />
+                    <MapBounds fitTrigger={fitTrigger} />
                 </MapContainer>
             </div>
 
@@ -822,6 +857,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         loadData(true);
                         setCountdown(refreshIntervalSeconds);
                     }}>Refresh Map</button>
+                    <button className="refresh-button" style={{ marginLeft: '5px' }} onClick={() => setFitTrigger(t => t + 1)}>Fit Map</button>
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();

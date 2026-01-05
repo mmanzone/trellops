@@ -86,9 +86,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [homeCoordinates, setHomeCoordinates] = useState(null);
     const [homeIcon, setHomeIcon] = useState('home');
     const [validatingAddress, setValidatingAddress] = useState(false);
-    const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
-    const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
-    const addressInputRef = React.useRef(null);
+
+
+    // NOMINATIM AUTOCOMPLETE STATE
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchTimeoutRef = React.useRef(null);
+    const searchInputRef = React.useRef(null); // Ref to input for dropdown positioning if needed
+    const wrapperRef = React.useRef(null); // Ref for click outside
 
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
@@ -119,54 +124,57 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     }, [user, importedConfig]);
 
-    // Load Google Maps Script if API key is present
+    // CLICK OUTSIDE HANDLER
     useEffect(() => {
-        if (!googleMapsApiKey) return;
-
-        if (window.google && window.google.maps && window.google.maps.places) {
-            setIsGoogleMapsLoaded(true);
-            return;
-        }
-
-        const scriptId = 'google-maps-script';
-        if (document.getElementById(scriptId)) {
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleMapsApiKey}&libraries=places`;
-        script.async = true;
-        script.defer = true;
-        script.onload = () => setIsGoogleMapsLoaded(true);
-        script.onerror = () => console.error("Failed to load Google Maps script");
-        document.body.appendChild(script);
-    }, [googleMapsApiKey]);
-
-    // Google Autocomplete Effect
-    useEffect(() => {
-        if (isGoogleMapsLoaded && addressInputRef.current && enableHomeLocation) {
-            try {
-                const autocomplete = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-                    fields: ["geometry", "formatted_address", "name"],
-                });
-
-                autocomplete.addListener("place_changed", () => {
-                    const place = autocomplete.getPlace();
-                    if (place.geometry && place.geometry.location) {
-                        setHomeAddress(place.formatted_address || place.name);
-                        setHomeCoordinates({
-                            lat: place.geometry.location.lat(),
-                            lon: place.geometry.location.lng(), // Use lon to match Nominatim format
-                            display_name: place.formatted_address || place.name
-                        });
-                    }
-                });
-            } catch (e) {
-                console.error("Google Autocomplete Error", e);
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setSearchResults([]);
             }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [wrapperRef]);
+
+    // DEBOUNCED SEARCH HANDLER
+    const handleHomeAddressChange = (e) => {
+        const val = e.target.value;
+        setHomeAddress(val);
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
         }
-    }, [isGoogleMapsLoaded, enableHomeLocation]);
+
+        if (!val || val.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        searchTimeoutRef.current = setTimeout(() => {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`)
+                .then(res => res.json())
+                .then(data => {
+                    setSearchResults(data);
+                    setIsSearching(false);
+                })
+                .catch(err => {
+                    console.error("Nominatim search error", err);
+                    setIsSearching(false);
+                });
+        }, 1000); // 1s Debounce
+    };
+
+    const handleSelectResult = (result) => {
+        setHomeAddress(result.display_name);
+        setHomeCoordinates({
+            lat: parseFloat(result.lat),
+            lon: parseFloat(result.lon),
+            display_name: result.display_name
+        });
+        setSearchResults([]);
+    };
 
     const applyImportedConfig = () => {
         if (!pendingImport) return;
@@ -310,7 +318,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             const savedHomeCoords = localStorage.getItem(`homeCoordinates_${boardId}`);
             setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
             setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
-            setGoogleMapsApiKey(localStorage.getItem(`googleMapsApiKey_${boardId}`) || '');
+            setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
+            setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
 
         } catch (e) {
             console.warn("Error loading board settings", e);
@@ -499,7 +508,6 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setPersistentColors(user.id, selectedBoardId, listColors);
 
             // 3. Save Other Settings
-            localStorage.setItem(`googleMapsApiKey_${selectedBoardId}`, googleMapsApiKey);
             localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
             localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
             localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
@@ -1131,68 +1139,55 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             {enableHomeLocation && (
                                                 <div style={{ marginLeft: '50px', marginTop: '10px' }}>
 
-                                                    {/* Google Maps API Key Input */}
-                                                    <div style={{ marginBottom: '15px' }}>
-                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Google Maps Explorer API Key (Optional)</label>
-                                                        <input
-                                                            type="text"
-                                                            value={googleMapsApiKey}
-                                                            onChange={(e) => setGoogleMapsApiKey(e.target.value)}
-                                                            placeholder="Enter your API Key for autocomplete"
-                                                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                                        />
-                                                        <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
-                                                            If provided, uses Google Places Autocomplete. Otherwise, uses Nominatim (Manual Validation).
-                                                        </small>
-                                                    </div>
-
-                                                    <div style={{ marginBottom: '10px' }}>
+                                                    <div style={{ marginBottom: '10px' }} ref={wrapperRef}>
                                                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Home Address</label>
-                                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <div style={{ position: 'relative' }}>
                                                             <input
-                                                                ref={addressInputRef}
                                                                 type="text"
                                                                 value={homeAddress}
-                                                                onChange={e => setHomeAddress(e.target.value)}
-                                                                placeholder={googleMapsApiKey ? "Start typing address..." : "e.g. 123 Main St, New York, NY"}
-                                                                style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                                onChange={handleHomeAddressChange}
+                                                                placeholder="Start typing your address..."
+                                                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
                                                             />
-
-                                                            {!googleMapsApiKey && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (!homeAddress) return;
-                                                                        setValidatingAddress(true);
-                                                                        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(homeAddress)}`)
-                                                                            .then(res => res.json())
-                                                                            .then(data => {
-                                                                                setValidatingAddress(false);
-                                                                                if (data && data.length > 0) {
-                                                                                    setHomeCoordinates({
-                                                                                        lat: parseFloat(data[0].lat), // FIX: Parse float
-                                                                                        lon: parseFloat(data[0].lon), // FIX: Parse float
-                                                                                        display_name: data[0].display_name
-                                                                                    });
-                                                                                    setHomeAddress(data[0].display_name);
-                                                                                } else {
-                                                                                    alert('Could not resolve address. Please try a different query.');
-                                                                                    setHomeCoordinates(null);
-                                                                                }
-                                                                            })
-                                                                            .catch(err => {
-                                                                                console.error('Geocoding error:', err);
-                                                                                setValidatingAddress(false);
-                                                                                alert('Error validating address');
-                                                                            });
-                                                                    }}
-                                                                    disabled={validatingAddress || !homeAddress}
-                                                                    style={{ padding: '8px 12px', cursor: 'pointer' }}
-                                                                >
-                                                                    {validatingAddress ? 'Validating...' : 'Validate'}
-                                                                </button>
+                                                            {isSearching && (
+                                                                <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', fontSize: '0.8em' }}>
+                                                                    Searching...
+                                                                </div>
+                                                            )}
+                                                            {searchResults.length > 0 && (
+                                                                <div style={{
+                                                                    position: 'absolute',
+                                                                    top: '100%',
+                                                                    left: 0,
+                                                                    right: 0,
+                                                                    zIndex: 1000,
+                                                                    background: 'white',
+                                                                    border: '1px solid #ccc',
+                                                                    borderRadius: '4px',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                                    maxHeight: '200px',
+                                                                    overflowY: 'auto'
+                                                                }}>
+                                                                    {searchResults.map((result, idx) => (
+                                                                        <div
+                                                                            key={idx}
+                                                                            onClick={() => handleSelectResult(result)}
+                                                                            style={{
+                                                                                padding: '8px 12px',
+                                                                                cursor: 'pointer',
+                                                                                borderBottom: idx < searchResults.length - 1 ? '1px solid #eee' : 'none',
+                                                                                fontSize: '0.9em'
+                                                                            }}
+                                                                            onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+                                                                            onMouseLeave={e => e.target.style.background = 'white'}
+                                                                        >
+                                                                            {result.display_name}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
                                                             )}
                                                         </div>
-                                                        {homeCoordinates && (
+                                                        {homeCoordinates && !isSearching && searchResults.length === 0 && (
                                                             <div style={{ fontSize: '0.85em', color: 'green', marginTop: '5px' }}>
                                                                 Resolved: {homeCoordinates.display_name}
                                                             </div>
