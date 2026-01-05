@@ -179,9 +179,10 @@ const TILE_LAYERS = {
     'osmhot': { url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors', name: 'OSM Hotspot' },
     'sat': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Satellite (Esri)' },
     'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
+    'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
 };
 
-const MapBounds = ({ visibleCards, homeLocation, showHomeLocation, fitTrigger }) => {
+const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation }) => {
     const map = useMap();
     const prevSignature = useRef('');
 
@@ -766,61 +767,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         }).length;
     };
 
-    const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation }) => {
-        const map = useMap();
-
-        const calculateBounds = () => {
-            const points = [];
-            // Add Cards
-            if (visibleCards.length > 0) {
-                visibleCards.forEach(c => points.push([c.coordinates.lat, c.coordinates.lng]));
-            }
-            // Add Home
-            if (homeLocation && showHomeLocation && homeLocation.coords) {
-                points.push([homeLocation.coords.lat, homeLocation.coords.lon]);
-            }
-            return points;
-        };
-
-        // Auto Fit on Data Change (Smart Zoom)
-        const prevSignature = useRef('');
-
-        useEffect(() => {
-            // Generate content signature to detect ADD/REMOVE
-            // sorting keys ensures order independent signature
-            const cardKeys = visibleCards.map(m => m.id).sort().join(',');
-            const homeKey = (homeLocation && showHomeLocation) ? 'HOME' : '';
-
-            const currentSignature = `${cardKeys}|${homeKey}`;
-
-            // If signature changes, content changed -> Re-fit
-            if (currentSignature !== prevSignature.current) {
-                const points = calculateBounds();
-                if (points.length > 0) {
-                    const bounds = L.latLngBounds(points);
-                    if (bounds.isValid()) {
-                        map.fitBounds(bounds, { padding: [50, 50] });
-                    }
-                }
-                prevSignature.current = currentSignature;
-            }
-        }, [visibleCards, homeLocation, showHomeLocation]);
-
-        // Manual Fit Trigger
-        useEffect(() => {
-            if (fitTrigger > 0) {
-                const points = calculateBounds();
-                if (points.length > 0) {
-                    const bounds = L.latLngBounds(points);
-                    if (bounds.isValid()) {
-                        map.fitBounds(bounds, { padding: [50, 50] });
-                    }
-                }
-            }
-        }, [fitTrigger, visibleCards, homeLocation, showHomeLocation]);
-
-        return null;
-    };
+    // MapBounds moved outside to prevent re-mounting loop
 
     return (
         <div className="map-container">
@@ -851,27 +798,31 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             </div>
 
             <div id="map">
-                {/* OVERLAY: Fit Map Button */}
+                {/* OVERLAY: Fit Map Button - Moved to Top Left below Zoom controls */}
                 <div style={{
                     position: 'absolute',
-                    top: '10px',
-                    right: '10px',
+                    top: '80px',
+                    left: '12px',
                     zIndex: 2000,
                     background: 'white',
-                    padding: '8px',
+                    padding: '6px',
                     borderRadius: '4px',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    border: '2px solid rgba(0,0,0,0.2)',
+                    backgroundClip: 'padding-box',
+                    boxShadow: 'none',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '32px',
-                    height: '32px'
+                    width: '30px', /* Match Leaflet control width approx */
+                    height: '30px'
                 }}
                     onClick={() => setFitTrigger(t => t + 1)}
                     title="Fit Map to Markers"
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f4f4f4'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}
                 >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <line x1="22" y1="12" x2="18" y2="12"></line>
                         <line x1="6" y1="12" x2="2" y2="12"></line>
