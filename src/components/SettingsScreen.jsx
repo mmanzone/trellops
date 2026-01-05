@@ -671,9 +671,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
-    // Reuse Switch Component - Modified to handle click on parent properly or just be a visual element if controlled by parent
+    // Reuse Switch Component - Modified to allow click-through to parent container
     const ToggleSwitch = ({ checked, onChange, id }) => (
-        <label className="switch" htmlFor={id} onClick={(e) => e.stopPropagation()}>
+        <label className="switch" htmlFor={id} style={{ pointerEvents: 'none' }}>
             <input
                 type="checkbox"
                 checked={checked}
