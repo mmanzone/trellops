@@ -182,9 +182,9 @@ const TILE_LAYERS = {
     'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
 };
 
-const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation }) => {
+const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, prevSignatureRef }) => {
     const map = useMap();
-    const prevSignature = useRef('');
+
 
     const calculateBounds = useCallback(() => {
         const points = [];
@@ -211,7 +211,7 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation })
         const currentSignature = `${cardKeys}|${homeKey}`;
 
         // If signature changes, content changed -> Re-fit
-        if (currentSignature !== prevSignature.current) {
+        if (currentSignature !== prevSignatureRef.current) {
             const points = calculateBounds();
             if (points.length > 0) {
                 const bounds = L.latLngBounds(points);
@@ -219,9 +219,9 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation })
                     map.fitBounds(bounds, { padding: [50, 50] });
                 }
             }
-            prevSignature.current = currentSignature;
+            prevSignatureRef.current = currentSignature;
         }
-    }, [visibleCards, homeLocation, showHomeLocation, calculateBounds]);
+    }, [visibleCards, homeLocation, showHomeLocation, calculateBounds, prevSignatureRef]);
 
     // Manual Fit Trigger
     useEffect(() => {
@@ -259,6 +259,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     // const hasInitialZoom = useRef(false); // REMOVED in favor of signature check
     const [markerRules, setMarkerRules] = useState([]);
     const [homeLocation, setHomeLocation] = useState(null);
+
+    // Ref to track map content signature across renders/refreshes
+    // Lifted from MapBounds to ensure persistence
+    const prevSignatureRef = useRef('');
 
     const [countdown, setCountdown] = useState(null);
 
@@ -869,7 +873,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         </Marker>
                     )}
                     {markers}
-                    <MapBounds fitTrigger={fitTrigger} visibleCards={visibleCards} homeLocation={homeLocation} showHomeLocation={showHomeLocation} />
+                    <MapBounds fitTrigger={fitTrigger} visibleCards={visibleCards} homeLocation={homeLocation} showHomeLocation={showHomeLocation} prevSignatureRef={prevSignatureRef} />
                 </MapContainer>
             </div>
 
