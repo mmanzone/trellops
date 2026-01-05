@@ -136,7 +136,8 @@
         <h2>1. The "Local First" Philosophy</h2>
         <p>Trellops is designed as a client-side application. This means that, for the vast majority of features,
             <strong>your data never leaves your computer browser</strong>. We do not track your activity, sell your
-            data, or store your Trello card contents on our servers.</p>
+            data, or store your Trello card contents on our servers.
+        </p>
     </section>
 
     <section>
@@ -198,6 +199,23 @@
         <p>&copy; 2025 Trellops. All rights reserved.</p>
     </footer>
 
+    <script>
+        if (window.location.hostname !== 'trellops.xyz') {
+            var banner = document.createElement('div');
+            banner.innerText = 'PREVIEW ENVIRONMENT';
+            banner.style.width = '100%';
+            banner.style.backgroundColor = '#003366';
+            banner.style.color = '#ffffff';
+            banner.style.textAlign = 'center';
+            banner.style.padding = '4px 0';
+            banner.style.fontSize = '12px';
+            banner.style.fontWeight = 'bold';
+            banner.style.letterSpacing = '1px';
+            banner.style.position = 'relative';
+            banner.style.zIndex = '9999';
+            document.body.insertBefore(banner, document.body.firstChild);
+        }
+    </script>
 </body>
 
 </html>
