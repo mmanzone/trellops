@@ -671,10 +671,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
-    // Reuse Switch Component
-    const ToggleSwitch = ({ checked, onChange }) => (
-        <label className="switch">
-            <input type="checkbox" checked={checked} onChange={onChange} />
+    // Reuse Switch Component - Modified to handle click on parent properly or just be a visual element if controlled by parent
+    const ToggleSwitch = ({ checked, onChange, id }) => (
+        <label className="switch" htmlFor={id} onClick={(e) => e.stopPropagation()}>
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={onChange}
+                id={id}
+            />
             <span className="slider round"></span>
         </label>
     );
@@ -829,15 +834,21 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     {/* Block Options Inside Section 3 */}
                                                     <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
                                                         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                                                            <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                            <div
+                                                                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                                                                onClick={() => handleUpdateBlockProp(block.id, 'ignoreFirstCard', !block.ignoreFirstCard)}
+                                                            >
                                                                 <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
-                                                                <span style={{ marginLeft: '5px' }}>Do not count the first card in the total</span>
-                                                            </label>
+                                                                <span>Do not count the first card in the total</span>
+                                                            </div>
                                                             {block.ignoreFirstCard && (
-                                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                                <div
+                                                                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                                                                    onClick={() => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', !block.displayFirstCardDescription)}
+                                                                >
                                                                     <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
-                                                                    <span style={{ marginLeft: '5px' }}>Display the first card as tile description</span>
-                                                                </label>
+                                                                    <span>Display the first card as tile description</span>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </div>
@@ -915,9 +926,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
                                     Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
                                 </p>
-                                <div className="settings-row">
+                                <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableMapView(!enableMapView)}>
                                     <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
-                                    <span style={{ marginLeft: '10px' }}>Enable Map View</span>
+                                    <span>Enable Map View</span>
                                 </div>
 
                                 {enableMapView && (
@@ -926,25 +937,29 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Geocoding behavior:</label>
 
                                             {/* Option 1: Always Read (Visual Confirmation) */}
-                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px', opacity: 0.7 }}>
-                                                <input type="checkbox" checked={true} disabled style={{ marginTop: '3px' }} />
+                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', opacity: 0.7 }}>
+                                                <ToggleSwitch checked={true} onChange={() => { }} />
                                                 <span style={{ marginLeft: '8px' }}>
                                                     Read the coordinates from the Trello card "Location" field to display the card location
                                                 </span>
-                                            </label>
+                                            </div>
 
                                             {/* Option 2: Enable Local Geocoding (Nominatim) */}
-                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                                <input
-                                                    type="checkbox"
+                                            <div
+                                                style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', cursor: 'pointer' }}
+                                                onClick={() => {
+                                                    const newVal = mapGeocodeMode === 'disabled' ? 'store' : 'disabled';
+                                                    setMapGeocodeMode(newVal);
+                                                    if (newVal === 'disabled') setUpdateTrelloCoordinates(false);
+                                                }}
+                                            >
+                                                <ToggleSwitch
                                                     checked={mapGeocodeMode !== 'disabled'}
                                                     onChange={e => {
                                                         const newVal = e.target.checked ? 'store' : 'disabled';
                                                         setMapGeocodeMode(newVal);
-                                                        // If disabled, also uncheck the child option
                                                         if (newVal === 'disabled') setUpdateTrelloCoordinates(false);
                                                     }}
-                                                    style={{ marginTop: '3px' }}
                                                 />
                                                 <span style={{ marginLeft: '8px' }}>
                                                     If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
@@ -952,27 +967,17 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
                                                     </span>
                                                 </span>
-                                            </label>
+                                            </div>
 
                                             {/* Option 3: Update Trello Cards (Nested with Upsell) */}
                                             <div style={{ marginLeft: '25px', marginBottom: '15px' }}>
-                                                <label style={{
-                                                    display: 'flex',
-                                                    alignItems: 'flex-start',
-                                                    opacity: mapGeocodeMode === 'disabled' ? 0.5 : 1,
-                                                    pointerEvents: mapGeocodeMode === 'disabled' ? 'none' : 'auto'
-                                                }}>
-                                                    <input
-                                                        type="checkbox"
+                                                <div
+                                                    style={{ display: 'flex', alignItems: 'center', opacity: mapGeocodeMode === 'disabled' ? 0.5 : 1, pointerEvents: mapGeocodeMode === 'disabled' ? 'none' : 'auto', cursor: mapGeocodeMode === 'disabled' ? 'default' : 'pointer' }}
+                                                    onClick={() => !updateTrelloCoordinates && !hasWritePermission ? {} : setUpdateTrelloCoordinates(!updateTrelloCoordinates)}
+                                                >
+                                                    <ToggleSwitch
                                                         checked={updateTrelloCoordinates}
-                                                        onChange={e => {
-                                                            if (e.target.checked && !hasWritePermission) {
-                                                                // Show visual cue or just let the banner appear (handled below)
-                                                            }
-                                                            setUpdateTrelloCoordinates(e.target.checked);
-                                                        }}
-                                                        disabled={mapGeocodeMode === 'disabled'}
-                                                        style={{ marginTop: '3px' }}
+                                                        onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
                                                     />
                                                     <span style={{ marginLeft: '8px' }}>
                                                         Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
@@ -980,7 +985,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                             It is recommended to only have one dashboard enabled with this feature for each Trello board
                                                         </span>
                                                     </span>
-                                                </label>
+                                                </div>
 
                                                 {/* Permission Upsell Banner */}
                                                 {updateTrelloCoordinates && !hasWritePermission && (
@@ -1015,10 +1020,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 <div key={block.id} style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <h4 style={{ margin: 0 }}>{block.name}</h4>
-                                                        <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleUpdateBlockProp(block.id, 'includeOnMap', !block.includeOnMap)}>
                                                             <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
-                                                            <span style={{ marginLeft: '5px' }}>Show on map</span>
-                                                        </label>
+                                                            <span>Show on map</span>
+                                                        </div>
                                                     </div>
 
                                                     {block.includeOnMap && (
@@ -1084,7 +1089,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                         {/* MOVING CARDS SETTING */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableCardMove(!enableCardMove)}>
                                                 <ToggleSwitch
                                                     checked={enableCardMove}
                                                     onChange={e => {
@@ -1100,7 +1105,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         Display a dropdown allowing to move a card to another list from the visible block directly from a marker on the map. This requires "write" access to your Trello board for Trellops to move the cards on your behalf
                                                     </span>
                                                 </span>
-                                            </label>
+                                            </div>
 
                                             {enableCardMove && !hasWritePermission && (
                                                 <div style={{ marginTop: '10px', padding: '10px', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9em' }}>
@@ -1123,7 +1128,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                         {/* HOME LOCATION SETTING */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableHomeLocation(!enableHomeLocation)}>
                                                 <ToggleSwitch
                                                     checked={enableHomeLocation}
                                                     onChange={e => setEnableHomeLocation(e.target.checked)}
@@ -1134,7 +1139,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         Set a home address that will be permanently displayed on the map for this board.
                                                     </span>
                                                 </span>
-                                            </label>
+                                            </div>
 
                                             {enableHomeLocation && (
                                                 <div style={{ marginLeft: '50px', marginTop: '10px' }}>
@@ -1262,23 +1267,23 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         <div>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowClock(!showClock)}>
                                                     <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
-                                                    <span style={{ marginLeft: '10px' }}>Show Clock</span>
+                                                    <span>Show Clock</span>
                                                     {showClock && (
                                                         <span style={{ marginLeft: '15px', color: '#555', fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px', border: '1px solid #ddd' }}>
                                                             {new Date().toLocaleTimeString()}
                                                         </span>
                                                     )}
-                                                </label>
-                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIgnoreTemplateCards(!ignoreTemplateCards)}>
                                                     <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
-                                                    <span style={{ marginLeft: '10px' }}>Ignore Template Cards</span>
-                                                </label>
-                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <span>Ignore Template Cards</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIgnoreCompletedCards(!ignoreCompletedCards)}>
                                                     <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
-                                                    <span style={{ marginLeft: '10px' }}>Ignore Completed Cards</span>
-                                                </label>
+                                                    <span>Ignore Completed Cards</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
