@@ -1123,7 +1123,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
                         )}
 
-                        <div className="danger-zone" style={{ marginTop: '40px', borderTop: '2px solid #d32f2f', paddingTop: '10px' }}>
+                        <div className="danger-zone" style={{ marginTop: '40px', paddingTop: '10px' }}>
                             <style>{`
                                 .danger-header:hover { background-color: #fff0f0; }
                              `}</style>
@@ -1138,7 +1138,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     padding: '10px'
                                 }}
                             >
-                                <h4 style={{ color: '#d32f2f', margin: 0 }}>⚠️ Global settings reset</h4>
+                                <h4 style={{ color: 'black', margin: 0 }}>⚠️ Global settings reset</h4>
                                 <span style={{ fontSize: '1.2em', color: '#d32f2f' }}>{showResetSection ? '▼' : '▶'}</span>
                             </div>
 
@@ -1219,7 +1219,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v4.0.0 - Jan 03, 2026</span>
+                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>
+                    v4.1.{__BUILD_ID__ || 1000} - Jan 05, 2026
+                </span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
                 <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
