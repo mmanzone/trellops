@@ -17,7 +17,8 @@ import MapFilters from './MapFilters';
 const getMarkerIcon = (markerConfig) => {
     const colorMap = {
         'blue': '#3388ff', 'red': '#ff6b6b', 'green': '#51cf66',
-        'orange': '#ffa94d', 'yellow': '#ffd43b', 'grey': '#868e96', 'black': '#343a40'
+        'orange': '#ffa94d', 'yellow': '#ffd43b', 'grey': '#868e96', 'black': '#343a40',
+        'purple': '#9c27b0'
     };
     const markerColor = colorMap[markerConfig.color] || colorMap['blue'];
     const iconName = (markerConfig.icon || 'map-marker').toLowerCase();
@@ -196,6 +197,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [baseMap, setBaseMap] = useState('topo');
     const [errorState, setErrorState] = useState(null);
     const [markerRules, setMarkerRules] = useState([]);
+    const [homeLocation, setHomeLocation] = useState(null);
 
     const [countdown, setCountdown] = useState(null);
 
@@ -306,6 +308,21 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 setMarkerRules(JSON.parse(savedRules));
             } else {
                 setMarkerRules([]);
+            }
+
+            // Load Home Location
+            const enableHome = localStorage.getItem(`enableHomeLocation_${boardId}`) === 'true';
+            if (enableHome) {
+                const homeCoords = JSON.parse(localStorage.getItem(`homeCoordinates_${boardId}`) || 'null');
+                const homeIcon = localStorage.getItem(`homeIcon_${boardId}`) || 'home';
+                const homeAddress = localStorage.getItem(`homeAddress_${boardId}`) || '';
+                if (homeCoords) {
+                    setHomeLocation({ coords: homeCoords, icon: homeIcon, address: homeAddress });
+                } else {
+                    setHomeLocation(null);
+                }
+            } else {
+                setHomeLocation(null);
             }
 
             if (!isRefresh) {
@@ -740,6 +757,19 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         onToggleAll={handleToggleAll}
                     />
 
+                    {homeLocation && (
+                        <Marker
+                            position={[homeLocation.coords.lat, homeLocation.coords.lon]}
+                            icon={getMarkerIcon({ icon: homeLocation.icon, color: 'purple' })}
+                        >
+                            <Popup>
+                                <div className="popup-card">
+                                    <strong>Home</strong>
+                                    {homeLocation.address && <div style={{ fontSize: '0.9em', marginTop: '5px' }}>{homeLocation.address}</div>}
+                                </div>
+                            </Popup>
+                        </Marker>
+                    )}
                     {markers}
                     <MapBounds />
                 </MapContainer>

@@ -81,6 +81,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [enableCardMove, setEnableCardMove] = useState(false); // NEW
+    const [enableHomeLocation, setEnableHomeLocation] = useState(false); // NEW HOME LOCATION
+    const [homeAddress, setHomeAddress] = useState('');
+    const [homeCoordinates, setHomeCoordinates] = useState(null);
+    const [homeIcon, setHomeIcon] = useState('home');
+
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
 
@@ -246,6 +251,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             const savedEnableCardMove = localStorage.getItem('enableCardMove_' + boardId);
             setEnableCardMove(savedEnableCardMove === 'true');
+
+            setEnableHomeLocation(localStorage.getItem(`enableHomeLocation_${boardId}`) === 'true');
+            setHomeAddress(localStorage.getItem(`homeAddress_${boardId}`) || '');
+            const savedHomeCoords = localStorage.getItem(`homeCoordinates_${boardId}`);
+            setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
+            setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
 
         } catch (e) {
             console.warn("Error loading board settings", e);
@@ -440,7 +451,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
 
             // 4. Save Map Config
+            // 4. Save Map Config
             localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
+
+            localStorage.setItem(`enableHomeLocation_${selectedBoardId}`, enableHomeLocation);
+            localStorage.setItem(`homeAddress_${selectedBoardId}`, homeAddress);
+            localStorage.setItem(`homeCoordinates_${selectedBoardId}`, JSON.stringify(homeCoordinates));
+            localStorage.setItem(`homeIcon_${selectedBoardId}`, homeIcon);
 
             // Only allow saving true if permission exists
             const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
@@ -1041,6 +1058,70 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             )}
                                         </div>
 
+                                        {/* HOME LOCATION SETTING */}
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                <ToggleSwitch
+                                                    checked={enableHomeLocation}
+                                                    onChange={e => setEnableHomeLocation(e.target.checked)}
+                                                />
+                                                <span style={{ marginLeft: '10px' }}>
+                                                    <strong>Set home location</strong><br />
+                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                        Set a home address that will be permanently displayed on the map for this board.
+                                                    </span>
+                                                </span>
+                                            </label>
+
+                                            {enableHomeLocation && (
+                                                <div style={{ marginLeft: '50px', marginTop: '10px' }}>
+                                                    <div style={{ marginBottom: '10px' }}>
+                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Home Address</label>
+                                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                                            <input
+                                                                type="text"
+                                                                value={homeAddress}
+                                                                onChange={e => setHomeAddress(e.target.value)}
+                                                                placeholder="e.g. 123 Main St, New York, NY"
+                                                                style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                                onBlur={() => {
+                                                                    if (!homeAddress) return;
+                                                                    // Auto-fetch on blur if not already valid or changed
+                                                                    // For simplicity, we can let user click a resolve button or just auto-fetch
+                                                                    // Let's do a fetch here
+                                                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(homeAddress)}`)
+                                                                        .then(res => res.json())
+                                                                        .then(data => {
+                                                                            if (data && data.length > 0) {
+                                                                                setHomeCoordinates({
+                                                                                    lat: data[0].lat,
+                                                                                    lon: data[0].lon,
+                                                                                    display_name: data[0].display_name
+                                                                                });
+                                                                            } else {
+                                                                                alert('Could not resolve address. Please try a different query.');
+                                                                            }
+                                                                        })
+                                                                        .catch(err => console.error('Geocoding error:', err));
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        {homeCoordinates && (
+                                                            <div style={{ fontSize: '0.85em', color: 'green', marginTop: '5px' }}>
+                                                                Resolved: {homeCoordinates.display_name}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ marginBottom: '10px' }}>
+                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Marker Icon</label>
+                                                        <IconPicker selectedIcon={homeIcon} onChange={setHomeIcon} color="#444" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+
                                         {/* RESET CACHE SECTION */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                                             <h3>Reset coordinates cache</h3>
@@ -1072,149 +1153,152 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure map settings</div>
                         )}
                     </div>
-                )}
+                )
+                }
 
                 {/* TAB CONTENT: OTHER */}
-                {activeTab === 'other' && (
-                    <div className="tab-content">
-                        {selectedBoard ? (
-                            <div className="admin-section" id="section-4">
-                                <h3>Other Settings for {selectedBoard.name}</h3>
-                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                    These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
-                                </p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    <div>
-                                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Refresh Interval</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }} />
-                                            <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}>
-                                                <option value="seconds">Seconds</option>
-                                                <option value="minutes">Minutes</option>
-                                                <option value="hours">Hours</option>
-                                            </select>
+                {
+                    activeTab === 'other' && (
+                        <div className="tab-content">
+                            {selectedBoard ? (
+                                <div className="admin-section" id="section-4">
+                                    <h3>Other Settings for {selectedBoard.name}</h3>
+                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                        These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
+                                    </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Refresh Interval</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                                                <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}>
+                                                    <option value="seconds">Seconds</option>
+                                                    <option value="minutes">Minutes</option>
+                                                    <option value="hours">Hours</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
-                                                <span style={{ marginLeft: '10px' }}>Show Clock</span>
-                                                {showClock && (
-                                                    <span style={{ marginLeft: '15px', color: '#555', fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px', border: '1px solid #ddd' }}>
-                                                        {new Date().toLocaleTimeString()}
-                                                    </span>
-                                                )}
-                                            </label>
-                                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
-                                                <span style={{ marginLeft: '10px' }}>Ignore Template Cards</span>
-                                            </label>
-                                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
-                                                <span style={{ marginLeft: '10px' }}>Ignore Completed Cards</span>
-                                            </label>
+                                        <div>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
+                                                    <span style={{ marginLeft: '10px' }}>Show Clock</span>
+                                                    {showClock && (
+                                                        <span style={{ marginLeft: '15px', color: '#555', fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                                                            {new Date().toLocaleTimeString()}
+                                                        </span>
+                                                    )}
+                                                </label>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
+                                                    <span style={{ marginLeft: '10px' }}>Ignore Template Cards</span>
+                                                </label>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
+                                                    <span style={{ marginLeft: '10px' }}>Ignore Completed Cards</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
-                        )}
+                            ) : (
+                                <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
+                            )}
 
-                        <div className="danger-zone" style={{ marginTop: '40px', paddingTop: '10px' }}>
-                            <style>{`
+                            <div className="danger-zone" style={{ marginTop: '40px', paddingTop: '10px' }}>
+                                <style>{`
                                 .danger-header:hover { background-color: #fff0f0; }
                              `}</style>
-                            <div
-                                className="danger-header"
-                                onClick={() => setShowResetSection(!showResetSection)}
-                                style={{
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: '10px'
-                                }}
-                            >
-                                <h4 style={{ color: 'black', margin: 0 }}>⚠️ Global settings reset</h4>
-                                <span style={{ fontSize: '1.2em', color: '#d32f2f' }}>{showResetSection ? '▼' : '▶'}</span>
-                            </div>
-
-                            {showResetSection && (
-                                <div style={{ backgroundColor: '#fff0f0', padding: '15px', borderRadius: '4px', border: '1px solid #ffcdcd', marginTop: '10px' }}>
-
-                                    <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '10px' }}>
-                                        Resetting your settings will remove any locally stored information including dashboard and map configuration for <strong>ALL boards</strong>, as well as decoded geolocations.
-                                    </p>
-                                    <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '15px' }}>
-                                        Your Trello account will NOT be affected, nor will your Trellops subscriptions.
-                                    </p>
-
-                                    <div style={{ marginBottom: '15px' }}>
-                                        <strong style={{ display: 'block', marginBottom: '5px', color: '#8b0000', fontSize: '0.85em' }}>
-                                            The reset will erase all the information stored below; it is recommended that you back up each configuration first.
-                                        </strong>
-                                        <ul style={{ margin: '5px 0 10px 20px', fontSize: '0.85em', color: '#8b0000' }}>
-                                            {(() => {
-                                                const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
-                                                // Find all boards that have data in trelloUserData OR have specific keys
-                                                // For simplicity, we scan trelloUserData.user.settings keys and dashboard keys
-                                                const userData = storedData[user?.id] || {};
-                                                const boardsWithLayout = Object.keys(userData.dashboardLayout || {});
-                                                const boardsWithColors = Object.keys(userData.listColors || {});
-
-                                                const allCachedBoardIds = new Set([...boardsWithLayout, ...boardsWithColors]);
-
-                                                if (allCachedBoardIds.size === 0) return <li>No cached configurations found.</li>;
-
-                                                return Array.from(allCachedBoardIds).map(bid => {
-                                                    const bName = boards.find(b => b.id === bid)?.name || bid;
-                                                    return <li key={bid}>{bName} <span style={{ color: '#b71c1c', fontSize: '0.8em' }}>({bid})</span></li>;
-                                                });
-                                            })()}
-                                        </ul>
-                                    </div>
-
-                                    <button
-                                        onClick={() => {
-                                            if (confirm(`ARE YOU SURE you want to DELETE ALL LOCAL SETTINGS?\n\nThis cannot be undone.`)) {
-                                                // 1. Clear User Data
-                                                const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
-                                                if (user?.id) delete storedData[user.id];
-                                                localStorage.setItem('trelloUserData', JSON.stringify(storedData));
-
-                                                // 2. Clear specific keys (Scanning all keys since we don't track them all perfectly)
-                                                const keysToRemove = [];
-                                                for (let i = 0; i < localStorage.length; i++) {
-                                                    const key = localStorage.key(i);
-                                                    if (key && (
-                                                        key.startsWith('TRELLO_') ||
-                                                        key.startsWith('MAP_GEOCODING_CACHE_') ||
-                                                        key.startsWith('updateTrelloCoordinates_') ||
-                                                        key.startsWith('enableCardMove_') ||
-                                                        key.startsWith('refreshInterval_') // old keys might exist
-                                                    )) {
-                                                        keysToRemove.push(key);
-                                                    }
-                                                }
-                                                keysToRemove.forEach(k => localStorage.removeItem(k));
-
-                                                alert("All local cache has been reset. The application will reload.");
-                                                window.location.reload();
-                                            }
-                                        }}
-                                        style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                                    >
-                                        Reset My Trellops Stored Cache
-                                    </button>
+                                <div
+                                    className="danger-header"
+                                    onClick={() => setShowResetSection(!showResetSection)}
+                                    style={{
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '10px'
+                                    }}
+                                >
+                                    <h4 style={{ color: 'black', margin: 0 }}>⚠️ Global settings reset</h4>
+                                    <span style={{ fontSize: '1.2em', color: '#d32f2f' }}>{showResetSection ? '▼' : '▶'}</span>
                                 </div>
-                            )}
+
+                                {showResetSection && (
+                                    <div style={{ backgroundColor: '#fff0f0', padding: '15px', borderRadius: '4px', border: '1px solid #ffcdcd', marginTop: '10px' }}>
+
+                                        <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '10px' }}>
+                                            Resetting your settings will remove any locally stored information including dashboard and map configuration for <strong>ALL boards</strong>, as well as decoded geolocations.
+                                        </p>
+                                        <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '15px' }}>
+                                            Your Trello account will NOT be affected, nor will your Trellops subscriptions.
+                                        </p>
+
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <strong style={{ display: 'block', marginBottom: '5px', color: '#8b0000', fontSize: '0.85em' }}>
+                                                The reset will erase all the information stored below; it is recommended that you back up each configuration first.
+                                            </strong>
+                                            <ul style={{ margin: '5px 0 10px 20px', fontSize: '0.85em', color: '#8b0000' }}>
+                                                {(() => {
+                                                    const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                                    // Find all boards that have data in trelloUserData OR have specific keys
+                                                    // For simplicity, we scan trelloUserData.user.settings keys and dashboard keys
+                                                    const userData = storedData[user?.id] || {};
+                                                    const boardsWithLayout = Object.keys(userData.dashboardLayout || {});
+                                                    const boardsWithColors = Object.keys(userData.listColors || {});
+
+                                                    const allCachedBoardIds = new Set([...boardsWithLayout, ...boardsWithColors]);
+
+                                                    if (allCachedBoardIds.size === 0) return <li>No cached configurations found.</li>;
+
+                                                    return Array.from(allCachedBoardIds).map(bid => {
+                                                        const bName = boards.find(b => b.id === bid)?.name || bid;
+                                                        return <li key={bid}>{bName} <span style={{ color: '#b71c1c', fontSize: '0.8em' }}>({bid})</span></li>;
+                                                    });
+                                                })()}
+                                            </ul>
+                                        </div>
+
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`ARE YOU SURE you want to DELETE ALL LOCAL SETTINGS?\n\nThis cannot be undone.`)) {
+                                                    // 1. Clear User Data
+                                                    const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                                    if (user?.id) delete storedData[user.id];
+                                                    localStorage.setItem('trelloUserData', JSON.stringify(storedData));
+
+                                                    // 2. Clear specific keys (Scanning all keys since we don't track them all perfectly)
+                                                    const keysToRemove = [];
+                                                    for (let i = 0; i < localStorage.length; i++) {
+                                                        const key = localStorage.key(i);
+                                                        if (key && (
+                                                            key.startsWith('TRELLO_') ||
+                                                            key.startsWith('MAP_GEOCODING_CACHE_') ||
+                                                            key.startsWith('updateTrelloCoordinates_') ||
+                                                            key.startsWith('enableCardMove_') ||
+                                                            key.startsWith('refreshInterval_') // old keys might exist
+                                                        )) {
+                                                            keysToRemove.push(key);
+                                                        }
+                                                    }
+                                                    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+                                                    alert("All local cache has been reset. The application will reload.");
+                                                    window.location.reload();
+                                                }
+                                            }}
+                                            style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                        >
+                                            Reset My Trellops Stored Cache
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </DragDropContext>
+                    )
+                }
+            </DragDropContext >
 
 
 
@@ -1228,13 +1312,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
             </div>
 
-            {showShareModal && (
-                <ShareConfigModal
-                    config={getConfigObject()}
-                    onClose={() => setShowShareModal(false)}
-                    boardName={selectedBoard?.name}
-                />
-            )}
+            {
+                showShareModal && (
+                    <ShareConfigModal
+                        config={getConfigObject()}
+                        onClose={() => setShowShareModal(false)}
+                        boardName={selectedBoard?.name}
+                    />
+                )
+            }
 
             {
                 showMoreOptions && (
