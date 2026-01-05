@@ -1,75 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Disclaimer - Trellops</title>
+    <title>Trellops - Privacy Disclaimer</title>
     <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent: #00c6ff;
+            --border: #333;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
+            background-color: var(--bg-primary);
+            color: var(--text-color);
             line-height: 1.6;
             margin: 0;
-            padding: 0;
+            padding: 40px;
         }
-        .container {
+
+        nav {
+            margin-bottom: 40px;
+        }
+
+        nav a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #aaa;
+            font-size: 1.2em;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 40px 0;
+        }
+
+        section {
             max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
-            background-color: #1e1e1e;
+            margin: 0 auto 40px;
+            background: var(--bg-secondary);
+            padding: 30px;
             border-radius: 12px;
         }
-        h1, h2 {
+
+        h2 {
             color: #ffffff;
-            border-bottom: 1px solid #444;
-            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-top: 0;
         }
+
+        h3 {
+            color: #fff;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        ul,
+        ol {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
         a {
-            color: #00c6ff;
+            color: var(--accent);
             text-decoration: none;
         }
+
         a:hover {
             text-decoration: underline;
         }
-        .footer {
-            margin-top: 40px;
+
+        footer {
+            margin-top: 60px;
             text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            section {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>🔒 Privacy Disclaimer for Trellops</h1>
-        
-        <h2>1. Introduction</h2>
-        <p>This Privacy Disclaimer outlines how Trellops (the "Service"), provided by manzone.org, handles user data in relation to the third-party service, Trello (owned by Atlassian).</p>
-        <p>Your privacy is paramount. We strive to be transparent about what data we access and, crucially, what data we do not store.</p>
 
-        <h2>2. Data Accessed and Purpose</h2>
-        <p>Trellops is a display service designed to present information and data stored within your personal Trello account.</p>
-        <p><strong>Trello Data Access:</strong> The Service requires you to log in to your Trello account via Trello's official authentication process (using an OAuth token). This grants Trellops read-only access to the Trello boards, cards, and associated data you authorise. This access is strictly used to retrieve and display the information to you during your session.</p>
-        <p><strong>No Data Storage on Developer Servers:</strong> Trellops does not store, copy, archive, or transmit any data retrieved from your Trello account onto our own developer servers or any cloud-based storage owned by manzone.org. All retrieved Trello information is processed in real-time solely within your web browser.</p>
+    <nav>
+        <a href="index.html">← Back to Trellops</a>
+    </nav>
 
-        <h2>3. Local Storage and Session Management</h2>
-        <p>To provide a functional and seamless user experience, Trellops utilises local storage technologies on your device (e.g., browser cookies, local storage, or session storage).</p>
-        <p><strong>Information Stored Locally:</strong> This local storage is used to securely hold essential information necessary for the Service to operate, which may include:</p>
+    <header>
+        <h1>Privacy Disclaimer</h1>
+        <p class="subtitle">Transparency is our priority. Here is how we handle your data.</p>
+    </header>
+
+    <hr>
+
+    <section>
+        <h2>1. The "Local First" Philosophy</h2>
+        <p>Trellops is designed as a client-side application. This means that, for the vast majority of features,
+            <strong>your data never leaves your computer browser</strong>. We do not track your activity, sell your
+            data, or store your Trello card contents on our servers.</p>
+    </section>
+
+    <section>
+        <h2>2. Data Storage</h2>
+        <p>We store your dashboard configuration (such as block names, tile colours, and layout settings) in your
+            browser's <strong>Local Storage</strong>. This ensures your dashboard is ready whenever you open Trellops.
+        </p>
+
+        <h3>Exception: Sharing Configurations</h3>
+        <p>If you explicitly choose to use the <strong>"Share Configuration via Link"</strong> feature, we must briefly
+            store a "skeleton" of your layout on our secure server to make the link work for your colleagues. This data
+            includes:</p>
         <ul>
-            <li>Your Trello API/OAuth token for the duration of your session.</li>
-            <li>Session IDs and other temporary settings (e.g., preferred view, display preferences).</li>
+            <li>Trello Board IDs</li>
+            <li>Block Names and Layout order</li>
+            <li>Home Address coordinates (if set)</li>
         </ul>
-        <p><strong>Local-Only Storage:</strong> This information is stored only on your computer or device and is not accessible by, or transmitted back to, manzone.org's servers or Trello/Atlassian beyond the initial Trello API calls necessary to fetch the data.</p>
-        <p><strong>Security:</strong> Once you log out or close your session, this locally stored session data (including the Trello token) is typically invalidated or removed, requiring a fresh login for the next use.</p>
+        <p><strong>Note:</strong> We do <em>not</em> store any personal card data, card descriptions, or user personal
+            information (PII) in this process.</p>
+    </section>
 
-        <h2>4. Third-Party Links and Trello's Privacy Policy</h2>
-        <p>Trellops relies entirely on the Trello platform. Any data stored in Trello is subject to Trello/Atlassian's own privacy policy and terms of service. We strongly encourage you to review their policies regarding the storage and security of your data.</p>
+    <section>
+        <h2>3. Trello Permissions (Read vs. Write)</h2>
+        <p>When you log in, Trellops requests access to your Trello boards. We strictly limit this access based on the
+            features you use.</p>
 
-        <h2>5. Changes to This Disclaimer</h2>
-        <p>We may update this Privacy Disclaimer from time to time. We will notify you of any changes by posting the new disclaimer on this page.</p>
+        <h3>Default: Read-Only Access</h3>
+        <p>By default, Trellops only requests <strong>READ</strong> permissions. We download your lists and cards solely
+            to display them on your dashboard. We cannot modify, delete, or create data.</p>
 
-        <div class="footer">
-            <a href="index.html">Back to Trellops</a>
-        </div>
-    </div>
+        <h3>Optional: Write Access</h3>
+        <p>If you wish to use advanced Map features, Trellops requires <strong>WRITE</strong> permissions. You will be
+            prompted to authorise this only if you attempt to:</p>
+        <ol>
+            <li><strong>Move a Card on the Map:</strong> Dragging a card from one location/list to another on the Map
+                View.</li>
+            <li><strong>Save Coordinates:</strong> Updating a Trello card to permanently save the latitude/longitude
+                decoded from its address (this speeds up future loading).</li>
+        </ol>
+    </section>
+
+    <section>
+        <h2>4. Third-Party Services</h2>
+        <p>To provide the Map View features, Trellops uses the following third-party service:</p>
+        <ul>
+            <li><strong>Nominatim (OpenStreetMap):</strong> If your cards contain addresses in the description field
+                (rather than coordinates), we send that address text to Nominatim to convert it into map coordinates
+                (Geocoding). Please refer to the <a href="https://operations.osmfoundation.org/policies/nominatim/"
+                    target="_blank">Nominatim Usage Policy</a> for more details.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>5. Contact</h2>
+        <p>If you have questions about this policy or your data, please contact us via our support channels.</p>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 Trellops. All rights reserved.</p>
+    </footer>
+
 </body>
+
 </html>
