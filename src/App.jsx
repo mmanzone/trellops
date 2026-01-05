@@ -232,6 +232,7 @@ const App = () => {
                 }}
                 onLogout={handleLogout}
                 importedConfig={importConfig}
+                onClearImportConfig={() => setImportConfig(null)}
             />
         );
     }

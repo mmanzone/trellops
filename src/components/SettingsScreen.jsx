@@ -8,7 +8,7 @@ import { STORAGE_KEYS } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import '../styles/settings.css';
 
-const ShareConfigModal = ({ config, onClose }) => {
+const ShareConfigModal = ({ config, onClose, boardName }) => {
     const [copied, setCopied] = useState(false);
     // Encode config to Base64 to be URL safe (UTF-8 safe)
     const configString = JSON.stringify(config);
@@ -39,6 +39,17 @@ const ShareConfigModal = ({ config, onClose }) => {
                         {copied ? 'Copied!' : 'Copy'}
                     </button>
                 </div>
+                <div style={{
+                    marginTop: '15px',
+                    padding: '10px',
+                    background: '#fff3cd',
+                    border: '1px solid #ffeeba',
+                    borderRadius: '4px',
+                    color: '#856404',
+                    fontSize: '0.9em'
+                }}>
+                    <strong>Note:</strong> The recipient of this link must have a Trello account and access to the board <strong>{boardName || 'specified'}</strong> to be able to display it. Features requiring extended write permissions will have to be granted by the recipients of this link.
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
                     <button className="button-secondary" onClick={onClose}>Close</button>
                 </div>
@@ -47,7 +58,7 @@ const ShareConfigModal = ({ config, onClose }) => {
     );
 };
 
-const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null }) => {
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { } }) => {
     // --- State ---
     const [boards, setBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
@@ -78,34 +89,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [loadingLists, setLoadingLists] = useState(false);
     const [activeTab, setActiveTab] = useState(initialTab);
 
-    const [showShareModal, setShowShareModal] = useState(false); // NEW
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [pendingImport, setPendingImport] = useState(null);
 
     // Initial check on mount
     useEffect(() => {
         if (importedConfig) {
-            // Pre-load from shared link
-            if (window.confirm(`Load shared configuration for board "${importedConfig.boardId}"? Unsaved changes will be lost.`)) {
-                // Apply config
-                const config = importedConfig;
-                // Set Board (might trigger fetch, but we also set state directly)
-                if (config.boardId) {
-                    setSelectedBoardId(config.boardId);
-                    // We need to fetch board data to resolve names (lists etc)
-                    fetchBoardData(config.boardId);
-
-                    if (config.blocks) setBlocks(config.blocks);
-                    if (config.listColors) setListColors(config.listColors);
-                    if (config.markerRules) setMarkerRules(config.markerRules);
-                    if (config.refreshValue) setRefreshValue(config.refreshValue);
-                    if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
-                    if (config.showClock !== undefined) setShowClock(config.showClock);
-                    if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
-                    if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
-                    if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
-                    if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
-                    if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
-                }
-            }
+            // Show banner instead of popup
+            setPendingImport(importedConfig);
         } else if (user?.token) {
             trelloAuth.checkTokenScopes(user.token).then(scopes => {
                 const canWrite = scopes.includes('write');
@@ -117,6 +108,37 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             });
         }
     }, [user, importedConfig]);
+
+    const applyImportedConfig = () => {
+        if (!pendingImport) return;
+        const config = pendingImport;
+
+        if (config.boardId) {
+            setSelectedBoardId(config.boardId);
+            fetchBoardData(config.boardId);
+
+            if (config.blocks) setBlocks(config.blocks);
+            if (config.listColors) setListColors(config.listColors);
+            if (config.markerRules) setMarkerRules(config.markerRules);
+            if (config.refreshValue) setRefreshValue(config.refreshValue);
+            if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
+            if (config.showClock !== undefined) setShowClock(config.showClock);
+            if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
+            if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+            if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
+            if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+            if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+        }
+
+        // Clear pending state
+        setPendingImport(null);
+        onClearImportConfig();
+    };
+
+    const dismissImport = () => {
+        setPendingImport(null);
+        onClearImportConfig();
+    }
 
     useEffect(() => {
         setActiveTab(initialTab);
@@ -418,8 +440,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     const getConfigObject = () => {
         if (!selectedBoardId) return null;
+        // Try to find name in boards list
+        const boardName = boards.find(b => b.id === selectedBoardId)?.name;
+
         return {
             boardId: selectedBoardId,
+            boardName: boardName, // Include name
             blocks,
             listColors,
             markerRules,
@@ -521,6 +547,19 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             </div>
 
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
+
+            {pendingImport && (
+                <div className="info-banner" style={{ background: '#e3f2fd', color: '#0d47a1', padding: '15px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #90caf9', marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <strong>Configuration Loaded:</strong> Shared settings available for board <strong>{pendingImport.boardName || pendingImport.boardId}</strong>.
+                        <div style={{ fontSize: '0.9em', marginTop: '4px' }}>Unsaved changes will be lost if you apply this configuration.</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={applyImportedConfig} style={{ background: '#1976d2', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Apply</button>
+                        <button onClick={dismissImport} style={{ background: 'transparent', color: '#0d47a1', border: '1px solid #0d47a1', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Dismiss</button>
+                    </div>
+                </div>
+            )}
 
 
 
@@ -655,19 +694,31 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                     ref={provided.innerRef}
                                                                                     {...provided.draggableProps}
                                                                                     {...provided.dragHandleProps}
-                                                                                    style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
+                                                                                    style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', ...provided.draggableProps.style }}
                                                                                 >
-                                                                                    <span>{list.name}</span>
+                                                                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
+
                                                                                     {block.ignoreFirstCard && block.displayFirstCardDescription && list.cards && list.cards.length > 0 && (
-                                                                                        <div style={{ display: 'block', width: '100%', fontSize: '0.8em', color: '#666', fontStyle: 'italic', marginTop: '2px', borderTop: '1px solid #eee', paddingTop: '2px' }}>
-                                                                                            Preview: {list.cards[0].name}
-                                                                                        </div>
+                                                                                        <span style={{
+                                                                                            width: '20%',
+                                                                                            textAlign: 'right',
+                                                                                            fontSize: '0.85em',
+                                                                                            color: '#666',
+                                                                                            fontStyle: 'italic',
+                                                                                            overflow: 'hidden',
+                                                                                            textOverflow: 'ellipsis',
+                                                                                            whiteSpace: 'nowrap',
+                                                                                            flexShrink: 0
+                                                                                        }}>
+                                                                                            [{list.cards[0].name}]
+                                                                                        </span>
                                                                                     )}
+
                                                                                     <input
                                                                                         type="color"
                                                                                         value={color}
                                                                                         onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
-                                                                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                                                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
                                                                                         title="Tile Colour"
                                                                                     />
                                                                                 </div>
@@ -1007,6 +1058,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 <ShareConfigModal
                     config={getConfigObject()}
                     onClose={() => setShowShareModal(false)}
+                    boardName={selectedBoard?.name}
                 />
             )}
 
