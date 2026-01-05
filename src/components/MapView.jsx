@@ -17,7 +17,8 @@ import MapFilters from './MapFilters';
 const getMarkerIcon = (markerConfig) => {
     const colorMap = {
         'blue': '#3388ff', 'red': '#ff6b6b', 'green': '#51cf66',
-        'orange': '#ffa94d', 'yellow': '#ffd43b', 'grey': '#868e96', 'black': '#343a40'
+        'orange': '#ffa94d', 'yellow': '#ffd43b', 'grey': '#868e96', 'black': '#343a40',
+        'purple': '#9c27b0'
     };
     const markerColor = colorMap[markerConfig.color] || colorMap['blue'];
     const iconName = (markerConfig.icon || 'map-marker').toLowerCase();
@@ -178,6 +179,64 @@ const TILE_LAYERS = {
     'osmhot': { url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors', name: 'OSM Hotspot' },
     'sat': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Satellite (Esri)' },
     'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
+    'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
+};
+
+const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, prevSignatureRef }) => {
+    const map = useMap();
+
+
+    const calculateBounds = useCallback(() => {
+        const points = [];
+        // Add Cards
+        if (visibleCards.length > 0) {
+            visibleCards.forEach(c => {
+                if (c.coordinates && c.coordinates.lat && c.coordinates.lng) {
+                    points.push([c.coordinates.lat, c.coordinates.lng]);
+                }
+            });
+        }
+        // Add Home
+        if (homeLocation && showHomeLocation && homeLocation.coords) {
+            points.push([homeLocation.coords.lat, homeLocation.coords.lon]);
+        }
+        return points;
+    }, [visibleCards, homeLocation, showHomeLocation]);
+
+    // Auto Fit on Data Change (Smart Zoom)
+    useEffect(() => {
+        // Generate content signature to detect ADD/REMOVE
+        const cardKeys = visibleCards.map(c => c.id).sort().join(',');
+        const homeKey = (homeLocation && showHomeLocation) ? 'HOME' : '';
+        const currentSignature = `${cardKeys}|${homeKey}`;
+
+        // If signature changes, content changed -> Re-fit
+        if (currentSignature !== prevSignatureRef.current) {
+            const points = calculateBounds();
+            if (points.length > 0) {
+                const bounds = L.latLngBounds(points);
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            }
+            prevSignatureRef.current = currentSignature;
+        }
+    }, [visibleCards, homeLocation, showHomeLocation, calculateBounds, prevSignatureRef]);
+
+    // Manual Fit Trigger
+    useEffect(() => {
+        if (fitTrigger > 0) {
+            const points = calculateBounds();
+            if (points.length > 0) {
+                const bounds = L.latLngBounds(points);
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            }
+        }
+    }, [fitTrigger, calculateBounds]);
+
+    return null;
 };
 
 const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
@@ -195,7 +254,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
     const [baseMap, setBaseMap] = useState('topo');
     const [errorState, setErrorState] = useState(null);
+
+    const [fitTrigger, setFitTrigger] = useState(0); // For manual fit bounds
+    // const hasInitialZoom = useRef(false); // REMOVED in favor of signature check
     const [markerRules, setMarkerRules] = useState([]);
+    const [homeLocation, setHomeLocation] = useState(null);
+
+    // Ref to track map content signature across renders/refreshes
+    // Lifted from MapBounds to ensure persistence
+    const prevSignatureRef = useRef('');
 
     const [countdown, setCountdown] = useState(null);
 
@@ -306,6 +373,21 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 setMarkerRules(JSON.parse(savedRules));
             } else {
                 setMarkerRules([]);
+            }
+
+            // Load Home Location
+            const enableHome = localStorage.getItem(`enableHomeLocation_${boardId}`) === 'true';
+            if (enableHome) {
+                const homeCoords = JSON.parse(localStorage.getItem(`homeCoordinates_${boardId}`) || 'null');
+                const homeIcon = localStorage.getItem(`homeIcon_${boardId}`) || 'home';
+                const homeAddress = localStorage.getItem(`homeAddress_${boardId}`) || '';
+                if (homeCoords) {
+                    setHomeLocation({ coords: homeCoords, icon: homeIcon, address: homeAddress });
+                } else {
+                    setHomeLocation(null);
+                }
+            } else {
+                setHomeLocation(null);
             }
 
             if (!isRefresh) {
@@ -541,22 +623,43 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             setVisibleListIds(new Set(allListIds));
             const allRuleIds = markerRules.map(r => r.id).concat(['default']);
             setVisibleRuleIds(new Set(allRuleIds));
+            if (homeLocation) setShowHomeLocation(true);
         } else {
             setVisibleListIds(new Set());
+            setVisibleRuleIds(new Set());
+            setShowHomeLocation(false);
+        }
+    };
+
+    const handleToggleAllBlocks = (show) => {
+        if (show) {
+            const allListIds = blocks.filter(b => b.includeOnMap !== false).flatMap(b => b.listIds);
+            setVisibleListIds(new Set(allListIds));
+        } else {
+            setVisibleListIds(new Set());
+        }
+    };
+
+    const handleToggleAllRules = (show) => {
+        if (show) {
+            const allRuleIds = markerRules.map(r => r.id).concat(['default']);
+            setVisibleRuleIds(new Set(allRuleIds));
+        } else {
             setVisibleRuleIds(new Set());
         }
     };
 
-    const markers = useMemo(() => {
+    const [showHomeLocation, setShowHomeLocation] = useState(true); // Default to visible
+    const handleToggleHome = () => setShowHomeLocation(prev => !prev);
+
+    // OPTIMIZATION: Memoize filtered cards for both markers AND bounds
+    const visibleCards = useMemo(() => {
         return cards
             .filter(c => c.coordinates && c.coordinates.lat && c.coordinates.lng)
             .filter(c => {
                 if (ignoreTemplateCards && c.isTemplate) return false;
-
-                // 1. List/Block Visibility Check
                 if (!visibleListIds.has(c.idList)) return false;
 
-                // 2. Block Logic (Ignore First Card)
                 const block = blocks.find(b => b.listIds.includes(c.idList));
                 if (block && block.ignoreFirstCard) {
                     const cardsInList = cards.filter(pc => pc.idList === c.idList);
@@ -564,102 +667,96 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     if (c.pos === minPos) return false;
                 }
 
-                // 3. Rule Visibility Check
+                // Rule Visibility Check
                 const config = getMarkerConfig(c, block, markerRules);
-
-                // If the card matches ANY hidden rule from its active rules, should it be hidden?
-                // OR: If the card has NO visible active rules?
-                // Logic: A card matches a set of 'activeRuleIds'.
-                // If `activeRuleIds` contains 'default' only -> visible if 'default' is visible.
-                // If `activeRuleIds` contains ['ruleA', 'ruleB'] -> Visible if Rule A AND Rule B are visible?
-                // Usually "Show cards with Variant A".
-                // If I uncheck Variant A, cards with Variant A should hide.
-                // So if ANY active rule is NOT in visibleRuleIds, hide.
                 if (config.activeRuleIds.some(id => !visibleRuleIds.has(id))) return false;
 
                 return true;
-            })
-            .map(c => {
-                const block = blocks.find(b => b.listIds.includes(c.idList));
-                const config = getMarkerConfig(c, block || {}, markerRules);
-                const listName = lists.find(l => l.id === c.idList)?.name || '';
-
-                return (
-                    <Marker
-                        key={c.id}
-                        position={[c.coordinates.lat, c.coordinates.lng]}
-                        icon={getMarkerIcon(config)}
-                    >
-                        <Popup>
-                            <div className="popup-card">
-                                <a href={c.shortUrl} target="_blank" rel="noreferrer"><strong>{c.name}</strong></a>
-                                {(listName || block?.name) && (
-                                    <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#444', marginBottom: '6px' }}>
-                                        {block ? block.name : ''}{block && listName ? ' - ' : ''}{listName}
-                                    </div>
-                                )}
-                                {c.labels && c.labels.length > 0 && (
-                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '4px 0' }}>
-                                        {c.labels.map((l, i) => (
-                                            <span key={i} style={{
-                                                backgroundColor: l.color ? (l.color === 'sky' ? '#00c2e0' : l.color) : '#ccc',
-                                                color: getLabelTextColor(l.color || 'light'),
-                                                border: '1px solid black',
-                                                padding: '2px 6px',
-                                                borderRadius: '3px',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 'bold'
-                                            }}>
-                                                {l.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                                <div className="popup-desc" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }} dangerouslySetInnerHTML={{ __html: marked.parse(c.desc || '') }}></div>
-                                <div style={{ marginTop: '8px', fontSize: '0.8em' }}>
-                                    <a href={`https://www.google.com/maps?q=${c.coordinates.lat},${c.coordinates.lng}`} target="_blank" rel="noreferrer" style={{ color: '#0079bf' }}>
-                                        {c.coordinates.lat.toFixed(5)}, {c.coordinates.lng.toFixed(5)}
-                                    </a>
-                                </div>
-
-
-                                {settings?.enableCardMove && (
-                                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
-                                        <select
-                                            value=""
-                                            onChange={(e) => {
-                                                if (e.target.value) handleMoveCard(c.id, e.target.value);
-                                            }}
-                                            style={{ width: '100%', fontSize: '0.85em', padding: '2px' }}
-                                        >
-                                            <option value="">Move to...</option>
-                                            {blocks.filter(b => b.includeOnMap !== false).map(block => (
-                                                <optgroup key={block.id} label={block.name} style={{ fontWeight: 'bold' }}>
-                                                    {block.listIds.map(lId => {
-                                                        const list = lists.find(l => l.id === lId);
-                                                        if (!list) return null;
-                                                        return (
-                                                            <option
-                                                                key={lId}
-                                                                value={lId}
-                                                                disabled={lId === c.idList}
-                                                                style={{ fontWeight: 'normal', color: lId === c.idList ? '#aaa' : 'inherit' }}
-                                                            >
-                                                                {list.name}
-                                                            </option>
-                                                        );
-                                                    })}
-                                                </optgroup>
-                                            ))}
-                                        </select>
-                                    </div>
-                                )}
-                            </div>
-                        </Popup>
-                    </Marker>
-                );
             });
-    }, [cards, visibleListIds, visibleRuleIds, blocks, ignoreTemplateCards, markerRules, lists]);
+    }, [cards, visibleListIds, visibleRuleIds, blocks, ignoreTemplateCards, markerRules]);
+
+    const markers = useMemo(() => {
+        return visibleCards.map(c => {
+            const block = blocks.find(b => b.listIds.includes(c.idList));
+            const config = getMarkerConfig(c, block || {}, markerRules);
+            const listName = lists.find(l => l.id === c.idList)?.name || '';
+
+            return (
+                <Marker
+                    key={c.id}
+                    position={[c.coordinates.lat, c.coordinates.lng]}
+                    icon={getMarkerIcon(config)}
+                >
+                    <Popup>
+                        <div className="popup-card">
+                            <a href={c.shortUrl} target="_blank" rel="noreferrer"><strong>{c.name}</strong></a>
+                            {(listName || block?.name) && (
+                                <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#444', marginBottom: '6px' }}>
+                                    {block ? block.name : ''}{block && listName ? ' - ' : ''}{listName}
+                                </div>
+                            )}
+                            {c.labels && c.labels.length > 0 && (
+                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '4px 0' }}>
+                                    {c.labels.map((l, i) => (
+                                        <span key={i} style={{
+                                            backgroundColor: l.color ? (l.color === 'sky' ? '#00c2e0' : l.color) : '#ccc',
+                                            color: getLabelTextColor(l.color || 'light'),
+                                            border: '1px solid black',
+                                            padding: '2px 6px',
+                                            borderRadius: '3px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            {l.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            <div className="popup-desc" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }} dangerouslySetInnerHTML={{ __html: marked.parse(c.desc || '') }}></div>
+                            <div style={{ marginTop: '8px', fontSize: '0.8em' }}>
+                                <a href={`https://www.google.com/maps?q=${c.coordinates.lat},${c.coordinates.lng}`} target="_blank" rel="noreferrer" style={{ color: '#0079bf' }}>
+                                    {c.coordinates.lat.toFixed(5)}, {c.coordinates.lng.toFixed(5)}
+                                </a>
+                            </div>
+
+
+                            {settings?.enableCardMove && (
+                                <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #eee' }}>
+                                    <select
+                                        value=""
+                                        onChange={(e) => {
+                                            if (e.target.value) handleMoveCard(c.id, e.target.value);
+                                        }}
+                                        style={{ width: '100%', fontSize: '0.85em', padding: '2px' }}
+                                    >
+                                        <option value="">Move to...</option>
+                                        {blocks.filter(b => b.includeOnMap !== false).map(block => (
+                                            <optgroup key={block.id} label={block.name} style={{ fontWeight: 'bold' }}>
+                                                {block.listIds.map(lId => {
+                                                    const list = lists.find(l => l.id === lId);
+                                                    if (!list) return null;
+                                                    return (
+                                                        <option
+                                                            key={lId}
+                                                            value={lId}
+                                                            disabled={lId === c.idList}
+                                                            style={{ fontWeight: 'normal', color: lId === c.idList ? '#aaa' : 'inherit' }}
+                                                        >
+                                                            {list.name}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </optgroup>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                    </Popup>
+                </Marker>
+            );
+        });
+    }, [visibleCards, blocks, markerRules, lists, settings?.enableCardMove]);
 
     const getBlockCount = (block) => {
         return cards.filter(c => {
@@ -674,22 +771,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
         }).length;
     };
 
-    const MapBounds = () => {
-        const map = useMap();
-        useEffect(() => {
-            if (markers.length > 0) {
-                const validCards = cards.filter(c =>
-                    c.coordinates && c.coordinates.lat && c.coordinates.lng &&
-                    markers.some(m => m.key === c.id)
-                );
-                if (validCards.length > 0) {
-                    const bounds = L.latLngBounds(validCards.map(c => [c.coordinates.lat, c.coordinates.lng]));
-                    map.fitBounds(bounds, { padding: [50, 50] });
-                }
-            }
-        }, [markers.length]);
-        return null;
-    };
+    // MapBounds moved outside to prevent re-mounting loop
 
     return (
         <div className="map-container">
@@ -720,6 +802,38 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             </div>
 
             <div id="map">
+                {/* OVERLAY: Fit Map Button - Moved to Top Left below Zoom controls */}
+                <div style={{
+                    position: 'absolute',
+                    top: '80px',
+                    left: '12px',
+                    zIndex: 2000,
+                    background: 'white',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    border: '2px solid rgba(0,0,0,0.2)',
+                    backgroundClip: 'padding-box',
+                    boxShadow: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px', /* Match Leaflet control width approx */
+                    height: '30px'
+                }}
+                    onClick={() => setFitTrigger(t => t + 1)}
+                    title="Fit Map to Markers"
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f4f4f4'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="22" y1="12" x2="18" y2="12"></line>
+                        <line x1="6" y1="12" x2="2" y2="12"></line>
+                        <line x1="12" y1="6" x2="12" y2="2"></line>
+                        <line x1="12" y1="22" x2="12" y2="18"></line>
+                    </svg>
+                </div>
                 <MapContainer center={[51.505, -0.09]} zoom={2} style={{ height: "100%", width: "100%" }}>
                     <TileLayer
                         attribution={TILE_LAYERS[baseMap].attribution}
@@ -738,10 +852,28 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         onToggleBlock={handleToggleBlock}
                         onToggleRule={handleToggleRule}
                         onToggleAll={handleToggleAll}
+                        onToggleAllBlocks={handleToggleAllBlocks}
+                        onToggleAllRules={handleToggleAllRules}
+                        homeLocation={homeLocation}
+                        showHomeLocation={showHomeLocation}
+                        onToggleHome={handleToggleHome}
                     />
 
+                    {homeLocation && showHomeLocation && (
+                        <Marker
+                            position={[homeLocation.coords.lat, homeLocation.coords.lon]}
+                            icon={getMarkerIcon({ icon: homeLocation.icon, color: 'purple' })}
+                        >
+                            <Popup>
+                                <div className="popup-card">
+                                    <strong>Home</strong>
+                                    {homeLocation.address && <div style={{ fontSize: '0.9em', marginTop: '5px' }}>{homeLocation.address}</div>}
+                                </div>
+                            </Popup>
+                        </Marker>
+                    )}
                     {markers}
-                    <MapBounds />
+                    <MapBounds fitTrigger={fitTrigger} visibleCards={visibleCards} homeLocation={homeLocation} showHomeLocation={showHomeLocation} prevSignatureRef={prevSignatureRef} />
                 </MapContainer>
             </div>
 
@@ -764,6 +896,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         loadData(true);
                         setCountdown(refreshIntervalSeconds);
                     }}>Refresh Map</button>
+                    {/* Fit Map Button Removed */}
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();

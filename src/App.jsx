@@ -15,11 +15,27 @@ const App = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [settingsTab, setSettingsTab] = useState('dashboard'); // 'dashboard', 'map', 'other'
+    const [importConfig, setImportConfig] = useState(null); // NEW: Config to be imported
 
     const [previousView, setPreviousView] = useState(null);
 
     // Check for token in URL or existing session
     useEffect(() => {
+        // 0. Check for Config Share URL
+        const params = new URLSearchParams(window.location.search);
+        const configParam = params.get('config');
+        if (configParam) {
+            try {
+                // Validate generic structure (decode)
+                atob(configParam);
+                localStorage.setItem('PENDING_SHARE_CONFIG', configParam);
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (e) {
+                console.error("Invalid config param in URL");
+            }
+        }
+
         // 1. Check for Map route first
         if (window.location.pathname === '/map') {
             setView('map');
@@ -82,6 +98,22 @@ const App = () => {
                 // If on map view, ensure settings are loaded
                 // We don't change view, just state
                 if (savedSettings) setSettings(savedSettings);
+            }
+
+            // CHECK FOR PENDING CONFIG
+            const pendingConfig = localStorage.getItem('PENDING_SHARE_CONFIG');
+            if (pendingConfig) {
+                try {
+                    const decoded = decodeURIComponent(escape(atob(pendingConfig)));
+                    const config = JSON.parse(decoded);
+                    setImportConfig(config);
+                    setView('settings');
+                    setPreviousView('dashboard');
+                    localStorage.removeItem('PENDING_SHARE_CONFIG');
+                    console.log("Loaded pending shared configuration");
+                } catch (e) {
+                    console.error("Failed to load pending config", e);
+                }
             }
         } catch (e) {
             console.error("Login validation failed:", e);
@@ -199,6 +231,8 @@ const App = () => {
                     }
                 }}
                 onLogout={handleLogout}
+                importedConfig={importConfig}
+                onClearImportConfig={() => setImportConfig(null)}
             />
         );
     }

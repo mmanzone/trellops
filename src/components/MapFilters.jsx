@@ -4,15 +4,20 @@ import { ICONS } from './common/IconPicker';
 const MapFilters = ({
     blocks,
     lists,
-    allLabels, // NEW: For label lookups
-    cards, // NEW: For counting
+    allLabels,
+    cards,
     markerRules,
     visibleListIds,
     visibleRuleIds,
     onToggleList,
     onToggleBlock,
     onToggleRule,
-    onToggleAll
+    // onToggleAll, // Removed
+    onToggleAllBlocks,
+    onToggleAllRules,
+    homeLocation,
+    showHomeLocation,
+    onToggleHome
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -29,12 +34,8 @@ const MapFilters = ({
 
     const getRuleCount = (rule, isDefault) => {
         if (!cards) return 0;
-
-        // Filter for mapped cards first
         const mappedCards = cards.filter(c => c.coordinates && c.coordinates.lat);
-
         if (isDefault) {
-            // Count cards that match NO rule
             return mappedCards.filter(c => {
                 for (const r of markerRules) {
                     if (c.labels && c.labels.some(l => l.id === r.labelId)) return false;
@@ -42,20 +43,11 @@ const MapFilters = ({
                 return true;
             }).length;
         }
-
-        // Count cards matching specific rule
-        // Note: A card might match multiple rules if it has multiple labels.
-        // The display logic in MapView prioritizes them, but for filtering "Variant X", 
-        // we likely want to count all cards having Label X, as unchecking it hides them (if that rule was active).
-        // MapView logic: Active Rules = All matching rules + default.
-        // If I uncheck Rule A, cards matching Rule A hide? 
-        // Logic in MapView: "if(config.activeRuleIds.some(id => !visibleRuleIds.has(id))) return false;"
-        // So yes, if a card has Label A, and Rule A is unchecked, it hides.
         return mappedCards.filter(c => c.labels && c.labels.some(l => l.id === rule.labelId)).length;
     };
 
 
-    // Helpers to render icons
+    // Helpers to render icons/dots
     const renderIcon = (iconName) => (
         <svg
             width="14"
@@ -70,7 +62,8 @@ const MapFilters = ({
     const renderColorDot = (color) => {
         const colorMap = {
             'blue': '#3388ff', 'red': '#ff6b6b', 'green': '#51cf66',
-            'orange': '#ffa94d', 'yellow': '#ffd43b', 'grey': '#868e96', 'black': '#343a40'
+            'orange': '#ffa94d', 'yellow': '#ffd43b', 'grey': '#868e96', 'black': '#343a40',
+            'purple': '#9c27b0'
         };
         const bg = colorMap[color] || color;
         return (
@@ -100,8 +93,16 @@ const MapFilters = ({
         );
     }
 
-    // Determine default/no-rule checkbox state
-    // We assume 'default' rule ID is 'default'
+    // --- Header Checkbox Logic ---
+    // Blocks
+    const allBlockListIds = blocks.filter(b => b.includeOnMap !== false).flatMap(b => b.listIds);
+    const allBlocksVisible = allBlockListIds.length > 0 && allBlockListIds.every(id => visibleListIds.has(id));
+    const someBlocksVisible = allBlockListIds.some(id => visibleListIds.has(id));
+
+    // Rules
+    const allRuleIds = markerRules.map(r => r.id).concat(['default']);
+    const allRulesVisible = allRuleIds.every(id => visibleRuleIds.has(id));
+    const someRulesVisible = allRuleIds.some(id => visibleRuleIds.has(id));
 
     return (
         <div className="map-filters-overlay expanded">
@@ -111,17 +112,23 @@ const MapFilters = ({
             </div>
 
             <div className="filters-content">
-                <div className="filters-actions">
-                    <button onClick={() => onToggleAll(true)}>Show All</button>
-                    <button onClick={() => onToggleAll(false)}>Hide All</button>
-                </div>
 
                 {/* BLOCKS SECTION */}
                 <div className="filter-section">
-                    <h4>Blocks & Lists</h4>
+                    <div className="section-header-row">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={allBlocksVisible}
+                                ref={input => { if (input) input.indeterminate = someBlocksVisible && !allBlocksVisible; }}
+                                onChange={(e) => onToggleAllBlocks(e.target.checked)}
+                            />
+                            <h4>Blocks</h4>
+                        </label>
+                    </div>
+
                     {blocks.filter(b => b.includeOnMap !== false).map(block => {
-                        // Check if all lists in this block are visible
-                        const relevantLists = block.listIds; // All list IDs in this block
+                        const relevantLists = block.listIds;
                         const allVisible = relevantLists.every(id => visibleListIds.has(id));
                         const someVisible = relevantLists.some(id => visibleListIds.has(id));
 
@@ -166,7 +173,17 @@ const MapFilters = ({
 
                 {/* VARIANTS SECTION */}
                 <div className="filter-section">
-                    <h4>Marker Variants</h4>
+                    <div className="section-header-row">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={allRulesVisible}
+                                ref={input => { if (input) input.indeterminate = someRulesVisible && !allRulesVisible; }}
+                                onChange={(e) => onToggleAllRules(e.target.checked)}
+                            />
+                            <h4>Marker Variants</h4>
+                        </label>
+                    </div>
 
                     {/* Default Variant */}
                     <div className="filter-row">
@@ -183,38 +200,45 @@ const MapFilters = ({
                         </label>
                     </div>
 
-                    {markerRules.map(rule => {
-                        // Resolve label name if available?
-                        // For now just show "Variant X" or rule description?
-                        // User requirement: "All icons keep same size". "list of variant should be displayed"
-                        // Rule usually maps a Label to an Icon/Color override.
-                        // Display format: [Icon/Color] Rule Name (Label Name)
-
-                        // We need access to label names? MapView doesn't pass them to us easily yet.
-                        // Assuming simple display for now.
-
-                        return (
-                            <div key={rule.id} className="filter-row">
-                                <label>
-                                    <input
-                                        type="checkbox"
-                                        checked={visibleRuleIds.has(rule.id)}
-                                        onChange={() => onToggleRule(rule.id)}
-                                    />
-                                    <span className="label-text">
-                                        {rule.overrideType === 'color' ? renderColorDot(rule.overrideValue) : renderIcon(rule.overrideValue)}
-                                        {/* Look up label name */}
-                                        {(() => {
-                                            const label = allLabels ? allLabels.find(l => l.id === rule.labelId) : null;
-                                            return label ? label.name : (rule.labelName || 'Unknown Label');
-                                        })()}
-                                        <span style={{ opacity: 0.6, marginLeft: '4px' }}>({getRuleCount(rule, false)})</span>
-                                    </span>
-                                </label>
-                            </div>
-                        );
-                    })}
+                    {markerRules.map(rule => (
+                        <div key={rule.id} className="filter-row">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={visibleRuleIds.has(rule.id)}
+                                    onChange={() => onToggleRule(rule.id)}
+                                />
+                                <span className="label-text">
+                                    {rule.overrideType === 'color' ? renderColorDot(rule.overrideValue) : renderIcon(rule.overrideValue)}
+                                    {(() => {
+                                        const label = allLabels ? allLabels.find(l => l.id === rule.labelId) : null;
+                                        return label ? label.name : (rule.labelName || 'Unknown Label');
+                                    })()}
+                                    <span style={{ opacity: 0.6, marginLeft: '4px' }}>({getRuleCount(rule, false)})</span>
+                                </span>
+                            </label>
+                        </div>
+                    ))}
                 </div>
+
+                {/* HOME LOCATION SECTION */}
+                {homeLocation && (
+                    <div className="filter-section" style={{ borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                        <div className="filter-row">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={showHomeLocation}
+                                    onChange={onToggleHome}
+                                />
+                                <span className="label-text">
+                                    {renderIcon(homeLocation.icon)}
+                                    <strong>Home</strong>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

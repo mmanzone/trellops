@@ -8,7 +8,57 @@ import { STORAGE_KEYS } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import '../styles/settings.css';
 
-const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout }) => {
+const ShareConfigModal = ({ config, onClose, boardName }) => {
+    const [copied, setCopied] = useState(false);
+    // Encode config to Base64 to be URL safe (UTF-8 safe)
+    const configString = JSON.stringify(config);
+    const encoded = btoa(unescape(encodeURIComponent(configString)));
+    const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?config=${encodeURIComponent(encoded)}`;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '600px' }}>
+                <h3>Share Configuration</h3>
+                <p>Copy the link below to share this configuration with others:</p>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                    <input
+                        type="text"
+                        readOnly
+                        value={shareUrl}
+                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        onClick={(e) => e.target.select()}
+                    />
+                    <button onClick={handleCopy} className="action-button">
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+                <div style={{
+                    marginTop: '15px',
+                    padding: '10px',
+                    background: '#fff3cd',
+                    border: '1px solid #ffeeba',
+                    borderRadius: '4px',
+                    color: '#856404',
+                    fontSize: '0.9em'
+                }}>
+                    <strong>Note:</strong> The recipient of this link must have a Trello account and access to the board <strong>{boardName || 'specified'}</strong> to be able to display it. Features requiring extended write permissions will have to be granted by the recipients of this link.
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+                    <button className="button-secondary" onClick={onClose}>Close</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { } }) => {
     // --- State ---
     const [boards, setBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
@@ -31,6 +81,20 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [enableCardMove, setEnableCardMove] = useState(false); // NEW
+    const [enableHomeLocation, setEnableHomeLocation] = useState(false); // NEW HOME LOCATION
+    const [homeAddress, setHomeAddress] = useState('');
+    const [homeCoordinates, setHomeCoordinates] = useState(null);
+    const [homeIcon, setHomeIcon] = useState('home');
+    const [validatingAddress, setValidatingAddress] = useState(false);
+
+
+    // NOMINATIM AUTOCOMPLETE STATE
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchTimeoutRef = React.useRef(null);
+    const searchInputRef = React.useRef(null); // Ref to input for dropdown positioning if needed
+    const wrapperRef = React.useRef(null); // Ref for click outside
+
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
 
@@ -39,9 +103,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [loadingLists, setLoadingLists] = useState(false);
     const [activeTab, setActiveTab] = useState(initialTab);
 
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [pendingImport, setPendingImport] = useState(null);
+    const [showResetSection, setShowResetSection] = useState(false); // Collapsible Danger Zone toggle
+
     // Initial check on mount
     useEffect(() => {
-        if (user?.token) {
+        if (importedConfig) {
+            // Show banner instead of popup
+            setPendingImport(importedConfig);
+        } else if (user?.token) {
             trelloAuth.checkTokenScopes(user.token).then(scopes => {
                 const canWrite = scopes.includes('write');
                 setHasWritePermission(canWrite);
@@ -51,7 +122,104 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 }
             });
         }
-    }, [user]);
+    }, [user, importedConfig]);
+
+    // CLICK OUTSIDE HANDLER
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+                setSearchResults([]);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [wrapperRef]);
+
+    // DEBOUNCED SEARCH HANDLER
+    const handleHomeAddressChange = (e) => {
+        const val = e.target.value;
+        setHomeAddress(val);
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        if (!val || val.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        searchTimeoutRef.current = setTimeout(() => {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`)
+                .then(res => res.json())
+                .then(data => {
+                    setSearchResults(data);
+                    setIsSearching(false);
+                })
+                .catch(err => {
+                    console.error("Nominatim search error", err);
+                    setIsSearching(false);
+                });
+        }, 1000); // 1s Debounce
+    };
+
+    const handleSelectResult = (result) => {
+        setHomeAddress(result.display_name);
+        setHomeCoordinates({
+            lat: parseFloat(result.lat),
+            lon: parseFloat(result.lon),
+            display_name: result.display_name
+        });
+        setSearchResults([]);
+    };
+
+    const applyImportedConfig = () => {
+        if (!pendingImport) return;
+        const config = pendingImport;
+
+        // 1. Pre-populate board selection
+        if (config.boardId) {
+            // Even if we don't 'find' the board in accessible boards (user might need login or permissions),
+            // we set the ID so 'SettingsScreen' attempts to show it or fetch it.
+            // This satisfies "pre-populate... including board name".
+            // The Board Name is visually handled by 'selectedBoard.name'. 
+            // If the board isn't in 'boards', selectedBoard is undefined, so we won't see the name in the header immediately unless we mock it or fetch succeeds.
+
+            const existingBoard = boards.find(b => b.id === config.boardId);
+            if (!existingBoard && config.boardName) {
+                // Optional: Inject a placeholder if disjoint? 
+                // For now, standard logic: set ID, fetch data.
+            }
+            setSelectedBoardId(config.boardId);
+            fetchBoardData(config.boardId);
+        }
+
+        // 2. Apply Settings
+        if (config.blocks) setBlocks(config.blocks);
+        if (config.listColors) setListColors(config.listColors);
+        if (config.markerRules) setMarkerRules(config.markerRules);
+        if (config.refreshValue) setRefreshValue(config.refreshValue);
+        if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
+        if (config.showClock !== undefined) setShowClock(config.showClock);
+        if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
+        if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+        if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
+        if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+        if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+        if (config.updateTrelloCoordinates !== undefined) setUpdateTrelloCoordinates(config.updateTrelloCoordinates);
+
+        // Clear pending state
+        setPendingImport(null);
+        onClearImportConfig();
+    };
+
+    const dismissImport = () => {
+        setPendingImport(null);
+        onClearImportConfig();
+    }
 
     useEffect(() => {
         setActiveTab(initialTab);
@@ -74,6 +242,93 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     };
 
+    // Helper: Load Settings for a Specific Board
+    const loadBoardSettings = async (boardId) => {
+        if (!boardId || !user) return;
+        setLoadingLists(true);
+        setError('');
+
+        try {
+            // 1. Fetch Board Data
+            await fetchBoardData(boardId);
+
+            // 2. Load Layout
+            const allUserData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+            const savedLayout = allUserData[user.id]?.dashboardLayout?.[boardId];
+
+            if (savedLayout) {
+                setBlocks(savedLayout);
+            } else {
+                const legacyKey = `TRELLO_DASHBOARD_LAYOUT_${boardId}`;
+                const legacyLayout = localStorage.getItem(legacyKey);
+                if (legacyLayout) setBlocks(JSON.parse(legacyLayout));
+                else setBlocks([]); // Clear if nothing found
+            }
+
+            // 3. Load Colors
+            const savedColors = getPersistentColors(user.id)?.[boardId] || {};
+            setListColors(savedColors);
+
+            // 4. Load Other Settings
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
+            if (savedRefresh) {
+                const parsed = JSON.parse(savedRefresh);
+                setRefreshValue(parsed.value);
+                setRefreshUnit(parsed.unit);
+            } else {
+                setRefreshValue(1);
+                setRefreshUnit('minutes');
+            }
+
+            const savedClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId);
+            setShowClock(savedClock !== 'false');
+
+            const savedIgnore = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId);
+            setIgnoreTemplateCards(savedIgnore !== 'false'); // Default true
+
+            const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId);
+            setIgnoreCompletedCards(savedIgnoreCompleted === 'true'); // Default false
+
+            // 5. Load Map Config
+            const rulesKey = `TRELLO_MARKER_RULES_${boardId}`;
+            const savedRules = localStorage.getItem(rulesKey);
+            if (savedRules) setMarkerRules(JSON.parse(savedRules));
+            else setMarkerRules([]);
+
+            const userSettings = allUserData[user.id]?.settings;
+            if (userSettings) {
+                // Global-ish settings that might be per-board in future or just last-used
+                // For now, these are somewhat global but applied on load. 
+                // If we want per-board map enable, we'd need to change schema or key.
+                // The request implies "previously saved settings for Board A would come back".
+                // The current persistence saves 'enableMapView' in 'trelloUserData[uid].settings', effectively global/last-used.
+                // To strictly follow "per board settings", we rely on what IS saved per board.
+                // Most map settings ARE per board in local storage keys below.
+            }
+
+            // Map Persistent Keys
+            const savedUpdateTrello = localStorage.getItem('updateTrelloCoordinates_' + boardId);
+            setUpdateTrelloCoordinates(savedUpdateTrello === 'true');
+
+            const savedEnableCardMove = localStorage.getItem('enableCardMove_' + boardId);
+            setEnableCardMove(savedEnableCardMove === 'true');
+
+            setEnableHomeLocation(localStorage.getItem(`enableHomeLocation_${boardId}`) === 'true');
+            setHomeAddress(localStorage.getItem(`homeAddress_${boardId}`) || '');
+            const savedHomeCoords = localStorage.getItem(`homeCoordinates_${boardId}`);
+            setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
+            setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
+            setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
+            setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
+
+        } catch (e) {
+            console.warn("Error loading board settings", e);
+            setError("Failed to load settings for this board.");
+        } finally {
+            setLoadingLists(false);
+        }
+    };
+
     // Initial Load
     useEffect(() => {
         const loadInitialSettings = async () => {
@@ -89,55 +344,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (userSettings?.boardId) {
                     const bId = userSettings.boardId;
                     setSelectedBoardId(bId);
-                    await fetchBoardData(bId);
 
-                    // Load Layout - Prefer persistence helper logic
-                    const allUserData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
-                    const savedLayout = allUserData[user.id]?.dashboardLayout?.[bId];
+                    // Use helper to load everything
+                    await loadBoardSettings(bId);
 
-                    if (savedLayout) {
-                        setBlocks(savedLayout);
-                    } else {
-                        // Fallback to legacy key if exists (migration)
-                        const legacyKey = `TRELLO_DASHBOARD_LAYOUT_${bId}`;
-                        const legacyLayout = localStorage.getItem(legacyKey);
-                        if (legacyLayout) setBlocks(JSON.parse(legacyLayout));
-                    }
-
-                    // Load Colors
-                    const savedColors = getPersistentColors(user.id)?.[bId] || {};
-                    setListColors(savedColors);
-
-                    // Load Other Settings
-                    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + bId);
-                    if (savedRefresh) {
-                        const parsed = JSON.parse(savedRefresh);
-                        setRefreshValue(parsed.value);
-                        setRefreshUnit(parsed.unit);
-                    }
-                    const savedClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + bId);
-                    if (savedClock === 'false') setShowClock(false);
-
-                    const savedIgnore = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + bId);
-                    if (savedIgnore === 'false') setIgnoreTemplateCards(false);
-
-                    const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + bId);
-                    if (savedIgnoreCompleted === 'true') setIgnoreCompletedCards(true);
-                    else setIgnoreCompletedCards(false);
-
-                    // Load Map Config
-                    const rulesKey = `TRELLO_MARKER_RULES_${bId}`;
-                    const savedRules = localStorage.getItem(rulesKey);
-                    if (savedRules) setMarkerRules(JSON.parse(savedRules));
-
+                    // Global map enables (legacy fallback or global pref)
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
-
-                    const savedUpdateTrello = localStorage.getItem('updateTrelloCoordinates_' + bId);
-                    if (savedUpdateTrello === 'true') setUpdateTrelloCoordinates(true);
-
-                    const savedEnableCardMove = localStorage.getItem('enableCardMove_' + bId);
-                    if (savedEnableCardMove === 'true') setEnableCardMove(true);
                 }
             } catch (e) {
                 console.warn("Error loading settings", e);
@@ -150,7 +363,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         setLoadingLists(true);
         setError('');
         try {
-            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
+            // Fetch lists with 1 card limit to support "first card" preview
+            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=open&card_fields=name&card_limit=1&fields=id,name`, user.token);
             setAllLists(listsData);
             const labelsData = await trelloFetch(`/boards/${boardId}/labels`, user.token);
             setBoardLabels(labelsData);
@@ -164,11 +378,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const handleBoardChange = async (e) => {
         const boardId = e.target.value;
         setSelectedBoardId(boardId);
-        setBlocks([]);
-        setListColors({});
-        setMarkerRules([]);
-        if (boardId) await fetchBoardData(boardId);
-        else setAllLists([]);
+
+        if (boardId) {
+            await loadBoardSettings(boardId);
+        } else {
+            setBlocks([]);
+            setListColors({});
+            setMarkerRules([]);
+            setAllLists([]);
+        }
     };
 
     // --- Actions ---
@@ -296,7 +514,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
 
             // 4. Save Map Config
+            // 4. Save Map Config
             localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
+
+            localStorage.setItem(`enableHomeLocation_${selectedBoardId}`, enableHomeLocation);
+            localStorage.setItem(`homeAddress_${selectedBoardId}`, homeAddress);
+            localStorage.setItem(`homeCoordinates_${selectedBoardId}`, JSON.stringify(homeCoordinates));
+            localStorage.setItem(`homeIcon_${selectedBoardId}`, homeIcon);
 
             // Only allow saving true if permission exists
             const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
@@ -350,10 +574,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     };
 
-    const handleExportConfig = () => {
-        if (!selectedBoardId) return;
-        const config = {
+    const getConfigObject = () => {
+        if (!selectedBoardId) return null;
+        // Try to find name in boards list
+        const boardName = boards.find(b => b.id === selectedBoardId)?.name;
+
+        return {
             boardId: selectedBoardId,
+            boardName: boardName, // Include name
             blocks,
             listColors,
             markerRules,
@@ -366,6 +594,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             mapGeocodeMode,
             enableCardMove
         };
+    };
+
+    const handleExportConfig = () => {
+        const config = getConfigObject();
+        if (!config) return;
+
         const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -384,7 +618,33 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 const config = JSON.parse(evt.target.result);
                 if (config.boardId && config.boardId !== selectedBoardId) {
                     if (!window.confirm(`This config is for board ${config.boardId}, but you are on ${selectedBoardId}. Import anyway?`)) return;
+
+                    // Pre-populate board selection if available
+                    // We need to set selectedBoardId to the one in config
+                    // Ideally, we shoudl check if the user has access to this board in 'boards' list
+                    const targetBoard = boards.find(b => b.id === config.boardId);
+                    if (targetBoard) {
+                        setSelectedBoardId(config.boardId);
+                        // We might want to trigger a fetch here or let the effect handle it?
+                        // Since we are setting state directly below, we might skip a fetch or need one for lists.
+                        // Ideally: Set ID -> Fetch Data -> Apply Config.
+                        // But applyConfig is synchronous here.
+                        // Let's rely on handleBoardChange logic or manual fetch?
+                        // Better: just set the ID. The effect 'loadBoardSettings' or 'fetchBoardData' might trigger if we added it to dependency array, but we didn't.
+                        // Let's manually trigger fetch to ensure lists are loaded for the config to map correctly.
+                        fetchBoardData(config.boardId);
+                    } else {
+                        // User might not have this board loaded or access to it.
+                        console.warn("Imported config for unknown board:", config.boardId);
+                        // Still set it? Or let user stay on current?
+                        // Request says "pre-populate all fields including board name".
+                        // Use config.boardId as selectedBoardId even if name unknown?
+                        setSelectedBoardId(config.boardId);
+                        // We can TRY to fetch it.
+                        fetchBoardData(config.boardId);
+                    }
                 }
+
                 if (config.blocks) setBlocks(config.blocks);
                 if (config.listColors) setListColors(config.listColors);
                 if (config.markerRules) setMarkerRules(config.markerRules);
@@ -450,6 +710,19 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
 
+            {pendingImport && (
+                <div className="info-banner" style={{ background: '#e3f2fd', color: '#0d47a1', padding: '15px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #90caf9', marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <strong>Configuration Loaded:</strong> Shared settings available for board <strong>{pendingImport.boardName || pendingImport.boardId}</strong>.
+                        <div style={{ fontSize: '0.9em', marginTop: '4px' }}>Unsaved changes will be lost if you apply this configuration.</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={applyImportedConfig} style={{ background: '#1976d2', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Apply</button>
+                        <button onClick={dismissImport} style={{ background: 'transparent', color: '#0d47a1', border: '1px solid #0d47a1', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Dismiss</button>
+                    </div>
+                </div>
+            )}
+
 
 
             <DragDropContext onDragEnd={onDragEnd}>
@@ -475,7 +748,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 <div className="admin-section" id="section-2">
                                     <h3>2. Manage your Trellops blocks</h3>
                                     <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                                        A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
+                                        A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demand on the dashboard.
                                     </p>
                                     <Droppable droppableId="blocks-list" type="BLOCK">
                                         {(provided) => (
@@ -583,14 +856,31 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                     ref={provided.innerRef}
                                                                                     {...provided.draggableProps}
                                                                                     {...provided.dragHandleProps}
-                                                                                    style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
+                                                                                    style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', ...provided.draggableProps.style }}
                                                                                 >
-                                                                                    <span>{list.name}</span>
+                                                                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
+
+                                                                                    {block.ignoreFirstCard && block.displayFirstCardDescription && list.cards && list.cards.length > 0 && (
+                                                                                        <span style={{
+                                                                                            width: '20%',
+                                                                                            textAlign: 'right',
+                                                                                            fontSize: '0.85em',
+                                                                                            color: '#666',
+                                                                                            fontStyle: 'italic',
+                                                                                            overflow: 'hidden',
+                                                                                            textOverflow: 'ellipsis',
+                                                                                            whiteSpace: 'nowrap',
+                                                                                            flexShrink: 0
+                                                                                        }}>
+                                                                                            [{list.cards[0].name}]
+                                                                                        </span>
+                                                                                    )}
+
                                                                                     <input
                                                                                         type="color"
                                                                                         value={color}
                                                                                         onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
-                                                                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                                                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
                                                                                         title="Tile Colour"
                                                                                     />
                                                                                 </div>
@@ -733,7 +1023,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                     {block.includeOnMap && (
                                                         <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{block.name} icon:</label>
+                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Icon:</label>
                                                             <div style={{ width: '100%' }}>
                                                                 <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
                                                             </div>
@@ -831,6 +1121,88 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             )}
                                         </div>
 
+                                        {/* HOME LOCATION SETTING */}
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                <ToggleSwitch
+                                                    checked={enableHomeLocation}
+                                                    onChange={e => setEnableHomeLocation(e.target.checked)}
+                                                />
+                                                <span style={{ marginLeft: '10px' }}>
+                                                    <strong>Set home location</strong><br />
+                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                        Set a home address that will be permanently displayed on the map for this board.
+                                                    </span>
+                                                </span>
+                                            </label>
+
+                                            {enableHomeLocation && (
+                                                <div style={{ marginLeft: '50px', marginTop: '10px' }}>
+
+                                                    <div style={{ marginBottom: '10px' }} ref={wrapperRef}>
+                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Home Address</label>
+                                                        <div style={{ position: 'relative' }}>
+                                                            <input
+                                                                type="text"
+                                                                value={homeAddress}
+                                                                onChange={handleHomeAddressChange}
+                                                                placeholder="Start typing your address..."
+                                                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                            />
+                                                            {isSearching && (
+                                                                <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', fontSize: '0.8em' }}>
+                                                                    Searching...
+                                                                </div>
+                                                            )}
+                                                            {searchResults.length > 0 && (
+                                                                <div style={{
+                                                                    position: 'absolute',
+                                                                    top: '100%',
+                                                                    left: 0,
+                                                                    right: 0,
+                                                                    zIndex: 1000,
+                                                                    background: 'white',
+                                                                    border: '1px solid #ccc',
+                                                                    borderRadius: '4px',
+                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                                    maxHeight: '200px',
+                                                                    overflowY: 'auto'
+                                                                }}>
+                                                                    {searchResults.map((result, idx) => (
+                                                                        <div
+                                                                            key={idx}
+                                                                            onClick={() => handleSelectResult(result)}
+                                                                            style={{
+                                                                                padding: '8px 12px',
+                                                                                cursor: 'pointer',
+                                                                                borderBottom: idx < searchResults.length - 1 ? '1px solid #eee' : 'none',
+                                                                                fontSize: '0.9em'
+                                                                            }}
+                                                                            onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+                                                                            onMouseLeave={e => e.target.style.background = 'white'}
+                                                                        >
+                                                                            {result.display_name}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {homeCoordinates && !isSearching && searchResults.length === 0 && (
+                                                            <div style={{ fontSize: '0.85em', color: 'green', marginTop: '5px' }}>
+                                                                Resolved: {homeCoordinates.display_name}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ marginBottom: '10px' }}>
+                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Marker Icon</label>
+                                                        <IconPicker selectedIcon={homeIcon} onChange={setHomeIcon} color="#444" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+
                                         {/* RESET CACHE SECTION */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                                             <h3>Reset coordinates cache</h3>
@@ -862,68 +1234,174 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure map settings</div>
                         )}
                     </div>
-                )}
+                )
+                }
 
                 {/* TAB CONTENT: OTHER */}
-                {activeTab === 'other' && (
-                    <div className="tab-content">
-                        {selectedBoard ? (
-                            <div className="admin-section" id="section-4">
-                                <h3>Other Settings for {selectedBoard.name}</h3>
-                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                    These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
-                                </p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    <div>
-                                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Refresh Interval</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }} />
-                                            <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}>
-                                                <option value="seconds">Seconds</option>
-                                                <option value="minutes">Minutes</option>
-                                                <option value="hours">Hours</option>
-                                            </select>
+                {
+                    activeTab === 'other' && (
+                        <div className="tab-content">
+                            {selectedBoard ? (
+                                <div className="admin-section" id="section-4">
+                                    <h3>Other Settings for {selectedBoard.name}</h3>
+                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                        These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
+                                    </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Refresh Interval</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                                                <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}>
+                                                    <option value="seconds">Seconds</option>
+                                                    <option value="minutes">Minutes</option>
+                                                    <option value="hours">Hours</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
-                                                <span style={{ marginLeft: '10px' }}>Show Clock</span>
-                                                {showClock && (
-                                                    <span style={{ marginLeft: '15px', color: '#555', fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px', border: '1px solid #ddd' }}>
-                                                        {new Date().toLocaleTimeString()}
-                                                    </span>
-                                                )}
-                                            </label>
-                                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
-                                                <span style={{ marginLeft: '10px' }}>Ignore Template Cards</span>
-                                            </label>
-                                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                                <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
-                                                <span style={{ marginLeft: '10px' }}>Ignore Completed Cards</span>
-                                            </label>
+                                        <div>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
+                                                    <span style={{ marginLeft: '10px' }}>Show Clock</span>
+                                                    {showClock && (
+                                                        <span style={{ marginLeft: '15px', color: '#555', fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                                                            {new Date().toLocaleTimeString()}
+                                                        </span>
+                                                    )}
+                                                </label>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
+                                                    <span style={{ marginLeft: '10px' }}>Ignore Template Cards</span>
+                                                </label>
+                                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
+                                                    <span style={{ marginLeft: '10px' }}>Ignore Completed Cards</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                            ) : (
+                                <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
+                            )}
+
+                            <div className="danger-zone" style={{ marginTop: '40px', paddingTop: '10px' }}>
+                                <style>{`
+                                .danger-header:hover { background-color: #fff0f0; }
+                             `}</style>
+                                <div
+                                    className="danger-header"
+                                    onClick={() => setShowResetSection(!showResetSection)}
+                                    style={{
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '10px'
+                                    }}
+                                >
+                                    <h4 style={{ color: 'black', margin: 0 }}>⚠️ Global settings reset</h4>
+                                    <span style={{ fontSize: '1.2em', color: '#d32f2f' }}>{showResetSection ? '▼' : '▶'}</span>
+                                </div>
+
+                                {showResetSection && (
+                                    <div style={{ backgroundColor: '#fff0f0', padding: '15px', borderRadius: '4px', border: '1px solid #ffcdcd', marginTop: '10px' }}>
+
+                                        <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '10px' }}>
+                                            Resetting your settings will remove any locally stored information including dashboard and map configuration for <strong>ALL boards</strong>, as well as decoded geolocations.
+                                        </p>
+                                        <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '15px' }}>
+                                            Your Trello account will NOT be affected, nor will your Trellops subscriptions.
+                                        </p>
+
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <strong style={{ display: 'block', marginBottom: '5px', color: '#8b0000', fontSize: '0.85em' }}>
+                                                The reset will erase all the information stored below; it is recommended that you back up each configuration first.
+                                            </strong>
+                                            <ul style={{ margin: '5px 0 10px 20px', fontSize: '0.85em', color: '#8b0000' }}>
+                                                {(() => {
+                                                    const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                                    // Find all boards that have data in trelloUserData OR have specific keys
+                                                    // For simplicity, we scan trelloUserData.user.settings keys and dashboard keys
+                                                    const userData = storedData[user?.id] || {};
+                                                    const boardsWithLayout = Object.keys(userData.dashboardLayout || {});
+                                                    const boardsWithColors = Object.keys(userData.listColors || {});
+
+                                                    const allCachedBoardIds = new Set([...boardsWithLayout, ...boardsWithColors]);
+
+                                                    if (allCachedBoardIds.size === 0) return <li>No cached configurations found.</li>;
+
+                                                    return Array.from(allCachedBoardIds).map(bid => {
+                                                        const bName = boards.find(b => b.id === bid)?.name || bid;
+                                                        return <li key={bid}>{bName} <span style={{ color: '#b71c1c', fontSize: '0.8em' }}>({bid})</span></li>;
+                                                    });
+                                                })()}
+                                            </ul>
+                                        </div>
+
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`ARE YOU SURE you want to DELETE ALL LOCAL SETTINGS?\n\nThis cannot be undone.`)) {
+                                                    // 1. Clear User Data
+                                                    const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                                    if (user?.id) delete storedData[user.id];
+                                                    localStorage.setItem('trelloUserData', JSON.stringify(storedData));
+
+                                                    // 2. Clear specific keys (Scanning all keys since we don't track them all perfectly)
+                                                    const keysToRemove = [];
+                                                    for (let i = 0; i < localStorage.length; i++) {
+                                                        const key = localStorage.key(i);
+                                                        if (key && (
+                                                            key.startsWith('TRELLO_') ||
+                                                            key.startsWith('MAP_GEOCODING_CACHE_') ||
+                                                            key.startsWith('updateTrelloCoordinates_') ||
+                                                            key.startsWith('enableCardMove_') ||
+                                                            key.startsWith('refreshInterval_') // old keys might exist
+                                                        )) {
+                                                            keysToRemove.push(key);
+                                                        }
+                                                    }
+                                                    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+                                                    alert("All local cache has been reset. The application will reload.");
+                                                    window.location.reload();
+                                                }
+                                            }}
+                                            style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                        >
+                                            Reset My Trellops Stored Cache
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        ) : (
-                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
-                        )}
-                    </div>
-                )}
-            </DragDropContext>
+                        </div>
+                    )
+                }
+            </DragDropContext >
 
 
 
             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v4.0.0 - Jan 03, 2026</span>
+                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>
+                    v4.1.{__BUILD_ID__ || 1000} - Jan 05, 2026
+                </span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
+                <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
                 <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
             </div>
+
+            {
+                showShareModal && (
+                    <ShareConfigModal
+                        config={getConfigObject()}
+                        onClose={() => setShowShareModal(false)}
+                        boardName={selectedBoard?.name}
+                    />
+                )
+            }
 
             {
                 showMoreOptions && (
