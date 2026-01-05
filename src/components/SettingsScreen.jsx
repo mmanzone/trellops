@@ -929,7 +929,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             <label style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '8px', opacity: 0.7 }}>
                                                 <input type="checkbox" checked={true} disabled style={{ marginTop: '3px' }} />
                                                 <span style={{ marginLeft: '8px' }}>
-                                                    Read the coordinates from the Trello card to display the card location
+                                                    Read the coordinates from the Trello card "Location" field to display the card location
                                                 </span>
                                             </label>
 
