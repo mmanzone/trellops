@@ -824,36 +824,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
     return (
         <div className="map-container">
-            {/* OVERLAY: Fit Map Button */}
-            <div style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                zIndex: 1000,
-                background: 'white',
-                padding: '8px',
-                borderRadius: '4px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px'
-            }}
-                onClick={() => setFitTrigger(t => t + 1)}
-                title="Fit Map to Markers"
-            >
-                {/* Crosshairs Icon */}
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="22" y1="12" x2="18" y2="12"></line>
-                    <line x1="6" y1="12" x2="2" y2="12"></line>
-                    <line x1="12" y1="6" x2="12" y2="2"></line>
-                    <line x1="12" y1="22" x2="12" y2="18"></line>
-                </svg>
-            </div>
-
             <div className="map-header">
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
@@ -881,6 +851,34 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             </div>
 
             <div id="map">
+                {/* OVERLAY: Fit Map Button */}
+                <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    zIndex: 2000,
+                    background: 'white',
+                    padding: '8px',
+                    borderRadius: '4px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '32px',
+                    height: '32px'
+                }}
+                    onClick={() => setFitTrigger(t => t + 1)}
+                    title="Fit Map to Markers"
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="22" y1="12" x2="18" y2="12"></line>
+                        <line x1="6" y1="12" x2="2" y2="12"></line>
+                        <line x1="12" y1="6" x2="12" y2="2"></line>
+                        <line x1="12" y1="22" x2="12" y2="18"></line>
+                    </svg>
+                </div>
                 <MapContainer center={[51.505, -0.09]} zoom={2} style={{ height: "100%", width: "100%" }}>
                     <TileLayer
                         attribution={TILE_LAYERS[baseMap].attribution}
@@ -943,7 +941,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         loadData(true);
                         setCountdown(refreshIntervalSeconds);
                     }}>Refresh Map</button>
-                    <button className="refresh-button" style={{ marginLeft: '5px' }} onClick={() => setFitTrigger(t => t + 1)}>Fit Map</button>
+                    {/* Fit Map Button Removed */}
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();
