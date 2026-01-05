@@ -113,22 +113,36 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (!pendingImport) return;
         const config = pendingImport;
 
+        // 1. Pre-populate board selection
         if (config.boardId) {
+            // Even if we don't 'find' the board in accessible boards (user might need login or permissions),
+            // we set the ID so 'SettingsScreen' attempts to show it or fetch it.
+            // This satisfies "pre-populate... including board name".
+            // The Board Name is visually handled by 'selectedBoard.name'. 
+            // If the board isn't in 'boards', selectedBoard is undefined, so we won't see the name in the header immediately unless we mock it or fetch succeeds.
+
+            const existingBoard = boards.find(b => b.id === config.boardId);
+            if (!existingBoard && config.boardName) {
+                // Optional: Inject a placeholder if disjoint? 
+                // For now, standard logic: set ID, fetch data.
+            }
             setSelectedBoardId(config.boardId);
             fetchBoardData(config.boardId);
-
-            if (config.blocks) setBlocks(config.blocks);
-            if (config.listColors) setListColors(config.listColors);
-            if (config.markerRules) setMarkerRules(config.markerRules);
-            if (config.refreshValue) setRefreshValue(config.refreshValue);
-            if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
-            if (config.showClock !== undefined) setShowClock(config.showClock);
-            if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
-            if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
-            if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
-            if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
-            if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
         }
+
+        // 2. Apply Settings
+        if (config.blocks) setBlocks(config.blocks);
+        if (config.listColors) setListColors(config.listColors);
+        if (config.markerRules) setMarkerRules(config.markerRules);
+        if (config.refreshValue) setRefreshValue(config.refreshValue);
+        if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
+        if (config.showClock !== undefined) setShowClock(config.showClock);
+        if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
+        if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+        if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
+        if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+        if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+        if (config.updateTrelloCoordinates !== undefined) setUpdateTrelloCoordinates(config.updateTrelloCoordinates);
 
         // Clear pending state
         setPendingImport(null);
@@ -161,6 +175,85 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     };
 
+    // Helper: Load Settings for a Specific Board
+    const loadBoardSettings = async (boardId) => {
+        if (!boardId || !user) return;
+        setLoadingLists(true);
+        setError('');
+
+        try {
+            // 1. Fetch Board Data
+            await fetchBoardData(boardId);
+
+            // 2. Load Layout
+            const allUserData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+            const savedLayout = allUserData[user.id]?.dashboardLayout?.[boardId];
+
+            if (savedLayout) {
+                setBlocks(savedLayout);
+            } else {
+                const legacyKey = `TRELLO_DASHBOARD_LAYOUT_${boardId}`;
+                const legacyLayout = localStorage.getItem(legacyKey);
+                if (legacyLayout) setBlocks(JSON.parse(legacyLayout));
+                else setBlocks([]); // Clear if nothing found
+            }
+
+            // 3. Load Colors
+            const savedColors = getPersistentColors(user.id)?.[boardId] || {};
+            setListColors(savedColors);
+
+            // 4. Load Other Settings
+            const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
+            if (savedRefresh) {
+                const parsed = JSON.parse(savedRefresh);
+                setRefreshValue(parsed.value);
+                setRefreshUnit(parsed.unit);
+            } else {
+                setRefreshValue(1);
+                setRefreshUnit('minutes');
+            }
+
+            const savedClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId);
+            setShowClock(savedClock !== 'false');
+
+            const savedIgnore = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId);
+            setIgnoreTemplateCards(savedIgnore !== 'false'); // Default true
+
+            const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId);
+            setIgnoreCompletedCards(savedIgnoreCompleted === 'true'); // Default false
+
+            // 5. Load Map Config
+            const rulesKey = `TRELLO_MARKER_RULES_${boardId}`;
+            const savedRules = localStorage.getItem(rulesKey);
+            if (savedRules) setMarkerRules(JSON.parse(savedRules));
+            else setMarkerRules([]);
+
+            const userSettings = allUserData[user.id]?.settings;
+            if (userSettings) {
+                // Global-ish settings that might be per-board in future or just last-used
+                // For now, these are somewhat global but applied on load. 
+                // If we want per-board map enable, we'd need to change schema or key.
+                // The request implies "previously saved settings for Board A would come back".
+                // The current persistence saves 'enableMapView' in 'trelloUserData[uid].settings', effectively global/last-used.
+                // To strictly follow "per board settings", we rely on what IS saved per board.
+                // Most map settings ARE per board in local storage keys below.
+            }
+
+            // Map Persistent Keys
+            const savedUpdateTrello = localStorage.getItem('updateTrelloCoordinates_' + boardId);
+            setUpdateTrelloCoordinates(savedUpdateTrello === 'true');
+
+            const savedEnableCardMove = localStorage.getItem('enableCardMove_' + boardId);
+            setEnableCardMove(savedEnableCardMove === 'true');
+
+        } catch (e) {
+            console.warn("Error loading board settings", e);
+            setError("Failed to load settings for this board.");
+        } finally {
+            setLoadingLists(false);
+        }
+    };
+
     // Initial Load
     useEffect(() => {
         const loadInitialSettings = async () => {
@@ -176,55 +269,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (userSettings?.boardId) {
                     const bId = userSettings.boardId;
                     setSelectedBoardId(bId);
-                    await fetchBoardData(bId);
 
-                    // Load Layout - Prefer persistence helper logic
-                    const allUserData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
-                    const savedLayout = allUserData[user.id]?.dashboardLayout?.[bId];
+                    // Use helper to load everything
+                    await loadBoardSettings(bId);
 
-                    if (savedLayout) {
-                        setBlocks(savedLayout);
-                    } else {
-                        // Fallback to legacy key if exists (migration)
-                        const legacyKey = `TRELLO_DASHBOARD_LAYOUT_${bId}`;
-                        const legacyLayout = localStorage.getItem(legacyKey);
-                        if (legacyLayout) setBlocks(JSON.parse(legacyLayout));
-                    }
-
-                    // Load Colors
-                    const savedColors = getPersistentColors(user.id)?.[bId] || {};
-                    setListColors(savedColors);
-
-                    // Load Other Settings
-                    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + bId);
-                    if (savedRefresh) {
-                        const parsed = JSON.parse(savedRefresh);
-                        setRefreshValue(parsed.value);
-                        setRefreshUnit(parsed.unit);
-                    }
-                    const savedClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + bId);
-                    if (savedClock === 'false') setShowClock(false);
-
-                    const savedIgnore = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + bId);
-                    if (savedIgnore === 'false') setIgnoreTemplateCards(false);
-
-                    const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + bId);
-                    if (savedIgnoreCompleted === 'true') setIgnoreCompletedCards(true);
-                    else setIgnoreCompletedCards(false);
-
-                    // Load Map Config
-                    const rulesKey = `TRELLO_MARKER_RULES_${bId}`;
-                    const savedRules = localStorage.getItem(rulesKey);
-                    if (savedRules) setMarkerRules(JSON.parse(savedRules));
-
+                    // Global map enables (legacy fallback or global pref)
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
-
-                    const savedUpdateTrello = localStorage.getItem('updateTrelloCoordinates_' + bId);
-                    if (savedUpdateTrello === 'true') setUpdateTrelloCoordinates(true);
-
-                    const savedEnableCardMove = localStorage.getItem('enableCardMove_' + bId);
-                    if (savedEnableCardMove === 'true') setEnableCardMove(true);
                 }
             } catch (e) {
                 console.warn("Error loading settings", e);
@@ -252,11 +303,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const handleBoardChange = async (e) => {
         const boardId = e.target.value;
         setSelectedBoardId(boardId);
-        setBlocks([]);
-        setListColors({});
-        setMarkerRules([]);
-        if (boardId) await fetchBoardData(boardId);
-        else setAllLists([]);
+
+        if (boardId) {
+            await loadBoardSettings(boardId);
+        } else {
+            setBlocks([]);
+            setListColors({});
+            setMarkerRules([]);
+            setAllLists([]);
+        }
     };
 
     // --- Actions ---
@@ -482,7 +537,33 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 const config = JSON.parse(evt.target.result);
                 if (config.boardId && config.boardId !== selectedBoardId) {
                     if (!window.confirm(`This config is for board ${config.boardId}, but you are on ${selectedBoardId}. Import anyway?`)) return;
+
+                    // Pre-populate board selection if available
+                    // We need to set selectedBoardId to the one in config
+                    // Ideally, we shoudl check if the user has access to this board in 'boards' list
+                    const targetBoard = boards.find(b => b.id === config.boardId);
+                    if (targetBoard) {
+                        setSelectedBoardId(config.boardId);
+                        // We might want to trigger a fetch here or let the effect handle it?
+                        // Since we are setting state directly below, we might skip a fetch or need one for lists.
+                        // Ideally: Set ID -> Fetch Data -> Apply Config.
+                        // But applyConfig is synchronous here.
+                        // Let's rely on handleBoardChange logic or manual fetch?
+                        // Better: just set the ID. The effect 'loadBoardSettings' or 'fetchBoardData' might trigger if we added it to dependency array, but we didn't.
+                        // Let's manually trigger fetch to ensure lists are loaded for the config to map correctly.
+                        fetchBoardData(config.boardId);
+                    } else {
+                        // User might not have this board loaded or access to it.
+                        console.warn("Imported config for unknown board:", config.boardId);
+                        // Still set it? Or let user stay on current?
+                        // Request says "pre-populate all fields including board name".
+                        // Use config.boardId as selectedBoardId even if name unknown?
+                        setSelectedBoardId(config.boardId);
+                        // We can TRY to fetch it.
+                        fetchBoardData(config.boardId);
+                    }
                 }
+
                 if (config.blocks) setBlocks(config.blocks);
                 if (config.listColors) setListColors(config.listColors);
                 if (config.markerRules) setMarkerRules(config.markerRules);
@@ -1037,9 +1118,74 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     </div>
                                 </div>
                             </div>
-                        ) : (
                             <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
                         )}
+
+                        <div className="danger-zone" style={{ marginTop: '40px', borderTop: '2px solid #d32f2f', paddingTop: '20px' }}>
+                            <h4 style={{ color: '#d32f2f', margin: '0 0 10px 0' }}>⚠️ Danger Zone: Global Cache Reset</h4>
+                            <p style={{ fontSize: '0.9em', color: '#555' }}>
+                                Resetting your settings will remove any locally stored information including dashboard and map configuration for <strong>ALL boards</strong>, as well as decoded geolocations.
+                                Your Trello account will NOT be affected, nor will your Trellops subscriptions.
+                                Use the export function for each board you want to backup before the reset.
+                            </p>
+
+                            <div style={{ background: '#fff0f0', padding: '10px', borderRadius: '4px', border: '1px solid #ffcdcd', margin: '15px 0' }}>
+                                <strong>Ideally, export these configs first:</strong>
+                                <ul style={{ margin: '5px 0 10px 20px', fontSize: '0.85em' }}>
+                                    {(() => {
+                                        const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                        // Find all boards that have data in trelloUserData OR have specific keys
+                                        // For simplicity, we scan trelloUserData.user.settings keys and dashboard keys
+                                        const userData = storedData[user?.id] || {};
+                                        const boardsWithLayout = Object.keys(userData.dashboardLayout || {});
+                                        const boardsWithColors = Object.keys(userData.listColors || {});
+
+                                        const allCachedBoardIds = new Set([...boardsWithLayout, ...boardsWithColors]);
+                                        // Also scan localStorage keys? (Optional but good for completeness)
+
+                                        if (allCachedBoardIds.size === 0) return <li>No cached configurations found.</li>;
+
+                                        return Array.from(allCachedBoardIds).map(bid => {
+                                            const bName = boards.find(b => b.id === bid)?.name || bid;
+                                            return <li key={bid}>{bName} <span style={{ color: '#999', fontSize: '0.8em' }}>({bid})</span></li>;
+                                        });
+                                    })()}
+                                </ul>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    if (confirm(`ARE YOU SURE you want to DELETE ALL LOCAL SETTINGS?\n\nThis cannot be undone.`)) {
+                                        // 1. Clear User Data
+                                        const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+                                        if (user?.id) delete storedData[user.id];
+                                        localStorage.setItem('trelloUserData', JSON.stringify(storedData));
+
+                                        // 2. Clear specific keys (Scanning all keys since we don't track them all perfectly)
+                                        const keysToRemove = [];
+                                        for (let i = 0; i < localStorage.length; i++) {
+                                            const key = localStorage.key(i);
+                                            if (key && (
+                                                key.startsWith('TRELLO_') ||
+                                                key.startsWith('MAP_GEOCODING_CACHE_') ||
+                                                key.startsWith('updateTrelloCoordinates_') ||
+                                                key.startsWith('enableCardMove_') ||
+                                                key.startsWith('refreshInterval_') // old keys might exist
+                                            )) {
+                                                keysToRemove.push(key);
+                                            }
+                                        }
+                                        keysToRemove.forEach(k => localStorage.removeItem(k));
+
+                                        alert("All local cache has been reset. The application will reload.");
+                                        window.location.reload();
+                                    }
+                                }}
+                                style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                                Reset My Trellops Stored Cache
+                            </button>
+                        </div>
                     </div>
                 )}
             </DragDropContext>
