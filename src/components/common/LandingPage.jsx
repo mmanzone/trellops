@@ -11,6 +11,7 @@ const LandingPage = () => {
         <div className="landing-page">
             <header className="landing-header">
                 <div className="logo">Trellops</div>
+                <img src="powerupicon2.png" alt="Trellops Logo" style={{ width: '120px', height: '120px', marginBottom: '20px' }} />
                 <h1>Transform Your Trello Boards into Real-Time Operational Dashboards.</h1>
                 <p className="subtitle">From Kanban to Command Centre. Visualize your workload on a Wallboard or a Map.</p>
                 <a href="#login" className="cta-button" onClick={handleLogin}>Try Trellops Now!</a>
