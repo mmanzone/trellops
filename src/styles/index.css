@@ -556,6 +556,8 @@ button:disabled,
     display: inline-block;
     width: 30px;
     height: 17px;
+    flex-shrink: 0;
+    margin-right: 8px;
 }
 
 .switch input {
