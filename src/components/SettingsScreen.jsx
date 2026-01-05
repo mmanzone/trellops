@@ -973,7 +973,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             <div style={{ marginLeft: '25px', marginBottom: '15px' }}>
                                                 <div
                                                     style={{ display: 'flex', alignItems: 'center', opacity: mapGeocodeMode === 'disabled' ? 0.5 : 1, pointerEvents: mapGeocodeMode === 'disabled' ? 'none' : 'auto', cursor: mapGeocodeMode === 'disabled' ? 'default' : 'pointer' }}
-                                                    onClick={() => !updateTrelloCoordinates && !hasWritePermission ? {} : setUpdateTrelloCoordinates(!updateTrelloCoordinates)}
+                                                    onClick={() => setUpdateTrelloCoordinates(!updateTrelloCoordinates)}
                                                 >
                                                     <ToggleSwitch
                                                         checked={updateTrelloCoordinates}
