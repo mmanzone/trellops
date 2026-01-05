@@ -8,7 +8,46 @@ import { STORAGE_KEYS } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import '../styles/settings.css';
 
-const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout }) => {
+const ShareConfigModal = ({ config, onClose }) => {
+    const [copied, setCopied] = useState(false);
+    // Encode config to Base64 to be URL safe (UTF-8 safe)
+    const configString = JSON.stringify(config);
+    const encoded = btoa(unescape(encodeURIComponent(configString)));
+    const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?config=${encodeURIComponent(encoded)}`;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content" style={{ maxWidth: '600px' }}>
+                <h3>Share Configuration</h3>
+                <p>Copy the link below to share this configuration with others:</p>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                    <input
+                        type="text"
+                        readOnly
+                        value={shareUrl}
+                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        onClick={(e) => e.target.select()}
+                    />
+                    <button onClick={handleCopy} className="action-button">
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+                    <button className="button-secondary" onClick={onClose}>Close</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null }) => {
     // --- State ---
     const [boards, setBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
@@ -39,9 +78,35 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [loadingLists, setLoadingLists] = useState(false);
     const [activeTab, setActiveTab] = useState(initialTab);
 
+    const [showShareModal, setShowShareModal] = useState(false); // NEW
+
     // Initial check on mount
     useEffect(() => {
-        if (user?.token) {
+        if (importedConfig) {
+            // Pre-load from shared link
+            if (window.confirm(`Load shared configuration for board "${importedConfig.boardId}"? Unsaved changes will be lost.`)) {
+                // Apply config
+                const config = importedConfig;
+                // Set Board (might trigger fetch, but we also set state directly)
+                if (config.boardId) {
+                    setSelectedBoardId(config.boardId);
+                    // We need to fetch board data to resolve names (lists etc)
+                    fetchBoardData(config.boardId);
+
+                    if (config.blocks) setBlocks(config.blocks);
+                    if (config.listColors) setListColors(config.listColors);
+                    if (config.markerRules) setMarkerRules(config.markerRules);
+                    if (config.refreshValue) setRefreshValue(config.refreshValue);
+                    if (config.refreshUnit) setRefreshUnit(config.refreshUnit);
+                    if (config.showClock !== undefined) setShowClock(config.showClock);
+                    if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
+                    if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+                    if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
+                    if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+                    if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+                }
+            }
+        } else if (user?.token) {
             trelloAuth.checkTokenScopes(user.token).then(scopes => {
                 const canWrite = scopes.includes('write');
                 setHasWritePermission(canWrite);
@@ -51,7 +116,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 }
             });
         }
-    }, [user]);
+    }, [user, importedConfig]);
 
     useEffect(() => {
         setActiveTab(initialTab);
@@ -150,7 +215,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         setLoadingLists(true);
         setError('');
         try {
-            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name`, user.token);
+            // Fetch lists with 1 card limit to support "first card" preview
+            const listsData = await trelloFetch(`/boards/${boardId}/lists?cards=open&card_fields=name&card_limit=1&fields=id,name`, user.token);
             setAllLists(listsData);
             const labelsData = await trelloFetch(`/boards/${boardId}/labels`, user.token);
             setBoardLabels(labelsData);
@@ -350,9 +416,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     };
 
-    const handleExportConfig = () => {
-        if (!selectedBoardId) return;
-        const config = {
+    const getConfigObject = () => {
+        if (!selectedBoardId) return null;
+        return {
             boardId: selectedBoardId,
             blocks,
             listColors,
@@ -366,6 +432,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             mapGeocodeMode,
             enableCardMove
         };
+    };
+
+    const handleExportConfig = () => {
+        const config = getConfigObject();
+        if (!config) return;
+
         const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -475,7 +547,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 <div className="admin-section" id="section-2">
                                     <h3>2. Manage your Trellops blocks</h3>
                                     <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                                        A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demad on the dashboard.
+                                        A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demand on the dashboard.
                                     </p>
                                     <Droppable droppableId="blocks-list" type="BLOCK">
                                         {(provided) => (
@@ -586,6 +658,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                     style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...provided.draggableProps.style }}
                                                                                 >
                                                                                     <span>{list.name}</span>
+                                                                                    {block.ignoreFirstCard && block.displayFirstCardDescription && list.cards && list.cards.length > 0 && (
+                                                                                        <div style={{ display: 'block', width: '100%', fontSize: '0.8em', color: '#666', fontStyle: 'italic', marginTop: '2px', borderTop: '1px solid #eee', paddingTop: '2px' }}>
+                                                                                            Preview: {list.cards[0].name}
+                                                                                        </div>
+                                                                                    )}
                                                                                     <input
                                                                                         type="color"
                                                                                         value={color}
@@ -733,7 +810,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                     {block.includeOnMap && (
                                                         <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
-                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{block.name} icon:</label>
+                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Icon:</label>
                                                             <div style={{ width: '100%' }}>
                                                                 <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
                                                             </div>
@@ -922,8 +999,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>v4.0.0 - Jan 03, 2026</span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
+                <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
                 <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
             </div>
+
+            {showShareModal && (
+                <ShareConfigModal
+                    config={getConfigObject()}
+                    onClose={() => setShowShareModal(false)}
+                />
+            )}
 
             {
                 showMoreOptions && (
