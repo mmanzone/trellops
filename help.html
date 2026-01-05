@@ -213,7 +213,8 @@
                 instantly.</li>
             <li><strong>Address Decoding:</strong> If no coordinates are found, Trellops reads the card's
                 <strong>description field</strong>. If it finds an address, it uses the <em>Nominatim</em> service to
-                find the location.</li>
+                find the location.
+            </li>
         </ol>
 
         <blockquote>
@@ -298,6 +299,23 @@
         <p>&copy; 2025 Trellops. <a href="privacy.html">Privacy Policy</a></p>
     </footer>
 
+    <script>
+        if (window.location.hostname !== 'trellops.xyz') {
+            var banner = document.createElement('div');
+            banner.innerText = 'PREVIEW ENVIRONMENT';
+            banner.style.width = '100%';
+            banner.style.backgroundColor = '#003366';
+            banner.style.color = '#ffffff';
+            banner.style.textAlign = 'center';
+            banner.style.padding = '4px 0';
+            banner.style.fontSize = '12px';
+            banner.style.fontWeight = 'bold';
+            banner.style.letterSpacing = '1px';
+            banner.style.position = 'relative';
+            banner.style.zIndex = '9999';
+            document.body.insertBefore(banner, document.body.firstChild);
+        }
+    </script>
 </body>
 
 </html>
