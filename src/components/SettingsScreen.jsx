@@ -1118,6 +1118,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     </div>
                                 </div>
                             </div>
+                        ) : (
                             <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
                         )}
 
