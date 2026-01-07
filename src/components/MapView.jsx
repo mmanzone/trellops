@@ -239,7 +239,7 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, p
     return null;
 };
 
-const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
+const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
     const [boardLabels, setBoardLabels] = useState([]); // NEW: Store labels for filter names
@@ -892,6 +892,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                         </span>
                     )}
                     <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
+                    {settings?.enableTaskView && (
+                        <button className="settings-button" onClick={onShowTasks}>Tasks View</button>
+                    )}
                     <button className="refresh-button" onClick={() => {
                         loadData(true);
                         setCountdown(refreshIntervalSeconds);

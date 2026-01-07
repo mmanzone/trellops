@@ -81,6 +81,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [enableCardMove, setEnableCardMove] = useState(false); // NEW
+    const [enableTaskView, setEnableTaskView] = useState(false); // NEW GLOBAL TASK VIEW
     const [enableHomeLocation, setEnableHomeLocation] = useState(false); // NEW HOME LOCATION
     const [homeAddress, setHomeAddress] = useState('');
     const [homeCoordinates, setHomeCoordinates] = useState(null);
@@ -210,6 +211,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
         if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
         if (config.updateTrelloCoordinates !== undefined) setUpdateTrelloCoordinates(config.updateTrelloCoordinates);
+        if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
 
         // Clear pending state
         setPendingImport(null);
@@ -303,6 +305,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 // The request implies "previously saved settings for Board A would come back".
                 // The current persistence saves 'enableMapView' in 'trelloUserData[uid].settings', effectively global/last-used.
                 // To strictly follow "per board settings", we rely on what IS saved per board.
+
+                // Tasks View Logic (Global Setting really, but we load from User Settings or LocalStorage)
+                if (userSettings.enableTaskView !== undefined) setEnableTaskView(userSettings.enableTaskView);
                 // Most map settings ARE per board in local storage keys below.
             }
 
@@ -351,7 +356,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     // Global map enables (legacy fallback or global pref)
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
+                    if (userSettings.enableTaskView !== undefined) setEnableTaskView(userSettings.enableTaskView);
                 }
+
+                // Also check if 'tasks' view was active in previous session or generic settings 
+                // (Actually task view enabled is per user, so userSettings check above is good)
             } catch (e) {
                 console.warn("Error loading settings", e);
             }
@@ -548,7 +557,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                 enableMapView,
                 mapGeocodeMode,
-                enableCardMove: enableCardMove && hasWritePermission
+                enableCardMove: enableCardMove && hasWritePermission,
+                enableTaskView // Add to user settings persistence
             };
 
             const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
@@ -592,7 +602,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             ignoreCompletedCards,
             enableMapView,
             mapGeocodeMode,
-            enableCardMove
+            enableCardMove,
+            enableTaskView
         };
     };
 
@@ -656,6 +667,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
                 if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+                if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
                 alert("Configuration imported! Click Save to persist changes.");
             } catch (err) {
                 console.error(err);
@@ -704,6 +716,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     }}
                 >
                     Map View Settings
+                </button>
+                <button
+                    className={`tab-button ${activeTab === 'tasks' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('tasks')}
+                >
+                    Tasks List
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
@@ -1418,6 +1436,27 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         selectedBoardId={selectedBoardId}
                         boardName={selectedBoard?.name}
                     />
+                )
+            }
+            {
+                activeTab === 'tasks' && (
+                    <div className="tab-content">
+                        <div className="admin-section" id="section-tasks">
+                            <h3>Global Tasks List Settings</h3>
+                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
+                            </p>
+                            <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
+                                <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
+                                <span>Enable Tasks View</span>
+                            </div>
+                            {enableTaskView && (
+                                <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center' }}>
+                                    <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 )
             }
         </div >

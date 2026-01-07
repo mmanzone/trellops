@@ -7,11 +7,12 @@ import LandingPage from './components/common/LandingPage';
 import Dashboard from './components/Dashboard';
 import SettingsScreen from './components/SettingsScreen';
 import MapView from './components/MapView';
+import TaskView from './components/TaskView';
 
 const App = () => {
     const [user, setUser] = useState(null);
     const [settings, setSettings] = useState(null);
-    const [view, setView] = useState('landing'); // 'landing', 'settings', 'dashboard', 'map'
+    const [view, setView] = useState('landing'); // 'landing', 'settings', 'dashboard', 'map', 'tasks'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [settingsTab, setSettingsTab] = useState('dashboard'); // 'dashboard', 'map', 'other'
@@ -144,6 +145,9 @@ const App = () => {
             if (previousView === 'map') {
                 setView('map');
                 window.history.pushState({}, '', '/map');
+            } else if (previousView === 'tasks') {
+                setView('tasks');
+                window.history.pushState({}, '', '/tasks');
             } else {
                 setView('dashboard');
             }
@@ -155,6 +159,9 @@ const App = () => {
         if (previousView === 'map') {
             setView('map');
             window.history.pushState({}, '', '/map');
+        } else if (previousView === 'tasks') {
+            setView('tasks');
+            window.history.pushState({}, '', '/tasks');
         } else {
             setView('dashboard');
             window.history.pushState({}, '', '/');
@@ -192,6 +199,29 @@ const App = () => {
                     window.history.pushState({}, '', '/');
                 }}
                 onLogout={handleLogout}
+                onShowTasks={() => {
+                    setPreviousView('map');
+                    setView('tasks');
+                    window.history.pushState({}, '', '/tasks');
+                }}
+            />
+        );
+    }
+
+    if (view === 'tasks') {
+        return (
+            <TaskView
+                user={user}
+                onClose={() => {
+                    setView('dashboard');
+                    window.history.pushState({}, '', '/');
+                }}
+                onShowSettings={() => {
+                    setPreviousView('tasks');
+                    setSettingsTab('tasks');
+                    setView('settings');
+                }}
+                onLogout={handleLogout}
             />
         );
     }
@@ -211,6 +241,11 @@ const App = () => {
                     setView('settings');
                 }}
                 onLogout={handleLogout}
+                onShowTasks={() => {
+                    setPreviousView('dashboard');
+                    setView('tasks');
+                    window.history.pushState({}, '', '/tasks');
+                }}
             />
         );
     }
@@ -224,7 +259,10 @@ const App = () => {
                 onClose={() => {
                     if (previousView === 'map') {
                         setView('map');
-                        window.history.pushState({}, '', '/map');
+                        window.history.pushState({}, '', '/');
+                    } else if (previousView === 'tasks') {
+                        setView('tasks');
+                        window.history.pushState({}, '', '/tasks');
                     } else {
                         setView('dashboard');
                         window.history.pushState({}, '', '/');

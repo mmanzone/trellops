@@ -11,7 +11,7 @@ import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 
-const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
+const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks }) => {
     const [counts, setCounts] = useState(new Map());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -463,6 +463,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout }) => {
 
                 <span className="countdown">Next refresh in {countdown}s</span>
                 <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
+                {settings?.enableTaskView && (
+                    <button className="settings-button" onClick={onShowTasks}>Tasks View</button>
+                )}
                 {enableMapView && (
                     <button className="settings-button" onClick={() => window.open('/map', '_blank')}>Map View</button>
                 )}
