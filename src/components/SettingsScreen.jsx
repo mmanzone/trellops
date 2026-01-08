@@ -81,6 +81,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [enableCardMove, setEnableCardMove] = useState(false); // NEW
+    const [enableTaskView, setEnableTaskView] = useState(false);
     const [taskViewWorkspaces, setTaskViewWorkspaces] = useState([]); // Array of Org IDs
     const [taskViewRefreshInterval, setTaskViewRefreshInterval] = useState({ value: 5, unit: 'minutes' });
     const [userOrgs, setUserOrgs] = useState([]); // For multi-select
