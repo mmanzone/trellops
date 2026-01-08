@@ -179,7 +179,6 @@ const TILE_LAYERS = {
     'osmhot': { url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors', name: 'OSM Hotspot' },
     'sat': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Satellite (Esri)' },
     'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
-    'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
 };
 
 const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, prevSignatureRef }) => {
@@ -247,6 +246,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
     const [blocks, setBlocks] = useState([]);
+
+    // Footer Dropdowns
+    const [showDashboardDropdown, setShowDashboardDropdown] = useState(false); // NEW
+    const [showTaskDropdown, setShowTaskDropdown] = useState(false); // NEW
 
     // FILTER STATE
     const [visibleListIds, setVisibleListIds] = useState(new Set());
@@ -878,23 +881,51 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             </div>
 
             <div className="map-footer">
-                <div className="map-footer-left">
-                    <span style={{ fontSize: '0.85em', marginRight: '15px', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
+                <div className="map-footer-left" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <span style={{ fontSize: '0.85em', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
                         Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
-                        <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a> |
-                        Geocoding: <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
+                        <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a>
                     </span>
-                </div>
-                <div className="map-footer-right">
                     {countdown !== null && (
-                        <span className="countdown" style={{ marginRight: '15px' }}>
+                        <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                             Next refresh in {countdown}s
                         </span>
                     )}
-                    <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
+                </div>
+                <div className="map-footer-right" style={{ display: 'flex', gap: '15px' }}>
+
+                    {/* DASHBOARD BUTTON */}
+                    <div style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex' }}>
+                            <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
+                            <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
+                                ▼
+                            </button>
+                        </div>
+                        {showDashboardDropdown && (
+                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                <div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* TASKS BUTTON */}
                     {settings?.enableTaskView && (
-                        <button className="settings-button" onClick={onShowTasks}>Tasks View</button>
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ display: 'flex' }}>
+                                <button className="settings-button" onClick={onShowTasks}>Tasks View</button>
+                                <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                    ▼
+                                </button>
+                            </div>
+                            {showTaskDropdown && (
+                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                    <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                </div>
+                            )}
+                        </div>
                     )}
+
                     <button className="refresh-button" onClick={() => {
                         loadData(true);
                         setCountdown(refreshIntervalSeconds);
@@ -907,6 +938,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     <button className="logout-button" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
+
+            {/* Click Outside to Close Dropdowns */}
+            {(showDashboardDropdown || showTaskDropdown) && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => { setShowDashboardDropdown(false); setShowTaskDropdown(false); }} />
+            )}
 
             {status && (
                 <div className="status-message">

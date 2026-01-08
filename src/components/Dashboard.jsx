@@ -286,17 +286,13 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* HEADER - Updated to match MapView/TaskView style */}
             <div className="map-header" style={headerStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    {showClock && <DigitalClock boardId={boardId} compact={true} />}
                     <h2 style={{ margin: 0, fontSize: '1.2em', display: 'flex', alignItems: 'center' }}>
                         {boardName} <span style={{ fontSize: '0.8em', fontWeight: 'normal', color: 'var(--text-secondary)', marginLeft: '8px' }}>{filterLabel}</span>
                     </h2>
-                    <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginLeft: '10px' }}>
-                        {user.fullName || user.username}
-                    </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {showClock && <DigitalClock boardId={boardId} compact={true} />} {/* Assuming DigitalClock can be compact or styled via CSS */}
-
                     <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
                         {Object.keys(TIME_FILTERS).map(key => (
                             <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
@@ -376,58 +372,61 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* Footer Action Bar */}
             <div className="footer-action-bar" style={{
                 display: 'flex',
-                justifyContent: 'center',
-                gap: '15px',
-                padding: '10px',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 20px',
                 background: 'var(--bg-secondary)',
                 borderTop: '1px solid var(--border-color, #ccc)',
                 position: 'relative',
                 zIndex: 100
             }}>
 
-                <span className="countdown" style={{ position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8em', color: 'var(--text-secondary)' }}>
+                <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                     Next refresh in {countdown}s
                 </span>
-                <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
 
-                {settings?.enableTaskView && (
-                    <div style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex' }}>
-                            <button className="settings-button" onClick={onShowTasks}>
-                                Tasks View
-                            </button>
-                            <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                ▼
-                            </button>
-                        </div>
-                        {showTaskDropdown && (
-                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                    <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
+
+                    {settings?.enableTaskView && (
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ display: 'flex' }}>
+                                <button className="settings-button" onClick={onShowTasks}>
+                                    Tasks View
+                                </button>
+                                <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                    ▼
+                                </button>
                             </div>
-                        )}
-                    </div>
-                )}
-
-                {enableMapView && (
-                    <div style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex' }}>
-                            <button className="settings-button" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
-                                Map View
-                            </button>
-                            <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
-                                ▼
-                            </button>
+                            {showTaskDropdown && (
+                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                    <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                </div>
+                            )}
                         </div>
-                        {showMapDropdown && (
-                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                <div className="menu-item" onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                    )}
 
-                <button className="settings-button" onClick={onShowSettings}>Settings</button>
-                <button className="logout-button" onClick={onLogout}>Log Out</button>
+                    {enableMapView && (
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ display: 'flex' }}>
+                                <button className="settings-button" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
+                                    Map View
+                                </button>
+                                <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
+                                    ▼
+                                </button>
+                            </div>
+                            {showMapDropdown && (
+                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                    <div className="menu-item" onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <button className="settings-button" onClick={onShowSettings}>Settings</button>
+                    <button className="logout-button" onClick={onLogout}>Log Out</button>
+                </div>
             </div>
 
             {/* Click Outside to Close Dropdowns */}

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trellops User Guide</title>
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent: #00c6ff;
+            --border: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+        }
+
+        nav {
+            margin-bottom: 40px;
+        }
+
+        nav a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #aaa;
+            font-size: 1.2em;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid var(--border);
+            margin: 40px 0;
+        }
+
+        section {
+            max-width: 800px;
+            margin: 0 auto 40px;
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 12px;
+        }
+
+        h2 {
+            color: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-top: 0;
+        }
+
+        h3 {
+            color: #fff;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        ul,
+        ol {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        blockquote {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+            padding: 15px;
+            color: #ffd54f;
+        }
+
+        footer {
+            margin-top: 60px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        .video-embed {
+            margin-top: 20px;
+            background: black;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            section {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <a href="index.html">← Home</a>
+    </nav>
+
+    <header>
+        <h1>Trellops User Guide</h1>
+        <p class="subtitle">From initial setup to advanced mapping—everything you need to know.</p>
+        <p>Quick links: <a href="#getting-started">Getting Started</a> · <a href="#dashboard-setup">Dashboard Setup</a>
+            · <a href="#map-view">Map View</a> · <a href="#advanced">Advanced Tips</a> · <a href="#sharing">Sharing</a>
+        </p>
+    </header>
+
+    <hr>
+
+    <section id="getting-started">
+        <h2>Getting Started & Privacy</h2>
+
+        <h3>How to Login</h3>
+        <p>To use Trellops, simply log in with your existing Atlassian Trello user account. You will be asked to grant
+            permission for Trellops to access your boards.</p>
+
+        <h3>Privacy & Permissions</h3>
+        <ul>
+            <li><strong>Local Storage:</strong> generally, Trellops follows a "Local First" policy. None of the
+                information you enter is stored on our servers; everything stays local on your computer.</li>
+            <li><strong>Read vs. Write Access:</strong> By default, Trellops only requires "Read" permissions to display
+                your dashboard. However, if you wish to use the <strong>Map View</strong> to move cards between lists,
+                you will be prompted to re-login and grant "Write" permissions.</li>
+            <li><strong>Server Storage Exception:</strong> If you choose to share your configuration via a "Unique
+                Link," we must store the technical skeleton of your layout (Board IDs, Block names) on our server to
+                make the link work. No card content is stored.</li>
+        </ul>
+    </section>
+
+    <hr>
+
+    <section id="dashboard-setup">
+        <h2>Setting up your Dashboard</h2>
+        <p>Once you select a board, head to the <strong>Settings</strong> menu. The interface is now split into three
+            tabs: <em>Dashboard</em>, <em>Map</em>, and <em>Other</em>.</p>
+
+        <h3>1. Creating Blocks (The Dashboard Tab)</h3>
+        <p>A "Block" is a collection of list tiles that you group together. This allows you to organise your board
+            logically (e.g., "Backlog," "Sprint," "Completed") rather than just alphabetically.</p>
+        <ul>
+            <li><strong>Create & Name:</strong> Create as many blocks as you need and give them meaningful names.</li>
+            <li><strong>Hide/Show:</strong> You can temporarily hide a whole block from the main dashboard if you don't
+                need to see it (e.g., hiding the "Done" column to focus on active work).</li>
+        </ul>
+
+        <h3>2. Configuring Tiles</h3>
+        <p>Your Trello lists appear as "Tiles." You can now use the new <strong>Drag-and-Drop</strong> interface to
+            organise them:</p>
+        <ul>
+            <li><strong>Assigning Lists:</strong> Drag a list from the "Unassigned" area into any Block you created.
+            </li>
+            <li><strong>Reordering:</strong> Want "Urgent" at the top? Simply drag the tile up or down to change the
+                order.</li>
+            <li><strong>Colour Coding:</strong> Click on any tile to assign a specific colour (e.g., Red for bugs, Green
+                for finished items). If you don't choose a colour, we will assign a random one for you.</li>
+        </ul>
+    </section>
+
+    <hr>
+
+    <section id="map-view">
+        <h2>Using the Map View (New!)</h2>
+        <p>Visualise your workload geographically. This feature automatically plots your cards onto a map based on their
+            location data.</p>
+
+        <h3>How it Works</h3>
+        <p>Trellops looks for location data in your cards in two ways:</p>
+        <ol>
+            <li><strong>Coordinates (Preferred):</strong> If a card has latitude/longitude stored in it, it plots
+                instantly.</li>
+            <li><strong>Address Decoding:</strong> If no coordinates are found, Trellops reads the card's
+                <strong>description field</strong>. If it finds an address, it uses the <em>Nominatim</em> service to
+                find the location.
+            </li>
+        </ol>
+
+        <blockquote>
+            <strong>⚠️ Important Note on Speed:</strong> The Nominatim service limits requests to <strong>one address
+                per second</strong>. If you open a map with 50 new addresses, it will take about 50 seconds to fully
+            populate. We cache these locations on your browser, so the <em>next</em> time you load the map, it will be
+            instant!
+        </blockquote>
+
+        <h3>Map Features</h3>
+        <ul>
+            <li><strong>Custom Icons:</strong> In the <em>Map Settings</em> tab, you can assign unique icons to
+                different Blocks.</li>
+            <li><strong>Icon Overrides:</strong> You can set specific icons to trigger based on Trello labels (e.g., a
+                "Fire" icon for any card with a "Urgent" label).</li>
+            <li><strong>Home Address:</strong> Set a "Home Address" to mark your HQ or office location on the map.</li>
+            <li><strong>Move Cards:</strong> You can drag a card from one location to another list directly on the map
+                (Requires "Write" permission).</li>
+        </ul>
+    </section>
+
+    <hr>
+
+    <section id="advanced">
+        <h2>Advanced Configuration & Filtering</h2>
+
+        <h3>Handling "Description Cards"</h3>
+        <p>Sometimes, the first card in a Trello list isn't a task—it's a set of instructions or a header. This makes
+            the total card count inaccurate. You can fix this in the <strong>Advanced Settings</strong> for that
+            specific tile:</p>
+        <ul>
+            <li><strong>Don't Count First Card:</strong> Tells Trellops to ignore the first card so your total reflects
+                actual work items.</li>
+            <li><strong>Display as Description:</strong> You can choose to display the text of that first card on the
+                dashboard tile, acting as a header or instruction for your team.</li>
+        </ul>
+
+        <h3>Dashboard Extras</h3>
+        <ul>
+            <li><strong>Time Filtering:</strong> Use the filter menu to show only cards created "This Week" or "Last
+                Week" to spot recent trends.</li>
+            <li><strong>Digital Clock:</strong> Enable a large digital clock in the top-left corner—perfect for
+                wall-mounted displays.</li>
+            <li><strong>Themes:</strong> Manually switch between Light and Dark mode, or let it follow your system
+                settings.</li>
+            <li><strong>Clear Cache:</strong> If you need to reset everything, use the "Clear local storage" button in
+                the "Other" settings tab. <em>Warning: This erases all saved configurations.</em></li>
+        </ul>
+    </section>
+
+    <hr>
+
+    <section id="sharing">
+        <h2>Sharing Your Configuration</h2>
+        <p>You can share your perfect dashboard setup with colleagues so they don't have to build it from scratch.</p>
+
+        <h3>Option 1: Share via Link (New)</h3>
+        <p>Click "Share Configuration" to generate a unique link. Send this to a colleague, and when they open it, their
+            Trellops will load your exact layout (Board IDs, Blocks, and settings).</p>
+
+        <h3>Option 2: Export to File</h3>
+        <p>For a purely local options, you can "Export configuration to a file". Your colleague can then use the
+            "Import" function to load that file directly into their browser.</p>
+    </section>
+
+    <hr>
+
+    <section id="video-walkthrough">
+        <h2>Video Walkthrough</h2>
+        <p>Watch a brief overview of the Trellops features.</p>
+        <div class="video-embed">
+            <div class="sp-embed-player" data-id="cTXq3anqlqS" data-aspect-ratio="1.825352"
+                data-padding-top="54.783951%" style="position:relative;width:100%;aspect-ratio:1.825352;">
+                <script src="https://go.screenpal.com/consumption/player_appearance/cTXq3anqlqS/1.825352"></script>
+                <iframe style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" scrolling="no"
+                    src="https://go.screenpal.com/player/cTXq3anqlqS?ff=1&title=0" allowfullscreen="true"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 Trellops. <a href="privacy.html">Privacy Policy</a></p>
+    </footer>
+
+    <script>
+        if (window.location.hostname !== 'trellops.xyz') {
+            var banner = document.createElement('div');
+            banner.innerText = 'PREVIEW ENVIRONMENT';
+            banner.style.width = '100%';
+            banner.style.backgroundColor = '#003366';
+            banner.style.color = '#ffffff';
+            banner.style.textAlign = 'center';
+            banner.style.padding = '4px 0';
+            banner.style.fontSize = '12px';
+            banner.style.fontWeight = 'bold';
+            banner.style.letterSpacing = '1px';
+            banner.style.position = 'relative';
+            banner.style.zIndex = '9999';
+            document.body.insertBefore(banner, document.body.firstChild);
+        }
+    </script>
+</body>
+
+</html>

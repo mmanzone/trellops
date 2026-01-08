@@ -82,7 +82,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [enableCardMove, setEnableCardMove] = useState(false); // NEW
     const [enableTaskView, setEnableTaskView] = useState(false);
-    const [taskViewWorkspaces, setTaskViewWorkspaces] = useState([]); // Array of Org IDs
+    const [taskViewWorkspaces, setTaskViewWorkspaces] = useState(null); // Array of Org IDs (null = all default pending)
     const [taskViewRefreshInterval, setTaskViewRefreshInterval] = useState({ value: 5, unit: 'minutes' });
     const [userOrgs, setUserOrgs] = useState([]); // For multi-select
 
@@ -134,7 +134,18 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (activeTab === 'tasks') {
             if (userOrgs.length === 0 && user && user.token) {
                 trelloFetch('/members/me/organizations?fields=id,displayName,name', user.token)
-                    .then(orgs => setUserOrgs(orgs))
+                    .then(orgs => {
+                        setUserOrgs(orgs);
+                        // Default to ALL if not set (null or empty from init, but null distinguishes initial load)
+                        if (taskViewWorkspaces === null || (Array.isArray(taskViewWorkspaces) && taskViewWorkspaces.length === 0)) {
+                            // Note: If user saved specifically "empty", it might contest this.
+                            // But since we just changed init to null, saved "[]" would be loaded as "[]".
+                            // So if strictly null, we default.
+                            if (taskViewWorkspaces === null) {
+                                setTaskViewWorkspaces(orgs.map(o => o.id));
+                            }
+                        }
+                    })
                     .catch(e => console.warn("Failed to fetch orgs for settings", e));
             }
         }
