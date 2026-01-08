@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { STORAGE_KEYS } from '../../utils/constants';
 
-const DigitalClock = ({ boardId }) => {
+const DigitalClock = ({ boardId, compact = false }) => {
     const [time, setTime] = useState('');
     const [showClock, setShowClock] = useState(() => localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false');
 
@@ -22,7 +22,7 @@ const DigitalClock = ({ boardId }) => {
     if (!showClock) return null;
 
     return (
-        <div className="large-clock">
+        <div className={compact ? "compact-clock" : "large-clock"} style={compact ? { fontSize: '1.2em', fontWeight: 'bold', color: 'var(--text-primary)' } : {}}>
             {time || '--:--:--'}
         </div>
     );

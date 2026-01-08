@@ -37,10 +37,12 @@ const App = () => {
             }
         }
 
-        // 1. Check for Map route first
-        if (window.location.pathname === '/map') {
-            setView('map');
-        }
+        // 1. Initial Route check
+        const path = window.location.pathname;
+        if (path === '/map') setView('map');
+        else if (path === '/tasks') setView('tasks');
+        else if (path === '/settings') setView('settings');
+        // else default to landing (or dashboard if logged in logic below decides)
 
         const tokenFromUrl = trelloAuth.getTokenFromUrl();
         if (tokenFromUrl) {
@@ -53,11 +55,16 @@ const App = () => {
                 if (userSession && userSession.token) {
                     handleLoginSuccess(userSession.token);
                 } else {
-                    if (window.location.pathname !== '/map') setView('landing');
+                    // Not logged in
+                    if (path !== '/map') setView('landing');
+                    // Note: forcing landing if not map. Maybe map needs public access? 
+                    // Current logic implies Map can be viewed? No, Map requires login usually.
+                    // But existing code allowed Map to set View 'map'. 
+                    // Let's keep existing behavior for Map but apply for logical routes.
                     setLoading(false);
                 }
             } else {
-                if (window.location.pathname !== '/map') setView('landing');
+                if (path !== '/map') setView('landing');
                 setLoading(false);
             }
         }
@@ -77,7 +84,8 @@ const App = () => {
         setError('');
         try {
             const member = await trelloFetch('/members/me', token);
-            const userData = { id: member.id, username: member.username, token: token };
+            // STORE FULL NAME
+            const userData = { id: member.id, username: member.username, fullName: member.fullName, token: token };
 
             // Store user session data
             setUserData(member.id, 'token', token);
@@ -87,19 +95,34 @@ const App = () => {
             setUser(userData);
 
             const savedSettings = getUserData(member.id, 'settings');
-            // Only switch to dashboard if we aren't already on map view
-            if (window.location.pathname !== '/map') {
+
+            // ROUTING LOGIC POST-LOGIN
+            const path = window.location.pathname;
+
+            // If explicit route, honour it
+            if (path === '/map') {
+                if (savedSettings && savedSettings.boardId) setSettings(savedSettings); // Load settings if avail
+                setView('map');
+            } else if (path === '/tasks') {
+                if (savedSettings && savedSettings.boardId) setSettings(savedSettings);
+                setView('tasks');
+            } else if (path === '/settings') {
+                if (savedSettings && savedSettings.boardId) setSettings(savedSettings);
+                setView('settings');
+            } else {
+                // Default handling for Root '/' or unknown
                 if (savedSettings && savedSettings.boardId) {
                     setSettings(savedSettings);
                     setView('dashboard');
+                    // Ensure URL reflects dashboard if implicit
+                    // window.history.replaceState({}, '', '/dashboard'); // Optional: User wants explicit URL?
                 } else {
                     setView('settings');
+                    window.history.replaceState({}, '', '/settings');
                 }
-            } else {
-                // If on map view, ensure settings are loaded
-                // We don't change view, just state
-                if (savedSettings) setSettings(savedSettings);
             }
+
+            if (savedSettings) setSettings(savedSettings);
 
             // CHECK FOR PENDING CONFIG
             const pendingConfig = localStorage.getItem('PENDING_SHARE_CONFIG');
@@ -134,149 +157,167 @@ const App = () => {
         setUser(null);
         setSettings(null);
         setView('landing');
-        setPreviousView(null);
-        trelloAuth.logout();
-    };
+    }
+};
 
-    const handleSaveSettings = (newSettings) => {
-        if (!newSettings) {
-            // Handle clear config or cancel
-            setSettings(null);
-            if (previousView === 'map') {
-                setView('map');
-                window.history.pushState({}, '', '/map');
-            } else if (previousView === 'tasks') {
+const handleLogout = () => {
+    if (user) {
+        setUserData(user.id, 'token', null);
+    }
+    setCurrentUser(null);
+    setUser(null);
+    setSettings(null);
+    setView('landing');
+    setPreviousView(null);
+    trelloAuth.logout();
+};
+
+const handleSaveSettings = (newSettings) => {
+    if (!newSettings) {
+        // Handle clear config or cancel -> behave like close
+        // Fallthrough to navigate back
+    } else {
+        setSettings(newSettings);
+    }
+
+    // Return to previous view
+    if (previousView === 'map') {
+        setView('map');
+        window.history.pushState({}, '', '/map');
+    } else if (previousView === 'tasks') {
+        setView('tasks');
+        window.history.pushState({}, '', '/tasks');
+    } else {
+        setView('dashboard');
+        window.history.pushState({}, '', '/dashboard');
+    }
+};
+
+if (loading) {
+    return <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Initializing Trellops...</div>;
+}
+
+if (error) {
+    return (
+        <div className="container">
+            <div className="error" style={{ textAlign: 'center', marginTop: '50px' }}>{error}</div>
+            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                <button className="settings-button" onClick={() => { setError(''); setView('landing'); }}>Go to Login</button>
+            </div>
+        </div>
+    );
+}
+
+if (view === 'map') {
+    return (
+        <MapView
+            user={user}
+            settings={settings}
+            onClose={() => {
+                setView('dashboard');
+                window.history.pushState({}, '', '/dashboard');
+            }}
+            onShowSettings={() => {
+                setPreviousView('map');
+                setSettingsTab('map');
+                setView('settings');
+                window.history.pushState({}, '', '/settings');
+            }}
+            onLogout={handleLogout}
+            onShowTasks={() => {
+                setPreviousView('map');
                 setView('tasks');
                 window.history.pushState({}, '', '/tasks');
-            } else {
+            }}
+        />
+    );
+}
+
+if (view === 'tasks') {
+    return (
+        <TaskView
+            user={user}
+            settings={settings}
+            onClose={() => {
                 setView('dashboard');
-            }
-            return;
-        }
-        setSettings(newSettings);
+                window.history.pushState({}, '', '/dashboard');
+            }}
+            onMainView={() => { // Alias for onClose/Dashboard
+                setView('dashboard');
+                window.history.pushState({}, '', '/dashboard');
+            }}
+            onShowSettings={() => {
+                setPreviousView('tasks');
+                setSettingsTab('tasks');
+                setView('settings');
+                window.history.pushState({}, '', '/settings');
+            }}
+            onShowMap={() => {
+                setPreviousView('tasks');
+                setView('map');
+                window.history.pushState({}, '', '/map');
+            }}
+            onLogout={handleLogout}
+        />
+    );
+}
 
-        // Return to previous view
-        if (previousView === 'map') {
-            setView('map');
-            window.history.pushState({}, '', '/map');
-        } else if (previousView === 'tasks') {
-            setView('tasks');
-            window.history.pushState({}, '', '/tasks');
-        } else {
-            setView('dashboard');
-            window.history.pushState({}, '', '/');
-        }
-    };
-
-    if (loading) {
-        return <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Initializing Trellops...</div>;
-    }
-
-    if (error) {
-        return (
-            <div className="container">
-                <div className="error" style={{ textAlign: 'center', marginTop: '50px' }}>{error}</div>
-                <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                    <button className="settings-button" onClick={() => { setError(''); setView('landing'); }}>Go to Login</button>
-                </div>
-            </div>
-        );
-    }
-
-    if (view === 'map') {
-        return (
-            <MapView
-                user={user}
-                settings={settings}
-                onClose={() => {
-                    setView('dashboard');
-                    window.history.pushState({}, '', '/');
-                }}
-                onShowSettings={() => {
-                    setPreviousView('map');
-                    setSettingsTab('map');
-                    setView('settings');
-                    window.history.pushState({}, '', '/');
-                }}
-                onLogout={handleLogout}
-                onShowTasks={() => {
-                    setPreviousView('map');
-                    setView('tasks');
-                    window.history.pushState({}, '', '/tasks');
-                }}
-            />
-        );
-    }
-
-    if (view === 'tasks') {
-        return (
-            <TaskView
-                user={user}
-                settings={settings}
-                onClose={() => {
-                    setView('dashboard');
-                    window.history.pushState({}, '', '/');
-                }}
-                onShowSettings={() => {
-                    setPreviousView('tasks');
-                    setSettingsTab('tasks');
-                    setView('settings');
-                }}
-                onLogout={handleLogout}
-            />
-        );
-    }
-
-    if (view === 'landing') {
-        return <LandingPage />;
-    }
-
-    if (view === 'dashboard') {
-        return (
-            <Dashboard
-                user={user}
-                settings={settings}
-                onShowSettings={() => {
-                    setPreviousView('dashboard');
-                    setSettingsTab('dashboard');
-                    setView('settings');
-                }}
-                onLogout={handleLogout}
-                onShowTasks={() => {
-                    setPreviousView('dashboard');
-                    setView('tasks');
-                    window.history.pushState({}, '', '/tasks');
-                }}
-            />
-        );
-    }
-
-    if (view === 'settings') {
-        return (
-            <SettingsScreen
-                user={user}
-                initialTab={settingsTab}
-                onSave={handleSaveSettings}
-                onClose={() => {
-                    if (previousView === 'map') {
-                        setView('map');
-                        window.history.pushState({}, '', '/');
-                    } else if (previousView === 'tasks') {
-                        setView('tasks');
-                        window.history.pushState({}, '', '/tasks');
-                    } else {
-                        setView('dashboard');
-                        window.history.pushState({}, '', '/');
-                    }
-                }}
-                onLogout={handleLogout}
-                importedConfig={importConfig}
-                onClearImportConfig={() => setImportConfig(null)}
-            />
-        );
-    }
-
+if (view === 'landing') {
     return <LandingPage />;
+}
+
+if (view === 'dashboard') {
+    return (
+        <Dashboard
+            user={user}
+            settings={settings}
+            onShowSettings={() => {
+                setPreviousView('dashboard');
+                setSettingsTab('dashboard');
+                setView('settings');
+                window.history.pushState({}, '', '/settings');
+            }}
+            onLogout={handleLogout}
+            onShowTasks={() => {
+                setPreviousView('dashboard');
+                setView('tasks');
+                window.history.pushState({}, '', '/tasks');
+            }}
+            onShowMap={() => {
+                setPreviousView('dashboard');
+                setView('map');
+                window.history.pushState({}, '', '/map');
+            }}
+        />
+    );
+}
+
+if (view === 'settings') {
+    return (
+        <SettingsScreen
+            user={user}
+            initialTab={settingsTab}
+            onSave={handleSaveSettings}
+            onClose={() => {
+                if (previousView === 'map') {
+                    setView('map');
+                    window.history.pushState({}, '', '/map');
+                } else if (previousView === 'tasks') {
+                    setView('tasks');
+                    window.history.pushState({}, '', '/tasks');
+                } else {
+                    setView('dashboard');
+                    window.history.pushState({}, '', '/dashboard');
+                }
+            }}
+            onLogout={handleLogout}
+            importedConfig={importConfig}
+            onClearImportConfig={() => setImportConfig(null)}
+        />
+    );
+}
+
+return <LandingPage />;
 };
 
 export default App;
