@@ -212,6 +212,7 @@ const App = () => {
         return (
             <TaskView
                 user={user}
+                settings={settings}
                 onClose={() => {
                     setView('dashboard');
                     window.history.pushState({}, '', '/');

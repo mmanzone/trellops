@@ -81,7 +81,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [enableCardMove, setEnableCardMove] = useState(false); // NEW
-    const [enableTaskView, setEnableTaskView] = useState(false); // NEW GLOBAL TASK VIEW
+    const [taskViewWorkspaces, setTaskViewWorkspaces] = useState([]); // Array of Org IDs
+    const [taskViewRefreshInterval, setTaskViewRefreshInterval] = useState({ value: 5, unit: 'minutes' });
+    const [userOrgs, setUserOrgs] = useState([]); // For multi-select
+
     const [enableHomeLocation, setEnableHomeLocation] = useState(false); // NEW HOME LOCATION
     const [homeAddress, setHomeAddress] = useState('');
     const [homeCoordinates, setHomeCoordinates] = useState(null);
@@ -124,6 +127,17 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             });
         }
     }, [user, importedConfig]);
+
+    // Fetch Orgs for Tasks Dashboard if needed
+    useEffect(() => {
+        if (activeTab === 'tasks') {
+            if (userOrgs.length === 0 && user && user.token) {
+                trelloFetch('/members/me/organizations?fields=id,displayName,name', user.token)
+                    .then(orgs => setUserOrgs(orgs))
+                    .catch(e => console.warn("Failed to fetch orgs for settings", e));
+            }
+        }
+    }, [activeTab, user, userOrgs.length]);
 
     // CLICK OUTSIDE HANDLER
     useEffect(() => {
@@ -212,6 +226,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
         if (config.updateTrelloCoordinates !== undefined) setUpdateTrelloCoordinates(config.updateTrelloCoordinates);
         if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
+        if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
+        if (config.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(config.taskViewRefreshInterval);
+
 
         // Clear pending state
         setPendingImport(null);
@@ -306,8 +323,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 // The current persistence saves 'enableMapView' in 'trelloUserData[uid].settings', effectively global/last-used.
                 // To strictly follow "per board settings", we rely on what IS saved per board.
 
-                // Tasks View Logic (Global Setting really, but we load from User Settings or LocalStorage)
+                // Tasks View Logic
                 if (userSettings.enableTaskView !== undefined) setEnableTaskView(userSettings.enableTaskView);
+                if (userSettings.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(userSettings.taskViewWorkspaces);
+                if (userSettings.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(userSettings.taskViewRefreshInterval);
+
                 // Most map settings ARE per board in local storage keys below.
             }
 
@@ -357,6 +377,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
                     if (userSettings.enableTaskView !== undefined) setEnableTaskView(userSettings.enableTaskView);
+                    if (userSettings.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(userSettings.taskViewWorkspaces);
+                    if (userSettings.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(userSettings.taskViewRefreshInterval);
+
                 }
 
                 // Also check if 'tasks' view was active in previous session or generic settings 
@@ -558,7 +581,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 enableMapView,
                 mapGeocodeMode,
                 enableCardMove: enableCardMove && hasWritePermission,
-                enableTaskView // Add to user settings persistence
+                enableTaskView,
+                taskViewWorkspaces,
+                taskViewRefreshInterval
+
             };
 
             const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
@@ -603,7 +629,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             enableMapView,
             mapGeocodeMode,
             enableCardMove,
-            enableTaskView
+            enableTaskView,
+            taskViewWorkspaces,
+            taskViewRefreshInterval
+
         };
     };
 
@@ -668,7 +697,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
                 if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
                 if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
+                if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
+                if (config.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(config.taskViewRefreshInterval);
                 alert("Configuration imported! Click Save to persist changes.");
+
             } catch (err) {
                 console.error(err);
                 alert("Failed to parse configuration file.");
@@ -718,17 +750,18 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     Map View Settings
                 </button>
                 <button
-                    className={`tab-button ${activeTab === 'tasks' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('tasks')}
-                >
-                    Tasks List
-                </button>
-                <button
                     className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
                     onClick={() => setActiveTab('other')}
                 >
                     Other Settings
                 </button>
+                <button
+                    className={`tab-button ${activeTab === 'tasks' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('tasks')}
+                >
+                    Tasks Dashboard
+                </button>
+
             </div>
 
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
@@ -1406,6 +1439,86 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
 
+            {
+                activeTab === 'tasks' && (
+                    <div className="tab-content">
+                        <div className="admin-section" id="section-tasks">
+                            <h3>Global Tasks List Settings</h3>
+                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
+                            </p>
+                            <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
+                                <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
+                                <span>Enable Tasks View</span>
+                            </div>
+
+                            {enableTaskView && (
+                                <>
+                                    <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                                        <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
+                                    </div>
+
+                                    {/* Workspace Selection */}
+                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                        <label className="setting-label">Workspaces to Include (optional)</label>
+                                        <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
+                                            Select which workspaces to show tasks from. If none selected, ALL workspaces are shown.
+                                        </div>
+                                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
+                                            {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
+                                                userOrgs.map(org => (
+                                                    <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`ws-${org.id}`}
+                                                            checked={taskViewWorkspaces.includes(org.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setTaskViewWorkspaces([...taskViewWorkspaces, org.id]);
+                                                                } else {
+                                                                    setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
+                                                                }
+                                                            }}
+                                                            style={{ marginRight: '8px' }}
+                                                        />
+                                                        <label htmlFor={`ws-${org.id}`} style={{ cursor: 'pointer' }}>{org.displayName}</label>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    </div>
+
+                                    {/* Refresh Interval */}
+                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                        <label className="setting-label">Auto-Refresh Interval</label>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={taskViewRefreshInterval.value}
+                                                onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
+                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            />
+                                            <select
+                                                value={taskViewRefreshInterval.unit}
+                                                onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
+                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            >
+                                                <option value="minutes">Minutes</option>
+                                                <option value="hours">Hours</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
+                                            Minimum 1 minute.
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )
+            }
+
             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>
                     v4.1.{__BUILD_ID__ || 1000} - Jan 05, 2026
@@ -1436,27 +1549,6 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         selectedBoardId={selectedBoardId}
                         boardName={selectedBoard?.name}
                     />
-                )
-            }
-            {
-                activeTab === 'tasks' && (
-                    <div className="tab-content">
-                        <div className="admin-section" id="section-tasks">
-                            <h3>Global Tasks List Settings</h3>
-                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
-                            </p>
-                            <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
-                                <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
-                                <span>Enable Tasks View</span>
-                            </div>
-                            {enableTaskView && (
-                                <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center' }}>
-                                    <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 )
             }
         </div >
