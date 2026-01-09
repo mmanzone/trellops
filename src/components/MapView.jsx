@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
+import { formatCountdown } from '/src/utils/timeUtils';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '/src/styles/map.css';
@@ -897,7 +898,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     {countdown !== null && (
                         <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
-                            Next refresh in {countdown}s
+                            Next refresh in {formatCountdown(countdown)}
                         </span>
                     )}
 

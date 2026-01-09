@@ -502,7 +502,10 @@ const MultiSelectFilter = ({ label, options, selectedIds, onChange }) => {
                     alignItems: 'center',
                     gap: '6px',
                     padding: '6px 12px',
-                    fontSize: '0.9em'
+                    fontSize: '0.9em',
+                    backgroundColor: theme === 'dark' ? 'var(--bg-secondary)' : '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)'
                 }}
             >
                 {label}
