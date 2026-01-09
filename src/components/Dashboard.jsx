@@ -107,6 +107,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
         const ignoreTemplateCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
         const ignoreCompletedCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+        const ignoreNoDescCardsSetting = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true';
 
         if (uniqueListIds.size === 0) {
             setCounts(new Map());
@@ -116,7 +117,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
         try {
             const allCards = await trelloFetch(
-                `/boards/${boardId}/cards?fields=id,idList,pos,name,isTemplate,dateLastActivity,dueComplete`,
+                `/boards/${boardId}/cards?fields=id,idList,pos,name,desc,start,isTemplate,dateLastActivity,dueComplete`,
                 user.token
             );
 
@@ -148,6 +149,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             const cardsForProcessing = allCards.filter(c => {
                 if (ignoreTemplateCardsSetting && c.isTemplate) return false;
                 if (ignoreCompletedCardsSetting && c.dueComplete) return false;
+                if (ignoreNoDescCardsSetting && (!c.desc || !c.desc.trim())) return false;
                 if (sinceDate || beforeDate) {
                     const cardDate = new Date(c.dateLastActivity);
                     if (sinceDate && cardDate < sinceDate) return false;
@@ -174,6 +176,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 const result = listResults[listId] || { count: 0 };
                 let finalCount = result.count;
                 let descriptionCardName = '';
+                let descriptionCardStart = null;
 
                 if (isIgnored) {
                     const firstCard = firstCardMap.get(listId);
@@ -184,6 +187,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         }
                         if (displayDescription) {
                             descriptionCardName = firstCard.name;
+                            if (firstCard.start) descriptionCardStart = firstCard.start;
                         }
                     }
                 }
@@ -199,7 +203,8 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     count: finalCount,
                     name: listData?.name,
                     displayColor: color,
-                    firstCardName: descriptionCardName
+                    firstCardName: descriptionCardName,
+                    firstCardStart: descriptionCardStart
                 });
             });
 
@@ -346,7 +351,14 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                             <div className="card-count">{item.count}</div>
                                             <div className="list-name">{item.name}</div>
                                             {item.firstCardName && (
-                                                <div className="card-description" title={item.firstCardName}>{item.firstCardName}</div>
+                                                <div className="card-description" title={item.firstCardName}>
+                                                    {item.firstCardName}
+                                                    {item.firstCardStart && (
+                                                        <div style={{ fontSize: '0.85em', opacity: 0.9, marginTop: '4px' }}>
+                                                            Start: {new Date(item.firstCardStart).toLocaleString('en-AU', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     ))}

@@ -75,6 +75,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [showClock, setShowClock] = useState(true);
     const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(true);
     const [ignoreCompletedCards, setIgnoreCompletedCards] = useState(false);
+    const [ignoreNoDescCards, setIgnoreNoDescCards] = useState(false); // NEW
 
     // Map View
     const [enableMapView, setEnableMapView] = useState(false);
@@ -233,6 +234,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (config.showClock !== undefined) setShowClock(config.showClock);
         if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
         if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+        if (config.ignoreNoDescCards !== undefined) setIgnoreNoDescCards(config.ignoreNoDescCards);
         if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
         if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
         if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
@@ -319,6 +321,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId);
             setIgnoreCompletedCards(savedIgnoreCompleted === 'true'); // Default false
+
+            const savedIgnoreNoDesc = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId);
+            setIgnoreNoDescCards(savedIgnoreNoDesc === 'true'); // Default false
 
             // 5. Load Map Config
             const rulesKey = `TRELLO_MARKER_RULES_${boardId}`;
@@ -556,6 +561,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
             localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
             localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
+            localStorage.setItem('IGNORE_NO_DESC_CARDS_' + selectedBoardId, ignoreNoDescCards ? 'true' : 'false');
 
             // 4. Save Map Config
             // 4. Save Map Config
@@ -638,6 +644,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             showClock,
             ignoreTemplateCards,
             ignoreCompletedCards,
+            ignoreNoDescCards,
             enableMapView,
             mapGeocodeMode,
             enableCardMove,
@@ -705,6 +712,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (config.showClock !== undefined) setShowClock(config.showClock);
                 if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
                 if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+                if (config.ignoreNoDescCards !== undefined) setIgnoreNoDescCards(config.ignoreNoDescCards);
                 if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
                 if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
@@ -1031,6 +1039,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     </span>
                                                 </span>
                                             </div>
+                                            <div className="setting-description" style={{ marginTop: '5px' }}>
+                                                When enabled, Trello cards without coordinates will be geocoded using Nominatim (OpenStreetMap).
+                                                Note: <strong>Cards without a description will be skipped.</strong>
+                                            </div>
 
                                             {/* Option 3: Update Trello Cards (Nested with Upsell) */}
                                             <div style={{ marginLeft: '25px', marginBottom: '15px' }}>
@@ -1343,9 +1355,27 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
                                                     <span>Ignore Template Cards</span>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIgnoreCompletedCards(!ignoreCompletedCards)}>
-                                                    <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
-                                                    <span>Ignore Completed Cards</span>
+                                                <div className="setting-item-row">
+                                                    <ToggleSwitch
+                                                        id="ignoreCompletedCards"
+                                                        checked={ignoreCompletedCards}
+                                                        onChange={(e) => setIgnoreCompletedCards(e.target.checked)}
+                                                    />
+                                                    <label htmlFor="ignoreCompletedCards">Ignore Completed Cards (Due Complete)</label>
+                                                </div>
+                                                <div className="setting-item-row">
+                                                    <ToggleSwitch
+                                                        id="ignoreNoDescCards"
+                                                        checked={ignoreNoDescCards}
+                                                        onChange={(e) => setIgnoreNoDescCards(e.target.checked)}
+                                                    />
+                                                    <label htmlFor="ignoreNoDescCards">
+                                                        Ignore Cards without Description
+                                                        <div className="setting-description">
+                                                            If enabled, cards with empty descriptions will not be counted in dashboard or placed on the map.
+                                                            (First card description usage is unaffected).
+                                                        </div>
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>

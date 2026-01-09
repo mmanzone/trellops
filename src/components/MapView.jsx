@@ -215,7 +215,7 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, p
             if (points.length > 0) {
                 const bounds = L.latLngBounds(points);
                 if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50] });
+                    map.fitBounds(bounds, { padding: [80, 80] });
                 }
             }
             prevSignatureRef.current = currentSignature;
@@ -229,7 +229,7 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, p
             if (points.length > 0) {
                 const bounds = L.latLngBounds(points);
                 if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50] });
+                    map.fitBounds(bounds, { padding: [80, 80] });
                 }
             }
         }
@@ -416,6 +416,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
             const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+            const ignoreNoDescCards = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true';
 
             const processedCards = [];
 
@@ -423,6 +424,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 // 1. FILTERING
                 if (ignoreTemplateCards && c.isTemplate) continue;
                 if (ignoreCompletedCards && c.dueComplete) continue;
+                if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) continue;
 
                 // Note: We don't filter by block existence here yet, because some users might 
                 // want to see all geocoded cards even if not in a "Block" (legacy behavior).
@@ -507,6 +509,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             if (mapGeocodeMode === 'disabled') return false;
 
             const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
+
+            // STRICTER CHECK IF NOMINATIM IS USED: Require Description
+            if (mapGeocodeMode === 'store' && (!c.desc || !c.desc.trim())) return false;
+
             if (!addressCandidate) return false;
 
             if (ignoreTemplateCards && c.isTemplate) return false;
