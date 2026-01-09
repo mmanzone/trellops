@@ -75,12 +75,18 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [showClock, setShowClock] = useState(true);
     const [ignoreTemplateCards, setIgnoreTemplateCards] = useState(true);
     const [ignoreCompletedCards, setIgnoreCompletedCards] = useState(false);
+    const [ignoreNoDescCards, setIgnoreNoDescCards] = useState(false); // NEW
 
     // Map View
     const [enableMapView, setEnableMapView] = useState(false);
     const [mapGeocodeMode, setMapGeocodeMode] = useState('store');
     const [updateTrelloCoordinates, setUpdateTrelloCoordinates] = useState(false);
     const [enableCardMove, setEnableCardMove] = useState(false); // NEW
+    const [enableTaskView, setEnableTaskView] = useState(false);
+    const [taskViewWorkspaces, setTaskViewWorkspaces] = useState(null); // Array of Org IDs (null = all default pending)
+    const [taskViewRefreshInterval, setTaskViewRefreshInterval] = useState({ value: 5, unit: 'minutes' });
+    const [userOrgs, setUserOrgs] = useState([]); // For multi-select
+
     const [enableHomeLocation, setEnableHomeLocation] = useState(false); // NEW HOME LOCATION
     const [homeAddress, setHomeAddress] = useState('');
     const [homeCoordinates, setHomeCoordinates] = useState(null);
@@ -101,7 +107,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [error, setError] = useState('');
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [loadingLists, setLoadingLists] = useState(false);
-    const [activeTab, setActiveTab] = useState(initialTab);
+    const [activeTab, setActiveTab] = useState(initialTab === 'tasks' ? 'dashboard' : initialTab); // Default tab for board settings
+    const [expandedSection, setExpandedSection] = useState(initialTab === 'tasks' ? 'tasks' : 'board');
 
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingImport, setPendingImport] = useState(null);
@@ -123,6 +130,28 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             });
         }
     }, [user, importedConfig]);
+
+    // Fetch Orgs for Tasks Dashboard if needed
+    useEffect(() => {
+        if (expandedSection === 'tasks') {
+            if (userOrgs.length === 0 && user && user.token) {
+                trelloFetch('/members/me/organizations?fields=id,displayName,name', user.token)
+                    .then(orgs => {
+                        setUserOrgs(orgs);
+                        // Default to ALL if not set (null or empty from init, but null distinguishes initial load)
+                        if (taskViewWorkspaces === null || (Array.isArray(taskViewWorkspaces) && taskViewWorkspaces.length === 0)) {
+                            // Note: If user saved specifically "empty", it might contest this.
+                            // But since we just changed init to null, saved "[]" would be loaded as "[]".
+                            // So if strictly null, we default.
+                            if (taskViewWorkspaces === null) {
+                                setTaskViewWorkspaces(orgs.map(o => o.id));
+                            }
+                        }
+                    })
+                    .catch(e => console.warn("Failed to fetch orgs for settings", e));
+            }
+        }
+    }, [expandedSection, user, userOrgs.length]);
 
     // CLICK OUTSIDE HANDLER
     useEffect(() => {
@@ -206,10 +235,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (config.showClock !== undefined) setShowClock(config.showClock);
         if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
         if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+        if (config.ignoreNoDescCards !== undefined) setIgnoreNoDescCards(config.ignoreNoDescCards);
         if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
         if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
         if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
         if (config.updateTrelloCoordinates !== undefined) setUpdateTrelloCoordinates(config.updateTrelloCoordinates);
+        if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
+        if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
+        if (config.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(config.taskViewRefreshInterval);
+
 
         // Clear pending state
         setPendingImport(null);
@@ -289,6 +323,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             const savedIgnoreCompleted = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId);
             setIgnoreCompletedCards(savedIgnoreCompleted === 'true'); // Default false
 
+            const savedIgnoreNoDesc = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId);
+            setIgnoreNoDescCards(savedIgnoreNoDesc === 'true'); // Default false
+
             // 5. Load Map Config
             const rulesKey = `TRELLO_MARKER_RULES_${boardId}`;
             const savedRules = localStorage.getItem(rulesKey);
@@ -303,6 +340,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 // The request implies "previously saved settings for Board A would come back".
                 // The current persistence saves 'enableMapView' in 'trelloUserData[uid].settings', effectively global/last-used.
                 // To strictly follow "per board settings", we rely on what IS saved per board.
+
+                // Tasks View Logic
+                if (userSettings.enableTaskView !== undefined) setEnableTaskView(userSettings.enableTaskView);
+                if (userSettings.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(userSettings.taskViewWorkspaces);
+                if (userSettings.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(userSettings.taskViewRefreshInterval);
+
                 // Most map settings ARE per board in local storage keys below.
             }
 
@@ -351,7 +394,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     // Global map enables (legacy fallback or global pref)
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
+                    if (userSettings.enableTaskView !== undefined) setEnableTaskView(userSettings.enableTaskView);
+                    if (userSettings.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(userSettings.taskViewWorkspaces);
+                    if (userSettings.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(userSettings.taskViewRefreshInterval);
+
                 }
+
+                // Also check if 'tasks' view was active in previous session or generic settings 
+                // (Actually task view enabled is per user, so userSettings check above is good)
             } catch (e) {
                 console.warn("Error loading settings", e);
             }
@@ -489,8 +539,6 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
 
     const handleSave = () => {
-        if (!selectedBoardId) return alert("Select a board first.");
-
         // VALIDATION: Refresh Interval 
         if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
             setError("Refresh interval must be at least 15 seconds.");
@@ -498,43 +546,51 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             return;
         }
 
+        // VALIDATION: Must have Board OR Task View enabled
+        if (!selectedBoardId && !enableTaskView) {
+            return alert("You must either enable the tasks view, or choose a Trello board to configure as a dashboard to use Trellops.");
+        }
+
         const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
         try {
-            // 1. Save Blocks Layout (Correct Persistence)
-            setPersistentLayout(user.id, selectedBoardId, blocks);
+            // ONLY SAVE BOARD SPECIFIC SETTINGS IF BOARD IS SELECTED
+            if (selectedBoardId) {
+                // 1. Save Blocks Layout (Correct Persistence)
+                setPersistentLayout(user.id, selectedBoardId, blocks);
 
-            // 2. Save Colors
-            setPersistentColors(user.id, selectedBoardId, listColors);
+                // 2. Save Colors
+                setPersistentColors(user.id, selectedBoardId, listColors);
 
-            // 3. Save Other Settings
-            localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
-            localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
-            localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
-            localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
+                // 3. Save Other Settings
+                localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
+                localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
+                localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
+                localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
+                localStorage.setItem('IGNORE_NO_DESC_CARDS_' + selectedBoardId, ignoreNoDescCards ? 'true' : 'false');
 
-            // 4. Save Map Config
-            // 4. Save Map Config
-            localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
+                // 4. Save Map Config
+                localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
 
-            localStorage.setItem(`enableHomeLocation_${selectedBoardId}`, enableHomeLocation);
-            localStorage.setItem(`homeAddress_${selectedBoardId}`, homeAddress);
-            localStorage.setItem(`homeCoordinates_${selectedBoardId}`, JSON.stringify(homeCoordinates));
-            localStorage.setItem(`homeIcon_${selectedBoardId}`, homeIcon);
+                localStorage.setItem(`enableHomeLocation_${selectedBoardId}`, enableHomeLocation);
+                localStorage.setItem(`homeAddress_${selectedBoardId}`, homeAddress);
+                localStorage.setItem(`homeCoordinates_${selectedBoardId}`, JSON.stringify(homeCoordinates));
+                localStorage.setItem(`homeIcon_${selectedBoardId}`, homeIcon);
 
-            // Only allow saving true if permission exists
-            const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
-            localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, safeUpdateTrello ? 'true' : 'false');
+                // Only allow saving true if permission exists
+                const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
+                localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, safeUpdateTrello ? 'true' : 'false');
 
-            const safeEnableCardMove = enableCardMove && hasWritePermission;
-            localStorage.setItem('enableCardMove_' + selectedBoardId, safeEnableCardMove ? 'true' : 'false');
+                const safeEnableCardMove = enableCardMove && hasWritePermission;
+                localStorage.setItem('enableCardMove_' + selectedBoardId, safeEnableCardMove ? 'true' : 'false');
 
-            // If enabling Trello updates, reset the cache to force decoding and updating
-            if (safeUpdateTrello) {
-                const cacheKey = `MAP_GEOCODING_CACHE_${selectedBoardId}`;
-                if (localStorage.getItem(cacheKey)) {
-                    localStorage.removeItem(cacheKey);
-                    console.log("Cache cleared due to Trello Update enablement.");
+                // If enabling Trello updates, reset the cache to force decoding and updating
+                if (safeUpdateTrello) {
+                    const cacheKey = `MAP_GEOCODING_CACHE_${selectedBoardId}`;
+                    if (localStorage.getItem(cacheKey)) {
+                        localStorage.removeItem(cacheKey);
+                        console.log("Cache cleared due to Trello Update enablement.");
+                    }
                 }
             }
 
@@ -543,12 +599,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             const assignedLists = blocks.flatMap(b => b.listIds.map(lId => allLists.find(l => l.id === lId))).filter(Boolean);
 
             const newSettings = {
-                boardId: selectedBoardId,
-                boardName: selectedBoard ? selectedBoard.name : 'Trello Board',
+                boardId: selectedBoardId || null,
+                boardName: selectedBoard ? selectedBoard.name : (selectedBoardId ? 'Unknown Board' : null),
                 selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                 enableMapView,
                 mapGeocodeMode,
-                enableCardMove: enableCardMove && hasWritePermission
+                enableCardMove: enableCardMove && hasWritePermission,
+                enableTaskView,
+                taskViewWorkspaces,
+                taskViewRefreshInterval
+
             };
 
             const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
@@ -563,6 +623,55 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         } catch (e) {
             console.error(e);
             setError("Failed to save settings.");
+        }
+    };
+
+    const handleSaveTasks = () => {
+        try {
+            const newSettings = {
+                // Keep existing board settings? No, we are updating user.settings which mixes both.
+                // We need to fetch existing settings to preserve board specific stuff if we aren't careful?
+                // Actually, our persistence model replaces `user.settings`.
+                // We need to construct the full object.
+                // To be safe, we should probably read the current state for board stuff OR just update the specific keys in `storedData`.
+
+                // STRATEGY: Update only specific keys in localStorage 'trelloUserData'
+                ...user.settings, // Start with current settings
+                enableTaskView,
+                taskViewWorkspaces,
+                taskViewRefreshInterval
+            };
+
+            const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
+            const currentUserData = storedData[user.id] || {};
+
+            storedData[user.id] = {
+                ...currentUserData,
+                settings: {
+                    ...(currentUserData.settings || {}),
+                    enableTaskView,
+                    taskViewWorkspaces,
+                    taskViewRefreshInterval
+                }
+            };
+
+            localStorage.setItem('trelloUserData', JSON.stringify(storedData));
+
+            // Notify Parent
+            // We pass the full new settings object to update local state in App.jsx
+            // We can mix current state + new task settings
+            onSave({
+                ...(user.settings || {}),
+                enableTaskView,
+                taskViewWorkspaces,
+                taskViewRefreshInterval
+            });
+
+            alert("Task View settings saved!");
+
+        } catch (e) {
+            console.error("Failed to save task settings", e);
+            alert("Failed to save task settings");
         }
     };
 
@@ -590,9 +699,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             showClock,
             ignoreTemplateCards,
             ignoreCompletedCards,
+            ignoreNoDescCards,
             enableMapView,
             mapGeocodeMode,
-            enableCardMove
+            enableCardMove,
+            enableTaskView,
+            taskViewWorkspaces,
+            taskViewRefreshInterval
+
         };
     };
 
@@ -653,10 +767,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (config.showClock !== undefined) setShowClock(config.showClock);
                 if (config.ignoreTemplateCards !== undefined) setIgnoreTemplateCards(config.ignoreTemplateCards);
                 if (config.ignoreCompletedCards !== undefined) setIgnoreCompletedCards(config.ignoreCompletedCards);
+                if (config.ignoreNoDescCards !== undefined) setIgnoreNoDescCards(config.ignoreNoDescCards);
                 if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
                 if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+                if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
+                if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
+                if (config.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(config.taskViewRefreshInterval);
                 alert("Configuration imported! Click Save to persist changes.");
+
             } catch (err) {
                 console.error(err);
                 alert("Failed to parse configuration file.");
@@ -709,7 +828,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
                     onClick={() => setActiveTab('other')}
                 >
-                    Other Settings
+                    Other Board settings
                 </button>
             </div>
 
@@ -965,6 +1084,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
                                                     <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
                                                         Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
+                                                    </span>
+                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
+                                                        Note: Cards without a description will be skipped.
                                                     </span>
                                                 </span>
                                             </div>
@@ -1280,9 +1402,29 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
                                                     <span>Ignore Template Cards</span>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIgnoreCompletedCards(!ignoreCompletedCards)}>
-                                                    <ToggleSwitch checked={ignoreCompletedCards} onChange={e => setIgnoreCompletedCards(e.target.checked)} />
-                                                    <span>Ignore Completed Cards</span>
+                                                <div className="setting-item-row" onClick={() => setIgnoreNoDescCards(!ignoreNoDescCards)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'flex-start' }}>
+                                                    <div style={{ marginTop: '2px' }}>
+                                                        <ToggleSwitch
+                                                            id="ignoreNoDescCards"
+                                                            checked={ignoreNoDescCards}
+                                                            onChange={(e) => setIgnoreNoDescCards(e.target.checked)}
+                                                        />
+                                                    </div>
+                                                    <div style={{ marginLeft: '10px' }}>
+                                                        <label htmlFor="ignoreNoDescCards" style={{ cursor: 'pointer' }}>Ignore Cards without Description</label>
+                                                        <span style={{ display: 'block', fontSize: '0.85em', color: '#666', fontWeight: 'normal', marginTop: '2px' }}>
+                                                            If enabled, cards with empty descriptions will not be counted in dashboard or placed on the map.
+                                                            (First card description usage is unaffected).
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="setting-item-row" onClick={() => setIgnoreCompletedCards(!ignoreCompletedCards)} style={{ cursor: 'pointer' }}>
+                                                    <ToggleSwitch
+                                                        id="ignoreCompletedCards"
+                                                        checked={ignoreCompletedCards}
+                                                        onChange={(e) => setIgnoreCompletedCards(e.target.checked)}
+                                                    />
+                                                    <label htmlFor="ignoreCompletedCards" style={{ marginLeft: '10px', cursor: 'pointer' }}>Ignore Completed Cards (Due Complete)</label>
                                                 </div>
                                             </div>
                                         </div>
@@ -1388,14 +1530,121 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
 
+
             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>
-                    v4.1.{__BUILD_ID__ || 1000} - Jan 05, 2026
-                </span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
-                <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
-                <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
+                {activeTab !== 'tasks' && (
+                    <>
+                        <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
+                        <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
+                    </>
+                )}
+            </div>
+
+            <div className="admin-section" id="section-tasks" style={{ marginTop: '20px', borderTop: '1px solid #eee' }}>
+                <div
+                    onClick={() => setExpandedSection(expandedSection === 'tasks' ? 'board' : 'tasks')}
+                    style={{
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 0'
+                    }}
+                >
+                    <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
+                    <span style={{ fontSize: '1.2em', color: '#666' }}>{expandedSection === 'tasks' ? '▼' : '▶'}</span>
+                </div>
+
+                {expandedSection === 'tasks' && (
+                    <div style={{ paddingTop: '10px' }}>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                            This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
+                        </p>
+                        <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
+                            <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
+                            <span>Enable Tasks View</span>
+                        </div>
+
+                        {enableTaskView && (
+                            <>
+                                <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                                    <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
+                                </div>
+
+                                {/* Workspace Selection */}
+                                <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                    <label className="setting-label">Workspaces to Include</label>
+                                    <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
+                                        Select which workspaces to show tasks from. At least one workspace must be selected.
+                                    </div>
+                                    <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
+                                        {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
+                                            userOrgs.map(org => (
+                                                <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`ws-${org.id}`}
+                                                        checked={taskViewWorkspaces.includes(org.id)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setTaskViewWorkspaces([...taskViewWorkspaces, org.id]);
+                                                            } else {
+                                                                // Enforce at least one
+                                                                if (taskViewWorkspaces.length > 1) {
+                                                                    setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
+                                                                } else {
+                                                                    alert("At least one workspace must be selected.");
+                                                                }
+                                                            }
+                                                        }}
+                                                        style={{ marginRight: '8px' }}
+                                                    />
+                                                    <label htmlFor={`ws-${org.id}`} style={{ cursor: 'pointer' }}>{org.displayName}</label>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+
+                                {/* Refresh Interval */}
+                                <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                    <label className="setting-label">Auto-Refresh Interval</label>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={taskViewRefreshInterval.value}
+                                            onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
+                                            style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                        />
+                                        <select
+                                            value={taskViewRefreshInterval.unit}
+                                            onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
+                                            style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                        >
+                                            <option value="minutes">Minutes</option>
+                                            <option value="hours">Hours</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
+                                        Minimum 1 minute.
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
+                            <button className="save-layout-button" onClick={handleSaveTasks}>Save Tasks Settings</button>
+                            <button className="button-secondary" onClick={onClose}>Cancel</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: '#aaa', fontWeight: 'bold' }}>
+                v4.5.{__BUILD_ID__ || 1000} - Jan 09, 2026
             </div>
 
             {

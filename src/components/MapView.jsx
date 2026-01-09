@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
+import { formatCountdown } from '/src/utils/timeUtils';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '/src/styles/map.css';
@@ -179,7 +180,6 @@ const TILE_LAYERS = {
     'osmhot': { url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors', name: 'OSM Hotspot' },
     'sat': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Satellite (Esri)' },
     'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
-    'dark': { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles © Esri', name: 'Dark Gray (Esri)' },
 };
 
 const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, prevSignatureRef }) => {
@@ -216,7 +216,7 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, p
             if (points.length > 0) {
                 const bounds = L.latLngBounds(points);
                 if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50] });
+                    map.fitBounds(bounds, { padding: [80, 80] });
                 }
             }
             prevSignatureRef.current = currentSignature;
@@ -230,7 +230,7 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, p
             if (points.length > 0) {
                 const bounds = L.latLngBounds(points);
                 if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50] });
+                    map.fitBounds(bounds, { padding: [80, 80] });
                 }
             }
         }
@@ -239,7 +239,7 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, p
     return null;
 };
 
-const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
+const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
     const [boardLabels, setBoardLabels] = useState([]); // NEW: Store labels for filter names
@@ -247,6 +247,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
     const [blocks, setBlocks] = useState([]);
+
+    // Footer Dropdowns
+    const [showDashboardDropdown, setShowDashboardDropdown] = useState(false); // NEW
+    const [showTaskDropdown, setShowTaskDropdown] = useState(false); // NEW
 
     // FILTER STATE
     const [visibleListIds, setVisibleListIds] = useState(new Set());
@@ -413,6 +417,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
 
             const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
             const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+            const ignoreNoDescCards = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true';
 
             const processedCards = [];
 
@@ -420,6 +425,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                 // 1. FILTERING
                 if (ignoreTemplateCards && c.isTemplate) continue;
                 if (ignoreCompletedCards && c.dueComplete) continue;
+                if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) continue;
 
                 // Note: We don't filter by block existence here yet, because some users might 
                 // want to see all geocoded cards even if not in a "Block" (legacy behavior).
@@ -504,6 +510,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             if (mapGeocodeMode === 'disabled') return false;
 
             const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
+
+            // STRICTER CHECK IF NOMINATIM IS USED: Require Description
+            if (mapGeocodeMode === 'store' && (!c.desc || !c.desc.trim())) return false;
+
             if (!addressCandidate) return false;
 
             if (ignoreTemplateCards && c.isTemplate) return false;
@@ -788,7 +798,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     <select
                         value={baseMap}
                         onChange={e => setBaseMap(e.target.value)}
-                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
                     >
                         {Object.entries(TILE_LAYERS).map(([key, config]) => (
                             <option key={key} value={key}>{config.name}</option>
@@ -796,7 +806,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     </select>
 
                     <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '5px' }}>
-                        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                        {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
                 </div>
             </div>
@@ -878,25 +888,57 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
             </div>
 
             <div className="map-footer">
-                <div className="map-footer-left">
-                    <span style={{ fontSize: '0.85em', marginRight: '15px', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
+                <div className="map-footer-left" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <span style={{ fontSize: '0.85em', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
                         Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
                         <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a> |
-                        Geocoding: <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
+                        <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
                     </span>
                 </div>
-                <div className="map-footer-right">
+                <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     {countdown !== null && (
-                        <span className="countdown" style={{ marginRight: '15px' }}>
-                            Next refresh in {countdown}s
+                        <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
+                            Next refresh in {formatCountdown(countdown)}
                         </span>
                     )}
-                    <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
+
                     <button className="refresh-button" onClick={() => {
                         loadData(true);
                         setCountdown(refreshIntervalSeconds);
                     }}>Refresh Map</button>
-                    {/* Fit Map Button Removed */}
+
+                    {/* DASHBOARD BUTTON */}
+                    <div style={{ position: 'relative' }}>
+                        <div style={{ display: 'flex' }}>
+                            <button className="dashboard-btn" onClick={onClose}>Dashboard View</button>
+                            <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
+                                ▼
+                            </button>
+                        </div>
+                        {showDashboardDropdown && (
+                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                <div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* TASKS BUTTON */}
+                    {settings?.enableTaskView && (
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ display: 'flex' }}>
+                                <button className="settings-button" onClick={onShowTasks}>Tasks View</button>
+                                <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                    ▼
+                                </button>
+                            </div>
+                            {showTaskDropdown && (
+                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                    <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();
@@ -904,6 +946,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout }) => {
                     <button className="logout-button" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
+
+            {/* Click Outside to Close Dropdowns */}
+            {(showDashboardDropdown || showTaskDropdown) && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => { setShowDashboardDropdown(false); setShowTaskDropdown(false); }} />
+            )}
 
             {status && (
                 <div className="status-message">

@@ -75,3 +75,27 @@ export const trelloFetch = async (path, token, options = {}) => {
     }
     return response.json();
 };
+
+export const fetchAllTasksData = async (token) => {
+    if (!token) throw new Error("No token provided");
+
+    // 1. Fetch Organizations (Workspaces)
+    const orgsPromise = trelloFetch('/members/me/organizations?fields=id,displayName,name', token);
+
+    // 2. Fetch Boards (needed to map Board -> Org, as Card -> Board might not have Org info populated or we want all boards structure)
+    // We want open boards mostly? Or all? User said "across all workspaces and boards".
+    // Let's fetch all open boards.
+    const boardsPromise = trelloFetch('/members/me/boards?filter=open&fields=id,name,idOrganization,shortUrl,prefs', token);
+
+    // 3. Fetch Cards (member of)
+    // We want cards where user is memeber.
+    // Trello API: members/me/cards returns cards the member is on.
+    // Include checklists to find assigned tasks.
+    // Include board to get board name if needed, but we have boardsPromise. 
+    // We need board ID to map. works default.
+    const cardsPromise = trelloFetch('/members/me/cards?filter=visible&fields=id,name,due,dueComplete,idBoard,idList,url,shortUrl,desc&checklists=all&checklist_fields=all', token);
+
+    const [orgs, boards, cards] = await Promise.all([orgsPromise, boardsPromise, cardsPromise]);
+
+    return { orgs, boards, cards };
+};
