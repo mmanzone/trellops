@@ -3,6 +3,7 @@ import { fetchAllTasksData } from '../api/trello';
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import '../styles/index.css';
+import '../styles/map.css';
 
 // SVG Icons for Map Header style compatibility if needed
 // Assuming they are available via CSS or we use emojis as placeholders for now to match MapView
@@ -239,57 +240,55 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
     if (error) return <div className="container error">{error}</div>;
 
     return (
-        <div className="container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg-canvas)' }}>
-            {/* HEADER (Matching MapView & Dashboard now) */}
-            <div className="map-header" style={{ ...headerStyle, height: 'auto', minHeight: '60px', flexWrap: 'wrap', gap: '15px', padding: '10px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div className="map-container">
+            {/* HEADER - Strict MapView Style */}
+            <div className="map-header">
+                <div className="map-header-title-area">
                     <DigitalClock boardId="task_view_global" />
-                    <h1 style={{ margin: 0, fontSize: '1.5em', display: 'flex', alignItems: 'center' }}>
-                        Tasks for {user.fullName || user.username}
-                    </h1>
+                    <h1>Tasks for {user.fullName || user.username}</h1>
                 </div>
 
-                {/* FILTERS MOVING TO HEADER */}
-                <div className="header-filters" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
-                    <select value={selectedWorkspace} onChange={e => { setSelectedWorkspace(e.target.value); setSelectedBoard('all'); }} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '150px' }}>
-                        <option value="all">All Workspaces</option>
-                        {Array.from(new Set(processedTasks.map(t => t.orgId))).map(orgId => {
-                            const orgName = processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown';
-                            return <option key={orgId} value={orgId}>{orgName}</option>;
-                        })}
-                    </select>
+                <div className="map-header-actions" style={{ flexGrow: 1, justifyContent: 'flex-end', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {/* FILTERS */}
+                    <div className="header-filters" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <select value={selectedWorkspace} onChange={e => { setSelectedWorkspace(e.target.value); setSelectedBoard('all'); }} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '140px', fontSize: '0.9em' }}>
+                            <option value="all">All Workspaces</option>
+                            {Array.from(new Set(processedTasks.map(t => t.orgId))).map(orgId => {
+                                const orgName = processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown';
+                                return <option key={orgId} value={orgId}>{orgName}</option>;
+                            })}
+                        </select>
 
-                    <select value={selectedBoard} onChange={e => setSelectedBoard(e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '150px' }}>
-                        <option value="all">All Boards</option>
-                        {Array.from(new Set(processedTasks
-                            .filter(t => selectedWorkspace === 'all' || t.orgId === selectedWorkspace)
-                            .map(t => t.boardId)
-                        )).map(boardId => {
-                            const boardName = processedTasks.find(t => t.boardId === boardId)?.boardName || 'Unknown';
-                            return <option key={boardId} value={boardId}>{boardName}</option>;
-                        })}
-                    </select>
+                        <select value={selectedBoard} onChange={e => setSelectedBoard(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '140px', fontSize: '0.9em' }}>
+                            <option value="all">All Boards</option>
+                            {Array.from(new Set(processedTasks
+                                .filter(t => selectedWorkspace === 'all' || t.orgId === selectedWorkspace)
+                                .map(t => t.boardId)
+                            )).map(boardId => {
+                                const boardName = processedTasks.find(t => t.boardId === boardId)?.boardName || 'Unknown';
+                                return <option key={boardId} value={boardId}>{boardName}</option>;
+                            })}
+                        </select>
 
-                    <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc' }}>
-                        <option value="workspace">Sort: Workspace</option>
-                        <option value="board">Sort: Board</option>
-                        <option value="due">Sort: Due Date</option>
-                    </select>
+                        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.9em' }}>
+                            <option value="workspace">Sort: Workspace</option>
+                            <option value="board">Sort: Board</option>
+                            <option value="due">Sort: Due Date</option>
+                        </select>
 
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.9em', marginLeft: '10px' }}>
-                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            <input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '4px' }} /> Assigned
-                        </label>
-                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            <input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '4px' }} /> Member
-                        </label>
-                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            <input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '4px' }} /> Done
-                        </label>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.9em' }}>
+                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                                <input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '4px' }} /> Assigned
+                            </label>
+                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                                <input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '4px' }} /> Member
+                            </label>
+                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                                <input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '4px' }} /> Done
+                            </label>
+                        </div>
                     </div>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <button className="theme-toggle-button" onClick={() => toggleTheme()}>
                         {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
@@ -297,7 +296,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             </div>
 
             {/* CONTENT */}
-            <div className="task-content" style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', background: 'var(--bg-canvas, #f9f9f9)' }}>
+            <div className="task-content" style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', background: 'var(--bg-canvas, #f9f9f9)', position: 'relative', zIndex: 1 }}>
                 {Object.keys(groupedData).length === 0 ? (
                     <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>No tasks found matching filters.</div>
                 ) : (
@@ -367,22 +366,10 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 )}
             </div>
 
-            {/* FOOTER */}
-            <div className="footer-action-bar" style={{
-                flexShrink: 0,
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px 20px',
-                background: 'var(--bg-secondary)',
-                borderTop: '1px solid var(--border-color, #ccc)',
-                position: 'relative',
-                zIndex: 100
-            }}>
-                <div className="footer-left">
-                    {/* Empty Left Side to match MapView or put credits if needed? MapView has credits. TaskView has none. */}
-                </div>
-
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            {/* FOOTER - Strict MapView Style */}
+            <div className="map-footer">
+                <div className="map-footer-left"></div>
+                <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
                         Next refresh in {Math.ceil(refreshCountdown / 60)} min
                     </span>

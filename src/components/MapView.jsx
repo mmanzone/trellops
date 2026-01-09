@@ -890,7 +890,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div className="map-footer-left" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     <span style={{ fontSize: '0.85em', color: '#666', display: 'flex', gap: '5px', alignItems: 'center' }}>
                         Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
-                        <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a>
+                        <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a> |
+                        <a href="https://nominatim.org" target="_blank" rel="noreferrer">Nominatim</a>
                     </span>
                 </div>
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>

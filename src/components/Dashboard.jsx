@@ -10,6 +10,7 @@ import {
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
+import '../styles/map.css';
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap }) => {
     const [counts, setCounts] = useState(new Map());
@@ -286,31 +287,31 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
     }
 
     return (
-        <div className="dashboard-container" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-canvas)', overflow: 'hidden' }}>
-            {/* HEADER - Updated to match MapView/TaskView style */}
-            <div className="map-header" style={headerStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div className="map-container">
+            {/* HEADER - Updated to match MapView style EXACTLY */}
+            <div className="map-header">
+                <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ margin: 0, fontSize: '1.5em', display: 'flex', alignItems: 'center' }}>
-                        {boardName} <span style={{ marginLeft: '15px' }}>{filterLabel}</span>
+                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>
+                        {boardName} <span style={{ fontSize: '0.6em', fontWeight: 'normal', color: 'var(--text-secondary)', marginLeft: '8px' }}>{filterLabel}</span>
                     </h1>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="map-header-actions">
                     <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
                         {Object.keys(TIME_FILTERS).map(key => (
                             <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
                         ))}
                     </select>
 
-                    <button className="theme-toggle-button" onClick={() => toggleTheme()}>
+                    <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
                         {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
                 </div>
             </div>
 
             {/* RENDER BLOCKS */}
-            <div style={{ padding: '20px', flexGrow: 1, overflowY: 'auto' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', position: 'relative', zIndex: 1 }}>
                 {sectionsLayout.map(block => {
                     const blockTiles = block.listIds
                         .map(listId => {
@@ -339,7 +340,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                     {isCollapsed ? (
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path><path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
                                     ) : (
-                                        <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                        <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                     )}
                                 </button>
                             </div>
@@ -374,23 +375,13 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 />
             )}
 
-            {/* Footer Action Bar */}
-            <div className="footer-action-bar" style={{
-                flexShrink: 0,
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px 20px',
-                background: 'var(--bg-secondary)',
-                borderTop: '1px solid var(--border-color, #ccc)',
-                position: 'relative',
-                zIndex: 100
-            }}>
-
-                <div className="footer-left">
-                    {/* Empty Left Side to match MapView or put credits if needed? MapView has credits. Dashboard has none. */}
+            {/* Footer Action Bar - Using MapView strict classes */}
+            <div className="map-footer">
+                <div className="map-footer-left">
+                    {/* Empty Left Side */}
                 </div>
 
-                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
                         Next refresh in {countdown}s
                     </span>
