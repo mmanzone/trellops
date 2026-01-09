@@ -105,7 +105,16 @@ const App = () => {
                 setView('map');
             } else if (path === '/tasks') {
                 if (savedSettings && savedSettings.boardId) setSettings(savedSettings);
-                setView('tasks');
+
+                // Redirect if Task View is disabled
+                if (savedSettings && !savedSettings.enableTaskView) {
+                    setSettingsTab('tasks');
+                    setView('settings');
+                    window.history.replaceState({}, '', '/settings');
+                    console.log("Task View disabled, redirecting to settings");
+                } else {
+                    setView('tasks');
+                }
             } else if (path === '/settings') {
                 if (savedSettings && savedSettings.boardId) setSettings(savedSettings);
                 setView('settings');

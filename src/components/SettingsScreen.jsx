@@ -773,14 +773,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
                     onClick={() => setActiveTab('other')}
                 >
-                    Other Settings
+                    Other Board settings
                 </button>
                 <button
                     className={`tab-button ${activeTab === 'tasks' ? 'active' : ''}`}
                     onClick={() => setActiveTab('tasks')}
                     style={{ marginLeft: 'auto' }}
                 >
-                    Tasks settings
+                    Tasks Dashboard Settings
                 </button>
 
             </div>
@@ -1570,7 +1570,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ marginRight: 'auto', fontWeight: 'bold', color: '#666' }}>
-                    v4.1.{__BUILD_ID__ || 1000} - Jan 05, 2026
+                    v4.5.{__BUILD_ID__ || 1000} - Jan 09, 2026
                 </span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
