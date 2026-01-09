@@ -538,8 +538,6 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
 
     const handleSave = () => {
-        if (!selectedBoardId) return alert("Select a board first.");
-
         // VALIDATION: Refresh Interval 
         if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
             setError("Refresh interval must be at least 15 seconds.");
@@ -547,44 +545,51 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             return;
         }
 
+        // VALIDATION: Must have Board OR Task View enabled
+        if (!selectedBoardId && !enableTaskView) {
+            return alert("You must either enable the tasks view, or choose a Trello board to configure as a dashboard to use Trellops.");
+        }
+
         const selectedBoard = boards.find(b => b.id === selectedBoardId);
 
         try {
-            // 1. Save Blocks Layout (Correct Persistence)
-            setPersistentLayout(user.id, selectedBoardId, blocks);
+            // ONLY SAVE BOARD SPECIFIC SETTINGS IF BOARD IS SELECTED
+            if (selectedBoardId) {
+                // 1. Save Blocks Layout (Correct Persistence)
+                setPersistentLayout(user.id, selectedBoardId, blocks);
 
-            // 2. Save Colors
-            setPersistentColors(user.id, selectedBoardId, listColors);
+                // 2. Save Colors
+                setPersistentColors(user.id, selectedBoardId, listColors);
 
-            // 3. Save Other Settings
-            localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
-            localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
-            localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
-            localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
-            localStorage.setItem('IGNORE_NO_DESC_CARDS_' + selectedBoardId, ignoreNoDescCards ? 'true' : 'false');
+                // 3. Save Other Settings
+                localStorage.setItem(STORAGE_KEYS.REFRESH_INTERVAL + selectedBoardId, JSON.stringify({ value: refreshValue, unit: refreshUnit }));
+                localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
+                localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
+                localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
+                localStorage.setItem('IGNORE_NO_DESC_CARDS_' + selectedBoardId, ignoreNoDescCards ? 'true' : 'false');
 
-            // 4. Save Map Config
-            // 4. Save Map Config
-            localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
+                // 4. Save Map Config
+                localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
 
-            localStorage.setItem(`enableHomeLocation_${selectedBoardId}`, enableHomeLocation);
-            localStorage.setItem(`homeAddress_${selectedBoardId}`, homeAddress);
-            localStorage.setItem(`homeCoordinates_${selectedBoardId}`, JSON.stringify(homeCoordinates));
-            localStorage.setItem(`homeIcon_${selectedBoardId}`, homeIcon);
+                localStorage.setItem(`enableHomeLocation_${selectedBoardId}`, enableHomeLocation);
+                localStorage.setItem(`homeAddress_${selectedBoardId}`, homeAddress);
+                localStorage.setItem(`homeCoordinates_${selectedBoardId}`, JSON.stringify(homeCoordinates));
+                localStorage.setItem(`homeIcon_${selectedBoardId}`, homeIcon);
 
-            // Only allow saving true if permission exists
-            const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
-            localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, safeUpdateTrello ? 'true' : 'false');
+                // Only allow saving true if permission exists
+                const safeUpdateTrello = updateTrelloCoordinates && hasWritePermission;
+                localStorage.setItem('updateTrelloCoordinates_' + selectedBoardId, safeUpdateTrello ? 'true' : 'false');
 
-            const safeEnableCardMove = enableCardMove && hasWritePermission;
-            localStorage.setItem('enableCardMove_' + selectedBoardId, safeEnableCardMove ? 'true' : 'false');
+                const safeEnableCardMove = enableCardMove && hasWritePermission;
+                localStorage.setItem('enableCardMove_' + selectedBoardId, safeEnableCardMove ? 'true' : 'false');
 
-            // If enabling Trello updates, reset the cache to force decoding and updating
-            if (safeUpdateTrello) {
-                const cacheKey = `MAP_GEOCODING_CACHE_${selectedBoardId}`;
-                if (localStorage.getItem(cacheKey)) {
-                    localStorage.removeItem(cacheKey);
-                    console.log("Cache cleared due to Trello Update enablement.");
+                // If enabling Trello updates, reset the cache to force decoding and updating
+                if (safeUpdateTrello) {
+                    const cacheKey = `MAP_GEOCODING_CACHE_${selectedBoardId}`;
+                    if (localStorage.getItem(cacheKey)) {
+                        localStorage.removeItem(cacheKey);
+                        console.log("Cache cleared due to Trello Update enablement.");
+                    }
                 }
             }
 
@@ -593,8 +598,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             const assignedLists = blocks.flatMap(b => b.listIds.map(lId => allLists.find(l => l.id === lId))).filter(Boolean);
 
             const newSettings = {
-                boardId: selectedBoardId,
-                boardName: selectedBoard ? selectedBoard.name : 'Trello Board',
+                boardId: selectedBoardId || null,
+                boardName: selectedBoard ? selectedBoard.name : (selectedBoardId ? 'Unknown Board' : null),
                 selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                 enableMapView,
                 mapGeocodeMode,
