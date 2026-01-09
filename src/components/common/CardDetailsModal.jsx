@@ -75,7 +75,7 @@ const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLay
                                         title={card.name}
                                         style={itemStyle}
                                     >
-                                        {card.name}
+                                        {card.name} {isIgnored && <span style={{ fontSize: '0.8em' }}> (no description)</span>}
                                     </a>
                                 </div>
                             );

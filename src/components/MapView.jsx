@@ -797,7 +797,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     <select
                         value={baseMap}
                         onChange={e => setBaseMap(e.target.value)}
-                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
                     >
                         {Object.entries(TILE_LAYERS).map(([key, config]) => (
                             <option key={key} value={key}>{config.name}</option>

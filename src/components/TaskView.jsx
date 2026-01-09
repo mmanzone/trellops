@@ -244,14 +244,13 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             {/* HEADER - Strict MapView Style */}
             <div className="map-header">
                 <div className="map-header-title-area">
-                    <DigitalClock boardId="task_view_global" />
                     <h1>Tasks for {user.fullName || user.username}</h1>
                 </div>
 
                 <div className="map-header-actions" style={{ flexGrow: 1, justifyContent: 'flex-end', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {/* FILTERS */}
                     <div className="header-filters" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <select value={selectedWorkspace} onChange={e => { setSelectedWorkspace(e.target.value); setSelectedBoard('all'); }} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '140px', fontSize: '0.9em' }}>
+                        <select value={selectedWorkspace} onChange={e => { setSelectedWorkspace(e.target.value); setSelectedBoard('all'); }} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', maxWidth: '140px', fontSize: '0.9em', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
                             <option value="all">All Workspaces</option>
                             {Array.from(new Set(processedTasks.map(t => t.orgId))).map(orgId => {
                                 const orgName = processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown';
@@ -259,7 +258,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             })}
                         </select>
 
-                        <select value={selectedBoard} onChange={e => setSelectedBoard(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '140px', fontSize: '0.9em' }}>
+                        <select value={selectedBoard} onChange={e => setSelectedBoard(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', maxWidth: '140px', fontSize: '0.9em', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
                             <option value="all">All Boards</option>
                             {Array.from(new Set(processedTasks
                                 .filter(t => selectedWorkspace === 'all' || t.orgId === selectedWorkspace)
@@ -270,7 +269,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             })}
                         </select>
 
-                        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.9em' }}>
+                        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.9em', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
                             <option value="workspace">Sort: Workspace</option>
                             <option value="board">Sort: Board</option>
                             <option value="due">Sort: Due Date</option>
@@ -296,7 +295,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             </div>
 
             {/* CONTENT */}
-            <div className="task-content" style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', background: 'var(--bg-canvas, #f9f9f9)', position: 'relative', zIndex: 1 }}>
+            <div className="task-content" style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', background: 'var(--bg-canvas)', position: 'relative', zIndex: 1 }}>
                 {Object.keys(groupedData).length === 0 ? (
                     <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>No tasks found matching filters.</div>
                 ) : (

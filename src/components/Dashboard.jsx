@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { trelloFetch } from '../api/trello';
 import { STORAGE_KEYS, DEFAULT_LAYOUT, TIME_FILTERS } from '../utils/constants';
 import {
@@ -10,14 +10,22 @@ import {
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
+import LabelFilter from './common/LabelFilter';
 import '../styles/map.css';
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap }) => {
-    const [counts, setCounts] = useState(new Map());
+    // DATA STATE
+    const [allCards, setAllCards] = useState([]);
+    const [allListsMap, setAllListsMap] = useState(new Map());
+    const [boardLabels, setBoardLabels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [countdown, setCountdown] = useState(30);
+
+    // FILTER STATE
     const [timeFilter, setTimeFilter] = useState('all');
+    const [selectedLabelIds, setSelectedLabelIds] = useState(new Set()); // Empty = All
+
     const [enableMapView, setEnableMapView] = useState(() => {
         if (settings && settings.enableMapView !== undefined) return settings.enableMapView;
         const boardIdLocal = settings?.boardId;
@@ -46,16 +54,6 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         }
     }, [settings]);
 
-    const buildNumber = (() => {
-        const now = new Date();
-        const year = now.getFullYear().toString().slice(-2);
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        return `3.2.${year}${month}${day}${hours}${minutes}`;
-    })();
-
     const [modalList, setModalList] = useState(null);
 
     const boardId = settings?.boardId;
@@ -63,8 +61,6 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
     const listsFromSettings = settings?.selectedLists || [];
 
     const sectionsLayout = boardId ? getPersistentLayout(user.id, boardId) : DEFAULT_LAYOUT;
-
-    const allListsMap = new Map(listsFromSettings.map(list => [list.id, list]));
     const persistentColors = getPersistentColors(user.id);
     const blocksMap = new Map(sectionsLayout.map(s => [s.id, s]));
 
@@ -73,10 +69,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             s.id === blockId ? { ...s, isCollapsed: !s.isCollapsed } : s
         );
         setPersistentLayout(user.id, boardId, newLayout);
-        fetchListCounts(true);
     };
 
-    const effectiveSeconds = React.useMemo(() => {
+    const effectiveSeconds = useMemo(() => {
         try {
             const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
             const defaultRefreshSetting = { value: 1, unit: 'minutes' };
@@ -90,129 +85,37 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
-    const ignoreNoDescCards = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true'; // FIX: Defined in scope
+    const ignoreNoDescCards = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true';
 
+    // FETCH DATA
     const isFetchingRef = useRef(false);
 
-    const fetchListCounts = useCallback(async (manual = false) => {
-        if (manual || loading) {
-            setLoading(true);
-        }
-
+    const fetchData = useCallback(async (manual = false) => {
+        if (manual || loading) setLoading(true);
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
         setError('');
 
-        const persistentColorsCopy = getPersistentColors(user.id);
-        const currentLayout = getPersistentLayout(user.id, boardId);
-        const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
-        const uniqueListIds = new Set(currentLayout.flatMap(s => s.listIds));
-        const ignoreTemplateCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
-        const ignoreCompletedCardsSetting = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
-        const ignoreNoDescCardsSetting = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true';
-
-        if (uniqueListIds.size === 0) {
-            setCounts(new Map());
-            setLoading(false);
-            return;
-        }
-
         try {
-            const allCards = await trelloFetch(
-                `/boards/${boardId}/cards?fields=id,idList,pos,name,desc,isTemplate,dateLastActivity,dueComplete`,
-                user.token
-            );
+            if (!boardId) throw new Error("No Board ID configured");
 
-            const firstCardMap = new Map();
-            allCards.forEach(c => {
-                const currentFirst = firstCardMap.get(c.idList);
-                if (!currentFirst || c.pos < currentFirst.pos) {
-                    firstCardMap.set(c.idList, c);
-                }
-            });
+            // Fetch Lists, Labels, Cards in parallel
+            const [listsData, labelsData, cardsData] = await Promise.all([
+                trelloFetch(`/boards/${boardId}/lists?cards=none&fields=id,name,color`, user.token),
+                trelloFetch(`/boards/${boardId}/labels`, user.token),
+                trelloFetch(`/boards/${boardId}/cards?fields=id,idList,pos,name,desc,isTemplate,dateLastActivity,dueComplete,labels`, user.token)
+            ]);
 
-            const filterConfig = TIME_FILTERS[timeFilter];
-            let sinceDate = null;
-            let beforeDate = null;
-
-            if (filterConfig) {
-                if (filterConfig.type === 'relative' && timeFilter !== 'all') {
-                    const now = new Date();
-                    now.setMinutes(now.getMinutes() - filterConfig.minutes);
-                    sinceDate = now;
-                } else if (filterConfig.type === 'calendar') {
-                    if (filterConfig.start) sinceDate = filterConfig.start;
-                    if (filterConfig.end && timeFilter !== 'this_month' && timeFilter !== 'this_week') {
-                        beforeDate = filterConfig.end;
-                    }
-                }
-            }
-
-            const cardsForProcessing = allCards.filter(c => {
-                if (ignoreTemplateCardsSetting && c.isTemplate) return false;
-                if (ignoreCompletedCardsSetting && c.dueComplete) return false;
-                if (ignoreNoDescCardsSetting && (!c.desc || !c.desc.trim())) return false;
-                if (sinceDate || beforeDate) {
-                    const cardDate = new Date(c.dateLastActivity);
-                    if (sinceDate && cardDate < sinceDate) return false;
-                    if (beforeDate && cardDate >= beforeDate) return false;
-                }
-                return true;
-            });
-
-            const listResults = {};
-            cardsForProcessing.forEach(card => {
-                if (!uniqueListIds.has(card.idList)) return;
-                if (!listResults[card.idList]) {
-                    listResults[card.idList] = { count: 0 };
-                }
-                listResults[card.idList].count++;
-            });
-
-            const countsMap = new Map();
-            Array.from(uniqueListIds).forEach(listId => {
-                const listData = allListsMap.get(listId);
-                const block = currentLayout.find(s => s.listIds.includes(listId));
-                const isIgnored = block?.ignoreFirstCard;
-                const displayDescription = block?.displayFirstCardDescription;
-                const result = listResults[listId] || { count: 0 };
-                let finalCount = result.count;
-                let descriptionCardName = '';
-
-                if (isIgnored) {
-                    const firstCard = firstCardMap.get(listId);
-                    if (firstCard) {
-                        const isFirstCardInFilteredSet = cardsForProcessing.some(c => c.id === firstCard.id);
-                        if (isFirstCardInFilteredSet) {
-                            finalCount--;
-                        }
-                        if (displayDescription) {
-                            descriptionCardName = firstCard.name;
-                        }
-                    }
-                }
-                if (finalCount < 0) finalCount = 0;
-
-                let color = persistentColors[boardId]?.[listId] || listData?.color;
-                if (!color || color === '#cccccc') {
-                    color = getOrGenerateRandomColor(listId, usedColors);
-                }
-
-                countsMap.set(listId, {
-                    listId: listId,
-                    count: finalCount,
-                    name: listData?.name,
-                    displayColor: color,
-                    firstCardName: descriptionCardName
-                });
-            });
-
-            setCounts(countsMap);
+            const listsMap = new Map();
+            listsData.forEach(l => listsMap.set(l.id, l));
+            setAllListsMap(listsMap);
+            setBoardLabels(labelsData);
+            setAllCards(cardsData); // Store RAW cards
 
         } catch (e) {
             console.error("Dashboard fetch error:", e);
             if (e.message && e.message.includes('429')) {
-                setError("Trello API Limit Exceeded. Refresh paused. Please wait a moment or increase refresh interval.");
+                setError("Trello API Limit Exceeded. Refresh paused.");
             } else {
                 setError(e.message);
             }
@@ -220,14 +123,15 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             isFetchingRef.current = false;
             setLoading(false);
         }
-    }, [user.token, listsFromSettings.length, boardId, sectionsLayout.length, timeFilter]);
+    }, [boardId, user.token, loading]);
 
+    // AUTO REFRESH
     useEffect(() => {
         if (timerRef.current) clearInterval(timerRef.current);
         const interval = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
-                    fetchListCounts();
+                    fetchData();
                     return effectiveSeconds;
                 }
                 return prev - 1;
@@ -235,9 +139,111 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         }, 1000);
         timerRef.current = interval;
         setCountdown(effectiveSeconds);
-        fetchListCounts();
+        fetchData(); // Initial Fetch
         return () => clearInterval(interval);
-    }, [fetchListCounts, effectiveSeconds]);
+    }, [fetchData, effectiveSeconds]);
+
+
+    // CALCULATE COUNTS (Client-side Filtering)
+    const counts = useMemo(() => {
+        const countsMap = new Map();
+        if (allCards.length === 0) return countsMap;
+
+        // 1. Group cards by list
+        const cardsByList = new Map();
+        allCards.forEach(c => {
+            if (!cardsByList.has(c.idList)) cardsByList.set(c.idList, []);
+            cardsByList.get(c.idList).push(c);
+        });
+
+        // 2. Determine Time Filter Dates
+        const filterConfig = TIME_FILTERS[timeFilter];
+        let sinceDate = null;
+        let beforeDate = null;
+        if (filterConfig) {
+            if (filterConfig.type === 'relative' && timeFilter !== 'all') {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - filterConfig.minutes);
+                sinceDate = now;
+            } else if (filterConfig.type === 'calendar') {
+                if (filterConfig.start) sinceDate = filterConfig.start;
+                if (filterConfig.end && timeFilter !== 'this_month' && timeFilter !== 'this_week') {
+                    beforeDate = filterConfig.end;
+                }
+            }
+        }
+
+        // 3. Process each list in layout
+        const persistentColorsCopy = getPersistentColors(user.id);
+        const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
+        const uniqueListIds = new Set(sectionsLayout.flatMap(s => s.listIds));
+
+        uniqueListIds.forEach(listId => {
+            const listCards = (cardsByList.get(listId) || []).sort((a, b) => a.pos - b.pos);
+            const block = sectionsLayout.find(s => s.listIds.includes(listId));
+            const isIgnored = block?.ignoreFirstCard;
+            const displayDescription = block?.displayFirstCardDescription;
+
+            let titleCard = null;
+            let countableCards = listCards;
+
+            if (isIgnored && listCards.length > 0) {
+                titleCard = listCards[0]; // First card by pos
+                countableCards = listCards.slice(1);
+            }
+
+            // FILTER COUNTABLE CARDS
+            const filteredCount = countableCards.filter(c => {
+                // Settings Filters
+                if (ignoreTemplateCards && c.isTemplate) return false;
+                if (ignoreCompletedCards && c.dueComplete) return false;
+                if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) return false;
+
+                // Time Filter
+                if (sinceDate || beforeDate) {
+                    const cardDate = new Date(c.dateLastActivity);
+                    if (sinceDate && cardDate < sinceDate) return false;
+                    if (beforeDate && cardDate >= beforeDate) return false;
+                }
+
+                // Label Filter (Multi-select)
+                // If selectedLabelIds is NOT empty, card must match AT LEAST ONE selected ID?
+                // Or usually match ALL? Labels are usually OR logic in Trello filters?
+                // Trello UI: Any match.
+                // User said: "counts of cards meeting the label criteria i.e. assigned with the label".
+                // If I select Red and Blue, do I want Red OR Blue? Usually yes.
+                if (selectedLabelIds.size > 0) {
+                    if (!c.labels || c.labels.length === 0) return false; // Card has no labels -> filtered out
+                    const hasMatch = c.labels.some(l => selectedLabelIds.has(l.id));
+                    if (!hasMatch) return false;
+                }
+
+                return true;
+            }).length;
+
+            let descriptionCardName = '';
+            if (isIgnored && titleCard && displayDescription) {
+                descriptionCardName = titleCard.name;
+            }
+
+            const listData = allListsMap.get(listId);
+            let color = persistentColors[boardId]?.[listId] || listData?.color;
+            if (!color || color === '#cccccc') {
+                color = getOrGenerateRandomColor(listId, usedColors);
+            }
+
+            countsMap.set(listId, {
+                listId: listId,
+                count: filteredCount,
+                name: listData?.name || 'Unknown List',
+                displayColor: color,
+                firstCardName: descriptionCardName
+            });
+        });
+
+        return countsMap;
+
+    }, [allCards, timeFilter, selectedLabelIds, allListsMap, sectionsLayout, user.id, boardId, ignoreTemplateCards, ignoreCompletedCards, ignoreNoDescCards]);
 
 
     const handleTileClick = (listId, listName, color) => {
@@ -264,10 +270,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         boxSizing: 'border-box'
     };
 
-    if (loading && listsFromSettings.length === 0) return <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading dashboard data...</div>;
-
-    if (loading) return <div className="loading-container">Loading Dashboard...</div>;
-    if (error) return <div className="error-container">{error}</div>;
+    if (loading && allCards.length === 0) return <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading dashboard data...</div>;
 
     if (!boardName || listsFromSettings.length === 0) {
         return (
@@ -293,16 +296,25 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
                     <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>
-                        {boardName} <span style={{ fontSize: '0.6em', fontWeight: 'normal', color: 'var(--text-secondary)', marginLeft: '8px' }}>{filterLabel}</span>
+                        {boardName} <span style={{ marginLeft: '15px' }}>{filterLabel}</span>
                     </h1>
                 </div>
 
-                <div className="map-header-actions">
+                <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
+
+                    {/* Time Filter */}
                     <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
                         {Object.keys(TIME_FILTERS).map(key => (
                             <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
                         ))}
                     </select>
+
+                    {/* Label Filter */}
+                    <LabelFilter
+                        labels={boardLabels}
+                        selectedLabelIds={selectedLabelIds}
+                        onApply={setSelectedLabelIds}
+                    />
 
                     <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
                         {theme === 'dark' ? '☀️' : '🌙'}
@@ -316,10 +328,24 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     const blockTiles = block.listIds
                         .map(listId => {
                             const tileData = counts.get(listId);
+                            // If list is not found in counts (e.g. no cards or fetch error), we should still show it if possible?
+                            // Logic mimics old behavior: if !tileData, check allListsMap
                             if (!tileData) {
                                 const list = allListsMap.get(listId);
                                 if (list) {
-                                    const color = list.color || getOrGenerateRandomColor(list.id, new Set());
+                                    const persistentColorsCopy = getPersistentColors(user.id);
+                                    const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
+                                    let color = persistentColors[boardId]?.[listId] || list.color;
+                                    if (!color || color === '#cccccc') {
+                                        color = getOrGenerateRandomColor(listId, usedColors);
+                                    }
+                                    // Count is 0 if not calculated yet or empty? "..." implies loading? 
+                                    // If loading=false but tileData missing, it implies 0 cards?
+                                    // counts map initialization handles empty lists?
+                                    // No, the loop only iterates uniqueListIds defined in layout.
+                                    // But data.cards might be empty.
+                                    // In useMemo, we iterate all uniqueListIds. So titleData SHOULD exist unless listsFromSettings changed.
+                                    // We'll trust tileData usually exists.
                                     return { listId: list.id, name: list.name, count: '...', displayColor: color, firstCardName: '' };
                                 }
                                 return undefined;
@@ -330,6 +356,11 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                     const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
 
+                    // If filters reduce count to 0, do we hide?
+                    // "Only show the count ...".
+                    // Existing logic: "if (blockTiles.length === 0) return null".
+                    // blockTiles length refers to LISTS in the block, not cards.
+                    // So tile remains visible even if count is 0. This is desired.
                     if (blockTiles.length === 0 && !isCollapsed) return null;
 
                     return (
@@ -386,7 +417,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         Next refresh in {countdown}s
                     </span>
 
-                    <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
+                    <button className="refresh-button" onClick={() => fetchData(true)}>Refresh Tiles</button>
 
                     {settings?.enableTaskView && (
                         <div style={{ position: 'relative' }}>
