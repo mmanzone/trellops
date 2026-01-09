@@ -1037,10 +1037,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
                                                         Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
                                                     </span>
+                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
+                                                        Note: Cards without a description will be skipped.
+                                                    </span>
                                                 </span>
-                                            </div>
-                                            <div className="setting-description" style={{ marginTop: '5px' }}>
-                                                Note: <strong>Cards without a description will be skipped.</strong>
                                             </div>
 
                                             {/* Option 3: Update Trello Cards (Nested with Upsell) */}
@@ -1354,27 +1354,27 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
                                                     <span>Ignore Template Cards</span>
                                                 </div>
-                                                <div className="setting-item-row">
+                                                <div className="setting-item-row" onClick={() => setIgnoreNoDescCards(!ignoreNoDescCards)} style={{ cursor: 'pointer' }}>
                                                     <ToggleSwitch
                                                         id="ignoreNoDescCards"
                                                         checked={ignoreNoDescCards}
                                                         onChange={(e) => setIgnoreNoDescCards(e.target.checked)}
                                                     />
-                                                    <label htmlFor="ignoreNoDescCards">
-                                                        Ignore Cards without Description
+                                                    <div style={{ marginLeft: '10px' }}>
+                                                        <label htmlFor="ignoreNoDescCards" style={{ cursor: 'pointer' }}>Ignore Cards without Description</label>
                                                         <span style={{ display: 'block', fontSize: '0.85em', color: '#666', fontWeight: 'normal', marginTop: '2px' }}>
                                                             If enabled, cards with empty descriptions will not be counted in dashboard or placed on the map.
                                                             (First card description usage is unaffected).
                                                         </span>
-                                                    </label>
+                                                    </div>
                                                 </div>
-                                                <div className="setting-item-row">
+                                                <div className="setting-item-row" onClick={() => setIgnoreCompletedCards(!ignoreCompletedCards)} style={{ cursor: 'pointer' }}>
                                                     <ToggleSwitch
                                                         id="ignoreCompletedCards"
                                                         checked={ignoreCompletedCards}
                                                         onChange={(e) => setIgnoreCompletedCards(e.target.checked)}
                                                     />
-                                                    <label htmlFor="ignoreCompletedCards">Ignore Completed Cards (Due Complete)</label>
+                                                    <label htmlFor="ignoreCompletedCards" style={{ marginLeft: '10px', cursor: 'pointer' }}>Ignore Completed Cards (Due Complete)</label>
                                                 </div>
                                             </div>
                                         </div>

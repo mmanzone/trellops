@@ -89,6 +89,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+    const ignoreNoDescCards = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true'; // FIX: Defined in scope
 
     const isFetchingRef = useRef(false);
 
@@ -264,7 +265,8 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
     if (loading && listsFromSettings.length === 0) return <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading dashboard data...</div>;
 
-    if (error) return <div className="container"><div className="error">{error}</div></div>;
+    if (loading) return <div className="loading-container">Loading Dashboard...</div>;
+    if (error) return <div className="error-container">{error}</div>;
 
     if (!boardName || listsFromSettings.length === 0) {
         return (
@@ -284,14 +286,14 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
     }
 
     return (
-        <div className="container">
+        <div className="dashboard-container" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-canvas)', overflow: 'hidden' }}>
             {/* HEADER - Updated to match MapView/TaskView style */}
             <div className="map-header" style={headerStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    {showClock && <DigitalClock boardId={boardId} compact={true} />}
-                    <h2 style={{ margin: 0, fontSize: '1.2em', display: 'flex', alignItems: 'center' }}>
-                        {boardName} <span style={{ fontSize: '0.8em', fontWeight: 'normal', color: 'var(--text-secondary)', marginLeft: '8px' }}>{filterLabel}</span>
-                    </h2>
+                    {showClock && <DigitalClock boardId={boardId} />}
+                    <h1 style={{ margin: 0, fontSize: '1.5em', display: 'flex', alignItems: 'center' }}>
+                        {boardName} <span style={{ fontSize: '0.6em', fontWeight: 'normal', color: 'var(--text-secondary)', marginLeft: '8px' }}>{filterLabel}</span>
+                    </h1>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -308,7 +310,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             </div>
 
             {/* RENDER BLOCKS */}
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '20px', flexGrow: 1, overflowY: 'auto' }}>
                 {sectionsLayout.map(block => {
                     const blockTiles = block.listIds
                         .map(listId => {
@@ -368,15 +370,15 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     onClose={handleCloseModal}
                     sectionsLayout={sectionsLayout}
                     ignoreTemplateCards={ignoreTemplateCards}
-                    ignoreNoDescCards={ignoreNoDescCardsSetting}
+                    ignoreNoDescCards={ignoreNoDescCards}
                 />
             )}
 
             {/* Footer Action Bar */}
             <div className="footer-action-bar" style={{
-                display: 'flex',
+                flexShrink: 0,
+                display: 'flex', // Standardize with TaskView
                 justifyContent: 'space-between',
-                alignItems: 'center',
                 padding: '10px 20px',
                 background: 'var(--bg-secondary)',
                 borderTop: '1px solid var(--border-color, #ccc)',

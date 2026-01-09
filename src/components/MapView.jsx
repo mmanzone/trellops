@@ -805,7 +805,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     </select>
 
                     <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '5px' }}>
-                        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                        {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
                 </div>
             </div>

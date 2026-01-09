@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchAllTasksData } from '../api/trello';
 import { useDarkMode } from '../context/DarkModeContext';
+import DigitalClock from './common/DigitalClock';
 import '../styles/index.css';
 
 // SVG Icons for Map Header style compatibility if needed
@@ -238,48 +239,27 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
     if (error) return <div className="container error">{error}</div>;
 
     return (
-        <div className="container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <div className="container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg-canvas)' }}>
             {/* HEADER (Matching MapView & Dashboard now) */}
-            <div className="map-header" style={headerStyle}>
+            <div className="map-header" style={{ ...headerStyle, height: 'auto', minHeight: '60px', flexWrap: 'wrap', gap: '15px', padding: '10px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.2em', display: 'flex', alignItems: 'center' }}>
-                        Tasks Dashboard for {user.fullName || user.username}
-                    </h2>
+                    <DigitalClock boardId="task_view_global" />
+                    <h1 style={{ margin: 0, fontSize: '1.5em', display: 'flex', alignItems: 'center' }}>
+                        Tasks
+                    </h1>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <button className="theme-toggle-button" onClick={() => toggleTheme()}>
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
-                </div>
-            </div>
-
-            {/* FILTERS */}
-            <div className="filters-bar" style={{
-                padding: '15px 20px',
-                borderBottom: '1px solid var(--border-color, #ddd)',
-                background: 'var(--bg-primary)',
-                display: 'flex',
-                gap: '15px',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                flexShrink: 0
-            }}>
-                {/* Same Filters as before */}
-                <div className="filter-group">
-                    <label style={{ display: 'block', fontSize: '0.75em', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>WORKSPACE</label>
-                    <select value={selectedWorkspace} onChange={e => { setSelectedWorkspace(e.target.value); setSelectedBoard('all'); }} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color,#ccc)' }}>
+                {/* FILTERS MOVING TO HEADER */}
+                <div className="header-filters" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+                    <select value={selectedWorkspace} onChange={e => { setSelectedWorkspace(e.target.value); setSelectedBoard('all'); }} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '150px' }}>
                         <option value="all">All Workspaces</option>
                         {Array.from(new Set(processedTasks.map(t => t.orgId))).map(orgId => {
                             const orgName = processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown';
                             return <option key={orgId} value={orgId}>{orgName}</option>;
                         })}
                     </select>
-                </div>
 
-                <div className="filter-group">
-                    <label style={{ display: 'block', fontSize: '0.75em', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>BOARD</label>
-                    <select value={selectedBoard} onChange={e => setSelectedBoard(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color,#ccc)' }}>
+                    <select value={selectedBoard} onChange={e => setSelectedBoard(e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc', maxWidth: '150px' }}>
                         <option value="all">All Boards</option>
                         {Array.from(new Set(processedTasks
                             .filter(t => selectedWorkspace === 'all' || t.orgId === selectedWorkspace)
@@ -289,27 +269,30 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             return <option key={boardId} value={boardId}>{boardName}</option>;
                         })}
                     </select>
-                </div>
 
-                <div className="filter-group">
-                    <label style={{ display: 'block', fontSize: '0.75em', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-secondary)' }}>SORT BY</label>
-                    <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color,#ccc)' }}>
-                        <option value="workspace">Workspace</option>
-                        <option value="board">Board Name</option>
-                        <option value="due">Due Date</option>
+                    <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc' }}>
+                        <option value="workspace">Sort: Workspace</option>
+                        <option value="board">Sort: Board</option>
+                        <option value="due">Sort: Due Date</option>
                     </select>
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.9em', marginLeft: '10px' }}>
+                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '4px' }} /> Assigned
+                        </label>
+                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '4px' }} /> Member
+                        </label>
+                        <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                            <input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '4px' }} /> Done
+                        </label>
+                    </div>
                 </div>
 
-                <div className="filter-group" style={{ display: 'flex', gap: '15px', alignItems: 'center', paddingTop: '15px' }}>
-                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '0.9em' }}>
-                        <input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '5px' }} /> Assigned Tasks
-                    </label>
-                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '0.9em' }}>
-                        <input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '5px' }} /> Cards Member Of
-                    </label>
-                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', fontSize: '0.9em' }}>
-                        <input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '5px' }} /> Show Completed
-                    </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button className="theme-toggle-button" onClick={() => toggleTheme()}>
+                        {theme === 'dark' ? '☀️' : '🌙'}
+                    </button>
                 </div>
             </div>
 
