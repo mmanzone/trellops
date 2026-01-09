@@ -464,6 +464,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
 // Generic Multi-Select Component (Internal)
 const MultiSelectFilter = ({ label, options, selectedIds, onChange }) => {
+    const { theme } = useDarkMode();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const isAll = selectedIds === null || selectedIds === undefined;
