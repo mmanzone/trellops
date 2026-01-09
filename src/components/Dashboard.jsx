@@ -292,7 +292,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {showClock && <DigitalClock boardId={boardId} />}
                     <h1 style={{ margin: 0, fontSize: '1.5em', display: 'flex', alignItems: 'center' }}>
-                        {boardName} <span style={{ fontSize: '0.6em', fontWeight: 'normal', color: 'var(--text-secondary)', marginLeft: '8px' }}>{filterLabel}</span>
+                        {boardName} <span style={{ marginLeft: '15px' }}>{filterLabel}</span>
                     </h1>
                 </div>
 
@@ -377,7 +377,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* Footer Action Bar */}
             <div className="footer-action-bar" style={{
                 flexShrink: 0,
-                display: 'flex', // Standardize with TaskView
+                display: 'flex',
                 justifyContent: 'space-between',
                 padding: '10px 20px',
                 background: 'var(--bg-secondary)',
@@ -386,11 +386,15 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 zIndex: 100
             }}>
 
-                <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                    Next refresh in {countdown}s
-                </span>
+                <div className="footer-left">
+                    {/* Empty Left Side to match MapView or put credits if needed? MapView has credits. Dashboard has none. */}
+                </div>
 
-                <div style={{ display: 'flex', gap: '15px' }}>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
+                        Next refresh in {countdown}s
+                    </span>
+
                     <button className="refresh-button" onClick={() => fetchListCounts(true)}>Refresh Tiles</button>
 
                     {settings?.enableTaskView && (

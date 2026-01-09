@@ -245,7 +245,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <DigitalClock boardId="task_view_global" />
                     <h1 style={{ margin: 0, fontSize: '1.5em', display: 'flex', alignItems: 'center' }}>
-                        Tasks
+                        Tasks for {user.fullName || user.username}
                     </h1>
                 </div>
 
@@ -369,20 +369,24 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
             {/* FOOTER */}
             <div className="footer-action-bar" style={{
+                flexShrink: 0,
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
                 padding: '10px 20px',
                 background: 'var(--bg-secondary)',
                 borderTop: '1px solid var(--border-color, #ccc)',
                 position: 'relative',
                 zIndex: 100
             }}>
-                <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                    Next refresh in {Math.ceil(refreshCountdown / 60)} min
-                </span>
+                <div className="footer-left">
+                    {/* Empty Left Side to match MapView or put credits if needed? MapView has credits. TaskView has none. */}
+                </div>
 
-                <div style={{ display: 'flex', gap: '15px' }}>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
+                        Next refresh in {Math.ceil(refreshCountdown / 60)} min
+                    </span>
+
                     <button className="refresh-button" onClick={() => loadData(true)}>Refresh</button>
 
                     {/* DASHBOARD BUTTON WITH DROPDOWN */}

@@ -892,13 +892,18 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         Map tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> |
                         <a href="https://leafletjs.com" target="_blank" rel="noreferrer">Leaflet</a>
                     </span>
+                </div>
+                <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     {countdown !== null && (
-                        <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                        <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
                             Next refresh in {countdown}s
                         </span>
                     )}
-                </div>
-                <div className="map-footer-right" style={{ display: 'flex', gap: '15px' }}>
+
+                    <button className="refresh-button" onClick={() => {
+                        loadData(true);
+                        setCountdown(refreshIntervalSeconds);
+                    }}>Refresh Map</button>
 
                     {/* DASHBOARD BUTTON */}
                     <div style={{ position: 'relative' }}>
@@ -932,11 +937,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         </div>
                     )}
 
-                    <button className="refresh-button" onClick={() => {
-                        loadData(true);
-                        setCountdown(refreshIntervalSeconds);
-                    }}>Refresh Map</button>
-                    {/* Fit Map Button Removed */}
                     <button className="settings-button" onClick={() => {
                         if (onShowSettings) onShowSettings();
                         else onClose();
