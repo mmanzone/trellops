@@ -11,6 +11,7 @@ import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
+import { formatCountdown } from '../utils/timeUtils';
 import '../styles/map.css';
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap }) => {
@@ -24,7 +25,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
     // FILTER STATE
     const [timeFilter, setTimeFilter] = useState('all');
-    const [selectedLabelIds, setSelectedLabelIds] = useState(new Set()); // Empty = All
+    const [selectedLabelIds, setSelectedLabelIds] = useState(null); // null = All
 
     const [enableMapView, setEnableMapView] = useState(() => {
         if (settings && settings.enableMapView !== undefined) return settings.enableMapView;
@@ -207,16 +208,18 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 }
 
                 // Label Filter (Multi-select)
-                // If selectedLabelIds is NOT empty, card must match AT LEAST ONE selected ID?
-                // Or usually match ALL? Labels are usually OR logic in Trello filters?
-                // Trello UI: Any match.
-                // User said: "counts of cards meeting the label criteria i.e. assigned with the label".
-                // If I select Red and Blue, do I want Red OR Blue? Usually yes.
-                if (selectedLabelIds.size > 0) {
-                    if (!c.labels || c.labels.length === 0) return false; // Card has no labels -> filtered out
+                // If selectedLabelIds is NULL, it means ALL -> return true.
+                if (selectedLabelIds !== null && selectedLabelIds.size > 0) {
+                    if (!c.labels || c.labels.length === 0) return false; // Card has no labels -> filtered out if specific labels selected?
+                    // If I select "Red", and card has "Blue", fail.
+                    // If I select "Red", and card has no labels, fail.
                     const hasMatch = c.labels.some(l => selectedLabelIds.has(l.id));
                     if (!hasMatch) return false;
+                } else if (selectedLabelIds !== null && selectedLabelIds.size === 0) {
+                    // Logic for "Select None" -> Show Nothing?
+                    return false;
                 }
+                // If null (All), proceed.
 
                 return true;
             }).length;
@@ -302,19 +305,19 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                 <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
 
+                    {/* Label Filter - Moved BEFORE Time Filter */}
+                    <LabelFilter
+                        labels={boardLabels}
+                        selectedLabelIds={selectedLabelIds}
+                        onChange={setSelectedLabelIds}
+                    />
+
                     {/* Time Filter */}
                     <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
                         {Object.keys(TIME_FILTERS).map(key => (
                             <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
                         ))}
                     </select>
-
-                    {/* Label Filter */}
-                    <LabelFilter
-                        labels={boardLabels}
-                        selectedLabelIds={selectedLabelIds}
-                        onApply={setSelectedLabelIds}
-                    />
 
                     <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
                         {theme === 'dark' ? '☀️' : '🌙'}
@@ -414,7 +417,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
-                        Next refresh in {countdown}s
+                        Next refresh in {formatCountdown(countdown)}
                     </span>
 
                     <button className="refresh-button" onClick={() => fetchData(true)}>Refresh Tiles</button>

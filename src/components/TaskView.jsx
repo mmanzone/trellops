@@ -3,7 +3,14 @@ import { fetchAllTasksData } from '../api/trello';
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import '../styles/index.css';
+import '../styles/index.css';
 import '../styles/map.css';
+import { formatCountdown } from '../utils/timeUtils';
+import LabelFilter from './common/LabelFilter'; // Reusing for generic multi-select? No, implies "Labels". 
+// We should create a generic MultiSelectDropdown or copy logic.
+// Let's create a generic "MultiSelectFilter" inside TaskView or common.
+// For now, I'll define a local MultiSelect component or reuse LabelFilter logic inline? 
+// Better: Generic MultiSelect. but I'll make it local to save steps or just custom UI in header.
 
 // SVG Icons for Map Header style compatibility if needed
 // Assuming they are available via CSS or we use emojis as placeholders for now to match MapView
@@ -21,8 +28,9 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
     const [showMapDropdown, setShowMapDropdown] = useState(false);
 
     // Filters
-    const [selectedWorkspace, setSelectedWorkspace] = useState('all');
-    const [selectedBoard, setSelectedBoard] = useState('all');
+    // Filters (Multi-select)
+    const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState(null); // null = All
+    const [selectedBoardIds, setSelectedBoardIds] = useState(null); // null = All
     const [filterAssigned, setFilterAssigned] = useState(true);
     const [filterMember, setFilterMember] = useState(true);
     const [filterComplete, setFilterComplete] = useState(false);
@@ -100,7 +108,8 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             const orgId = board?.idOrganization;
             const org = orgMap.get(orgId) || { id: 'unknown', displayName: 'No Workspace', name: 'Unknown' };
 
-            // SETTINGS FILTER
+            // SETTINGS FILTER (Global "Task View Workspaces")
+            // This is "What workspaces to INCLUDE in the VIEW context".
             if (taskViewWorkspaces.length > 0 && orgId && !taskViewWorkspaces.includes(orgId)) {
                 return;
             }
@@ -130,7 +139,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                 id: ci.id,
                                 type: 'checklist_item',
                                 name: ci.name,
-                                due: ci.due || card.due,
+                                due: ci.due || card.due, // Checklist item due or Card due? Usually item due.
                                 isCompleted: ci.state === 'complete'
                             });
                         }
@@ -158,6 +167,11 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             });
         });
 
+
+
+        // Debug log for missing items
+        // console.log("Processed Tasks Count:", tasks.length);
+
         return tasks;
     }, [data, user.id, taskViewWorkspaces]);
 
@@ -175,14 +189,18 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             result = result.filter(t => !t.isCompleted);
         }
 
-        // 3. Filter Workspace
-        if (selectedWorkspace !== 'all') {
-            result = result.filter(t => t.orgId === selectedWorkspace);
+        // 3. Filter Workspace (Multi-select)
+        if (selectedWorkspaceIds !== null && selectedWorkspaceIds.size > 0) {
+            result = result.filter(t => selectedWorkspaceIds.has(t.orgId));
         }
 
-        // 4. Filter Board
-        if (selectedBoard !== 'all') {
-            result = result.filter(t => t.boardId === selectedBoard);
+        // 4. Filter Board (Multi-select)
+        if (selectedBoardIds !== null && selectedBoardIds.size > 0) {
+            result = result.filter(t => {
+                // If I filtered WOrkspaces, I only see boards from those workspaces anyway?
+                // But if I want specific boards.
+                return selectedBoardIds.has(t.boardId);
+            });
         }
 
         // 5. Sorting
@@ -200,7 +218,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
         });
 
         return result;
-    }, [processedTasks, filterAssigned, filterMember, filterComplete, selectedWorkspace, selectedBoard, sortBy]);
+    }, [processedTasks, filterAssigned, filterMember, filterComplete, selectedWorkspaceIds, selectedBoardIds, sortBy]);
 
 
     // --- Grouping for "All" View ---
@@ -250,24 +268,39 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 <div className="map-header-actions" style={{ flexGrow: 1, justifyContent: 'flex-end', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {/* FILTERS */}
                     <div className="header-filters" style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <select value={selectedWorkspace} onChange={e => { setSelectedWorkspace(e.target.value); setSelectedBoard('all'); }} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', maxWidth: '140px', fontSize: '0.9em', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-                            <option value="all">All Workspaces</option>
-                            {Array.from(new Set(processedTasks.map(t => t.orgId))).map(orgId => {
-                                const orgName = processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown';
-                                return <option key={orgId} value={orgId}>{orgName}</option>;
-                            })}
-                        </select>
+                        {/* WORKSPACE MULTI-SELECT */}
+                        <MultiSelectFilter
+                            label="Workspaces"
+                            options={Array.from(new Set(processedTasks.map(t => t.orgId)))
+                                .map(orgId => ({
+                                    id: orgId,
+                                    name: processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown'
+                                }))
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                            }
+                            selectedIds={selectedWorkspaceIds}
+                            onChange={(ids) => {
+                                setSelectedWorkspaceIds(ids);
+                                setSelectedBoardIds(null); // Reset boards when WS changes? Or keep? Reset is safer.
+                            }}
+                        />
 
-                        <select value={selectedBoard} onChange={e => setSelectedBoard(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', maxWidth: '140px', fontSize: '0.9em', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-                            <option value="all">All Boards</option>
-                            {Array.from(new Set(processedTasks
-                                .filter(t => selectedWorkspace === 'all' || t.orgId === selectedWorkspace)
+                        {/* BOARD MULTI-SELECT (Filtered by Selected Workspaces) */}
+                        <MultiSelectFilter
+                            label="Boards"
+                            options={Array.from(new Set(processedTasks
+                                .filter(t => selectedWorkspaceIds === null || selectedWorkspaceIds.has(t.orgId))
                                 .map(t => t.boardId)
-                            )).map(boardId => {
-                                const boardName = processedTasks.find(t => t.boardId === boardId)?.boardName || 'Unknown';
-                                return <option key={boardId} value={boardId}>{boardName}</option>;
-                            })}
-                        </select>
+                            ))
+                                .map(boardId => ({
+                                    id: boardId,
+                                    name: processedTasks.find(t => t.boardId === boardId)?.boardName || 'Unknown'
+                                }))
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                            }
+                            selectedIds={selectedBoardIds}
+                            onChange={setSelectedBoardIds}
+                        />
 
                         <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.9em', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
                             <option value="workspace">Sort: Workspace</option>
@@ -370,7 +403,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 <div className="map-footer-left"></div>
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                     <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
-                        Next refresh in {Math.ceil(refreshCountdown / 60)} min
+                        Next refresh in {formatCountdown(refreshCountdown)}
                     </span>
 
                     <button className="refresh-button" onClick={() => loadData(true)}>Refresh</button>
@@ -424,6 +457,116 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             {/* Click Outside to Close Dropdowns */}
             {(showDashboardDropdown || showMapDropdown) && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => { setShowDashboardDropdown(false); setShowMapDropdown(false); }} />
+            )}
+        </div>
+    );
+};
+
+// Generic Multi-Select Component (Internal)
+const MultiSelectFilter = ({ label, options, selectedIds, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+    const isAll = selectedIds === null || selectedIds === undefined;
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleOption = (id) => {
+        if (isAll) {
+            const allOtherIds = new Set(options.filter(o => o.id !== id).map(o => o.id));
+            onChange(allOtherIds);
+        } else {
+            const newSet = new Set(selectedIds);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            // If newSet.size === options.length -> we could switch to null (All)?
+            // Optional optimization.
+            onChange(newSet);
+        }
+    };
+
+    return (
+        <div style={{ position: 'relative', display: 'inline-block' }} ref={dropdownRef}>
+            <button
+                className="settings-button"
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    fontSize: '0.9em'
+                }}
+            >
+                {label}
+                {!isAll && selectedIds.size > 0 && (
+                    <span style={{
+                        background: 'var(--accent-color)',
+                        color: 'white',
+                        borderRadius: '10px',
+                        padding: '0 6px',
+                        fontSize: '0.8em'
+                    }}>
+                        {selectedIds.size}
+                    </span>
+                )}
+                {!isAll && selectedIds.size === 0 && (
+                    <span style={{ fontSize: '0.8em', color: 'var(--text-secondary)' }}>(None)</span>
+                )}
+                <span style={{ fontSize: '0.8em' }}>▼</span>
+            </button>
+
+            {isOpen && (
+                <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '5px',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 12px var(--shadow-color)',
+                    zIndex: 1000,
+                    width: '250px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    maxHeight: '400px'
+                }}>
+                    <div style={{
+                        padding: '8px',
+                        borderBottom: '1px solid var(--border-color)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.85em',
+                        fontWeight: 'bold',
+                        color: 'var(--text-primary)'
+                    }}>
+                        <span>{label}</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={() => onChange(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline' }}>All</button>
+                            <button onClick={() => onChange(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>None</button>
+                        </div>
+                    </div>
+                    <div style={{ overflowY: 'auto', padding: '8px', flex: 1 }}>
+                        {options.map(opt => {
+                            const isChecked = isAll || selectedIds.has(opt.id);
+                            return (
+                                <label key={opt.id} style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.9em' }}>
+                                    <input type="checkbox" checked={isChecked} onChange={() => toggleOption(opt.id)} style={{ marginRight: '8px' }} />
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opt.name}</span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                </div>
             )}
         </div>
     );

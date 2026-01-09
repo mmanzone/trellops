@@ -778,8 +778,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 <button
                     className={`tab-button ${activeTab === 'tasks' ? 'active' : ''}`}
                     onClick={() => setActiveTab('tasks')}
+                    style={{ marginLeft: 'auto' }}
                 >
-                    Tasks Dashboard
+                    Tasks settings
                 </button>
 
             </div>
@@ -1354,14 +1355,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
                                                     <span>Ignore Template Cards</span>
                                                 </div>
-                                                <div className="setting-item-row" onClick={() => setIgnoreNoDescCards(!ignoreNoDescCards)} style={{ cursor: 'pointer' }}>
-                                                    <ToggleSwitch
-                                                        id="ignoreNoDescCards"
-                                                        checked={ignoreNoDescCards}
-                                                        onChange={(e) => setIgnoreNoDescCards(e.target.checked)}
-                                                    />
+                                                <div className="setting-item-row" onClick={() => setIgnoreNoDescCards(!ignoreNoDescCards)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'flex-start' }}>
+                                                    <div style={{ marginTop: '2px' }}>
+                                                        <ToggleSwitch
+                                                            id="ignoreNoDescCards"
+                                                            checked={ignoreNoDescCards}
+                                                            onChange={(e) => setIgnoreNoDescCards(e.target.checked)}
+                                                        />
+                                                    </div>
                                                     <div style={{ marginLeft: '10px' }}>
-                                                        <label htmlFor="ignoreNoDescCards" style={{ cursor: 'pointer' }}>Ignore Cards without Description</label>
+                                                        <label htmlFor="ignoreNoDescCards" style={{ cursor: 'pointer', fontWeight: 'bold' }}>Ignore Cards without Description</label>
                                                         <span style={{ display: 'block', fontSize: '0.85em', color: '#666', fontWeight: 'normal', marginTop: '2px' }}>
                                                             If enabled, cards with empty descriptions will not be counted in dashboard or placed on the map.
                                                             (First card description usage is unaffected).
@@ -1484,9 +1487,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 activeTab === 'tasks' && (
                     <div className="tab-content">
                         <div className="admin-section" id="section-tasks">
-                            <h3>Global Tasks List Settings</h3>
+                            <h3>Task dashboard</h3>
                             <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                                Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
+                                This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
                             </p>
                             <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
                                 <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
@@ -1501,9 +1504,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                     {/* Workspace Selection */}
                                     <div className="setting-group" style={{ marginBottom: '20px' }}>
-                                        <label className="setting-label">Workspaces to Include (optional)</label>
+                                        <label className="setting-label">Workspaces to Include</label>
                                         <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
-                                            Select which workspaces to show tasks from. If none selected, ALL workspaces are shown.
+                                            Select which workspaces to show tasks from. At least one workspace must be selected.
                                         </div>
                                         <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
                                             {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
@@ -1517,7 +1520,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                 if (e.target.checked) {
                                                                     setTaskViewWorkspaces([...taskViewWorkspaces, org.id]);
                                                                 } else {
-                                                                    setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
+                                                                    // Enforce at least one
+                                                                    if (taskViewWorkspaces.length > 1) {
+                                                                        setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
+                                                                    } else {
+                                                                        alert("At least one workspace must be selected.");
+                                                                    }
                                                                 }
                                                             }}
                                                             style={{ marginRight: '8px' }}
@@ -1566,8 +1574,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 </span>
                 <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                 <button className="button-secondary" onClick={onClose}>Cancel</button>
-                <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
-                <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
+                {activeTab !== 'tasks' && (
+                    <>
+                        <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
+                        <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
+                    </>
+                )}
             </div>
 
             {
