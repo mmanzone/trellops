@@ -3,7 +3,7 @@ import { trelloFetch } from '../../api/trello';
 import { useDarkMode } from '../../context/DarkModeContext';
 import { getLabelTextColor } from '../../utils/helpers';
 
-const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLayout, ignoreTemplateCards }) => {
+const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLayout, ignoreTemplateCards, ignoreNoDescCards }) => {
     const [cards, setCards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -17,7 +17,7 @@ const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLay
     useEffect(() => {
         setLoading(true);
         setError('');
-        trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels,isTemplate`, token)
+        trelloFetch(`/lists/${listId}/cards?fields=id,name,shortUrl,labels,isTemplate,desc`, token)
             .then(data => {
                 let cardsToDisplay = data;
                 if (ignoreTemplateCards) {
@@ -47,27 +47,39 @@ const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLay
 
                 {!loading && cards.length > 0 && (
                     <div>
-                        {cards.map(card => (
-                            <div key={card.id} className="card-list-item">
-                                {/* Display Trello Labels */}
-                                {card.labels?.map(label => (
-                                    <span
-                                        key={label.id}
-                                        className="card-label"
-                                        style={{
-                                            backgroundColor: label.color || '#999',
-                                            color: getLabelTextColor(theme)
-                                        }}
-                                    >
-                                        {label.name || label.color}
-                                    </span>
-                                ))}
+                        {cards.map(card => {
+                            const isIgnored = ignoreNoDescCards && (!card.desc || !card.desc.trim());
+                            const itemStyle = isIgnored ? { color: 'lightgrey', fontStyle: 'italic' } : {};
 
-                                <a href={card.shortUrl} target="_blank" rel="noopener noreferrer" title={card.name}>
-                                    {card.name}
-                                </a>
-                            </div>
-                        ))}
+                            return (
+                                <div key={card.id} className="card-list-item" style={itemStyle}>
+                                    {/* Display Trello Labels */}
+                                    {card.labels?.map(label => (
+                                        <span
+                                            key={label.id}
+                                            className="card-label"
+                                            style={{
+                                                backgroundColor: label.color || '#999',
+                                                color: getLabelTextColor(theme),
+                                                opacity: isIgnored ? 0.6 : 1
+                                            }}
+                                        >
+                                            {label.name || label.color}
+                                        </span>
+                                    ))}
+
+                                    <a
+                                        href={card.shortUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title={card.name}
+                                        style={itemStyle}
+                                    >
+                                        {card.name}
+                                    </a>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>

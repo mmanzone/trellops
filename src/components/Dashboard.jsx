@@ -117,7 +117,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
         try {
             const allCards = await trelloFetch(
-                `/boards/${boardId}/cards?fields=id,idList,pos,name,desc,start,isTemplate,dateLastActivity,dueComplete`,
+                `/boards/${boardId}/cards?fields=id,idList,pos,name,desc,isTemplate,dateLastActivity,dueComplete`,
                 user.token
             );
 
@@ -176,7 +176,6 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 const result = listResults[listId] || { count: 0 };
                 let finalCount = result.count;
                 let descriptionCardName = '';
-                let descriptionCardStart = null;
 
                 if (isIgnored) {
                     const firstCard = firstCardMap.get(listId);
@@ -187,7 +186,6 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         }
                         if (displayDescription) {
                             descriptionCardName = firstCard.name;
-                            if (firstCard.start) descriptionCardStart = firstCard.start;
                         }
                     }
                 }
@@ -203,8 +201,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     count: finalCount,
                     name: listData?.name,
                     displayColor: color,
-                    firstCardName: descriptionCardName,
-                    firstCardStart: descriptionCardStart
+                    firstCardName: descriptionCardName
                 });
             });
 
@@ -351,14 +348,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                             <div className="card-count">{item.count}</div>
                                             <div className="list-name">{item.name}</div>
                                             {item.firstCardName && (
-                                                <div className="card-description" title={item.firstCardName}>
-                                                    {item.firstCardName}
-                                                    {item.firstCardStart && (
-                                                        <div style={{ fontSize: '0.85em', opacity: 0.9, marginTop: '4px' }}>
-                                                            Start: {new Date(item.firstCardStart).toLocaleString('en-AU', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                <div className="card-description" title={item.firstCardName}>{item.firstCardName}</div>
                                             )}
                                         </div>
                                     ))}
@@ -378,6 +368,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     onClose={handleCloseModal}
                     sectionsLayout={sectionsLayout}
                     ignoreTemplateCards={ignoreTemplateCards}
+                    ignoreNoDescCards={ignoreNoDescCardsSetting}
                 />
             )}
 

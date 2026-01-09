@@ -1040,7 +1040,6 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 </span>
                                             </div>
                                             <div className="setting-description" style={{ marginTop: '5px' }}>
-                                                When enabled, Trello cards without coordinates will be geocoded using Nominatim (OpenStreetMap).
                                                 Note: <strong>Cards without a description will be skipped.</strong>
                                             </div>
 
@@ -1357,25 +1356,25 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 </div>
                                                 <div className="setting-item-row">
                                                     <ToggleSwitch
-                                                        id="ignoreCompletedCards"
-                                                        checked={ignoreCompletedCards}
-                                                        onChange={(e) => setIgnoreCompletedCards(e.target.checked)}
-                                                    />
-                                                    <label htmlFor="ignoreCompletedCards">Ignore Completed Cards (Due Complete)</label>
-                                                </div>
-                                                <div className="setting-item-row">
-                                                    <ToggleSwitch
                                                         id="ignoreNoDescCards"
                                                         checked={ignoreNoDescCards}
                                                         onChange={(e) => setIgnoreNoDescCards(e.target.checked)}
                                                     />
                                                     <label htmlFor="ignoreNoDescCards">
                                                         Ignore Cards without Description
-                                                        <div className="setting-description">
+                                                        <span style={{ display: 'block', fontSize: '0.85em', color: '#666', fontWeight: 'normal', marginTop: '2px' }}>
                                                             If enabled, cards with empty descriptions will not be counted in dashboard or placed on the map.
                                                             (First card description usage is unaffected).
-                                                        </div>
+                                                        </span>
                                                     </label>
+                                                </div>
+                                                <div className="setting-item-row">
+                                                    <ToggleSwitch
+                                                        id="ignoreCompletedCards"
+                                                        checked={ignoreCompletedCards}
+                                                        onChange={(e) => setIgnoreCompletedCards(e.target.checked)}
+                                                    />
+                                                    <label htmlFor="ignoreCompletedCards">Ignore Completed Cards (Due Complete)</label>
                                                 </div>
                                             </div>
                                         </div>
