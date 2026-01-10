@@ -147,5 +147,43 @@ export const fetchAllTasksData = async (token) => {
 
     const allCards = [...memberCards, ...additionalCards];
 
+    // 7. Missing Organizations Fix (Round 16)
+    // Collect all org IDs from Boards and Cards
+    const knownOrgIds = new Set(orgs.map(o => o.id));
+    const potentialOrgIds = new Set();
+
+    boards.forEach(b => { if (b.idOrganization) potentialOrgIds.add(b.idOrganization); });
+    // Cards usually rely on Board's org, but sometimes might have it? Usually no.
+    // But we map Org via Board. So ensuring Board->Org mapping is covered is enough.
+    // Boards fetched via `members/me/boards` include `idOrganization`.
+
+    // Identify missing Orgs
+    const missingOrgIds = [...potentialOrgIds].filter(id => !knownOrgIds.has(id));
+
+    if (missingOrgIds.length > 0) {
+        const BATCH_SIZE = 10;
+        const chunks = [];
+        for (let i = 0; i < missingOrgIds.length; i += BATCH_SIZE) {
+            chunks.push(missingOrgIds.slice(i, i + BATCH_SIZE));
+        }
+
+        const batchPromises = chunks.map(chunk => {
+            const batchUrls = chunk.map(id => `/organizations/${id}?fields=id,displayName,name`).join(',');
+            return trelloFetch(`/batch?urls=${batchUrls}`, token);
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        batchResults.forEach(batch => {
+            if (Array.isArray(batch)) {
+                batch.forEach(item => {
+                    if (item['200']) {
+                        orgs.push(item['200']);
+                    }
+                });
+            }
+        });
+    }
+
     return { orgs, boards, cards: allCards };
 };

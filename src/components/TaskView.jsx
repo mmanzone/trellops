@@ -360,30 +360,31 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                         <div key={orgId} className="workspace-section" style={{ marginBottom: '40px' }}>
                             <h2 style={{ borderBottom: '2px solid var(--border-color, #ccc)', paddingBottom: '10px', marginBottom: '20px', color: 'var(--text-primary)' }}>{orgData.name}</h2>
 
-                            <div className="boards-grid" style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '15px' }}>
+                            {/* Layout Updated: Vertical Stack of Boards, Grid of Cards */}
+                            <div className="boards-stack" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                                 {Object.entries(orgData.boards).map(([boardId, boardData]) => (
-                                    <div key={boardId} className="board-column" style={{
-                                        minWidth: '300px',
-                                        maxWidth: '300px',
+                                    <div key={boardId} className="board-section" style={{
+                                        width: '100%',
                                         background: 'var(--bg-secondary)',
                                         borderRadius: '8px',
-                                        padding: '10px',
-                                        maxHeight: '600px',
-                                        overflowY: 'auto',
+                                        padding: '15px',
                                         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                                     }}>
-                                        <h3 style={{ marginTop: 0, fontSize: '1em', marginBottom: '15px', color: 'var(--text-primary)' }}>{boardData.name} <span style={{ fontSize: '0.8em', fontWeight: 'normal', color: 'var(--text-secondary)' }}>({boardData.tasks.length})</span></h3>
+                                        <h3 style={{ marginTop: 0, fontSize: '1.1em', marginBottom: '15px', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color, #eee)', paddingBottom: '8px' }}>
+                                            {boardData.name} <span style={{ fontSize: '0.8em', fontWeight: 'normal', color: 'var(--text-secondary)' }}>({boardData.tasks.length})</span>
+                                        </h3>
 
-                                        <div className="tasks-list" style={{
+                                        <div className="tasks-grid" style={{
                                             display: 'grid',
+                                            // Grid Layout: Auto-fit with min width ~280px. Approx 4 per row on standard desktop (1200px+).
                                             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                                            gap: '10px'
+                                            gap: '15px'
                                         }}>
                                             {boardData.tasks.map(task => (
                                                 <div key={task.type === 'card' ? `card-${task.cardId}` : task.id} className="task-card" style={{
                                                     background: 'var(--bg-primary)',
-                                                    padding: '10px',
-                                                    borderRadius: '4px',
+                                                    padding: '12px',
+                                                    borderRadius: '6px',
                                                     boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                                                     borderLeft: task.checkItems && task.checkItems.length > 0 ? '4px solid #0079bf' : '4px solid #ff9f1a', // Blue for items, Orange for just card
                                                     color: 'var(--text-primary)',
@@ -394,17 +395,17 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                                     {/* Card Header (The "Card" itself) */}
                                                     <div style={{ marginBottom: '8px' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                            <a href={task.cardUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: '600', fontSize: '1em', lineHeight: '1.2' }}>
+                                                            <a href={task.cardUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: '600', fontSize: '1em', lineHeight: '1.3', wordBreak: 'break-word' }}>
                                                                 {task.cardName}
                                                             </a>
                                                             {task.isMember && (
-                                                                <span title="You are a member of this card" style={{ fontSize: '0.8em', marginLeft: '5px', opacity: 0.7 }}>👤</span>
+                                                                <span title="You are a member of this card" style={{ fontSize: '0.9em', marginLeft: '5px', opacity: 0.7 }}>👤</span>
                                                             )}
                                                         </div>
 
                                                         {/* Labels */}
                                                         {task.labels && task.labels.length > 0 && (
-                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
                                                                 {task.labels.map(l => (
                                                                     <span key={l.id} style={{
                                                                         fontSize: '0.7em',
@@ -423,8 +424,8 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                                         {/* Card Due Date */}
                                                         {task.due && (
                                                             <div style={{
-                                                                fontSize: '0.8em',
-                                                                marginTop: '6px',
+                                                                fontSize: '0.85em',
+                                                                marginTop: '8px',
                                                                 color: new Date(task.due) < new Date() && !task.isCompleted ? '#eb5a46' : '#5ba4cf',
                                                                 display: 'flex',
                                                                 alignItems: 'center'
@@ -438,35 +439,37 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
                                                     {/* Checklist Items (Indented) */}
                                                     {task.checkItems && task.checkItems.length > 0 && (
-                                                        <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--border-color, #eee)' }}>
-                                                            <div style={{ fontSize: '0.75em', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>Your Tasks:</div>
+                                                        <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid var(--border-color, #eee)' }}>
+                                                            <div style={{ fontSize: '0.75em', color: 'var(--text-secondary)', marginBottom: '5px', textTransform: 'uppercase', fontWeight: 'bold' }}>Your Tasks:</div>
                                                             {task.checkItems.map(item => (
                                                                 <div key={item.id} style={{
                                                                     display: 'flex',
-                                                                    alignItems: 'center',
+                                                                    alignItems: 'flex-start',
                                                                     padding: '4px 0',
                                                                     paddingLeft: '10px', // INDENTATION
                                                                     borderLeft: '2px solid #ddd',
                                                                     fontSize: '0.9em',
-                                                                    marginBottom: '2px'
+                                                                    marginBottom: '4px'
                                                                 }}>
                                                                     <div style={{
-                                                                        width: '14px',
-                                                                        height: '14px',
+                                                                        width: '16px',
+                                                                        height: '16px',
                                                                         borderRadius: '3px',
                                                                         border: '1px solid #ccc',
                                                                         marginRight: '8px',
+                                                                        marginTop: '2px', // Align with text top
                                                                         display: 'flex',
                                                                         alignItems: 'center',
                                                                         justifyContent: 'center',
                                                                         background: item.state === 'complete' ? '#5ba4cf' : 'transparent',
                                                                         flexShrink: 0
                                                                     }}>
-                                                                        {item.state === 'complete' && <span style={{ color: 'white', fontSize: '10px' }}>✓</span>}
+                                                                        {item.state === 'complete' && <span style={{ color: 'white', fontSize: '11px' }}>✓</span>}
                                                                     </div>
                                                                     <span style={{
                                                                         color: item.state === 'complete' ? '#888' : 'var(--text-primary)',
-                                                                        textDecoration: item.state === 'complete' ? 'line-through' : 'none'
+                                                                        textDecoration: item.state === 'complete' ? 'line-through' : 'none',
+                                                                        lineHeight: '1.4'
                                                                     }}>
                                                                         {item.name}
                                                                     </span>
