@@ -347,7 +347,12 @@ const App = () => {
                 onLogout={handleLogout}
                 importedConfig={importConfig}
                 onClearImportConfig={() => setImportConfig(null)}
+
                 viewMode="default"
+                onManageTasks={() => {
+                    setView('tasks-settings');
+                    window.history.pushState({}, '', '/tasks/settings');
+                }}
             />
         );
     }
