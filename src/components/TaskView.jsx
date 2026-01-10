@@ -120,7 +120,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 boardId: card.idBoard,
                 boardName: board?.name || 'Unknown Board',
                 orgId: org.id,
-                orgName: org.displayName || org.name,
+                orgName: org.displayName || org.name || 'No Workspace',
                 isCompleted: card.dueComplete || false,
                 due: card.due,
                 labels: card.labels || []
@@ -178,52 +178,41 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             // If I want assigned tasks: Include if I have assigned items (regardless of membership)
             // If I want membership tasks: Include if I am member (regardless of items)
 
-            // Current User Request: 
-            // - User is member: Show
-            // - User is not member but has item: Show
-            // - User matches BOTH: Show
+            // Logic:
+            // - filterAssigned=T, filterMember=T -> Show All (Member OR Assigned)
+            // - filterAssigned=T, filterMember=F -> Show only if t.checkItems.length > 0
+            // - filterAssigned=F, filterMember=T -> Show only if t.isMember
 
-            // But we have toggles "Assigned" and "Member".
-            // If "Assigned" ON, "Member" OFF: Show only if has items? 
-            // If "Assigned" OFF, "Member" ON: Show only if member?
-            // If BOTH ON: Show if either.
+            const hasAssignments = t.checkItems.length > 0;
+            const isMember = t.isMember;
 
-            const matchesAssigned = t.checkItems && t.checkItems.length > 0;
-            const matchesMember = t.isMember;
-
-            if (filterAssigned && filterMember) return matchesAssigned || matchesMember;
-            if (filterAssigned) return matchesAssigned;
-            if (filterMember) return matchesMember;
+            if (filterAssigned && filterMember) return hasAssignments || isMember;
+            if (filterAssigned) return hasAssignments;
+            if (filterMember) return isMember;
             return false;
         });
 
-        // 2. Filter Status
-        if (!filterComplete) {
-            // If card is complete, hide? 
-            // Or if all my items are complete?
-            // Let's hide if Card is complete AND (no items are pending OR all items are complete)
-            // Simpler: If card is complete, hide. 
-            // If items are causing visibility, check if they are complete?
-            // User usually wants to see "Active" stuff.
-            // If Card is incomplete, show.
-            // If Card is complete, but I have incomplete item? Show.
-            result = result.filter(t => {
-                const cardActive = !t.isCompleted;
-                const itemsActive = t.checkItems && t.checkItems.some(ci => ci.state !== 'complete');
-
-                return cardActive || itemsActive;
-            });
-        }
-
-        // 3. Filter Workspace (Multi-select)
-        if (selectedWorkspaceIds !== null && selectedWorkspaceIds.size > 0) {
+        // 2. Filter Workspace
+        if (selectedWorkspaceIds && selectedWorkspaceIds.size > 0) {
             result = result.filter(t => selectedWorkspaceIds.has(t.orgId));
         }
 
-        // 4. Filter Board (Multi-select)
-        if (selectedBoardIds !== null && selectedBoardIds.size > 0) {
+        // 3. Filter Board
+        if (selectedBoardIds && selectedBoardIds.size > 0) {
             result = result.filter(t => selectedBoardIds.has(t.boardId));
         }
+
+        // 4. Filter Completed
+        if (!filterComplete) {
+            // Hide if Card is complete AND (All assigned items are complete OR no items)
+            result = result.filter(t => {
+                const cardDone = t.isCompleted;
+                const allItemsDone = t.checkItems.length === 0 || t.checkItems.every(i => i.state === 'complete');
+                return !(cardDone && allItemsDone);
+            });
+        }
+
+        const safeStr = (s) => s || '';
 
         // 5. Sorting
         result.sort((a, b) => {
@@ -235,10 +224,10 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 return new Date(a.due) - new Date(b.due);
             }
             if (sortBy === 'board') {
-                return a.boardName.localeCompare(b.boardName) || a.cardName.localeCompare(b.cardName);
+                return safeStr(a.boardName).localeCompare(safeStr(b.boardName)) || safeStr(a.cardName).localeCompare(safeStr(b.cardName));
             }
             // Default Workspace
-            return a.orgName.localeCompare(b.orgName) || a.boardName.localeCompare(b.boardName);
+            return safeStr(a.orgName).localeCompare(safeStr(b.orgName)) || safeStr(a.boardName).localeCompare(safeStr(b.boardName));
         });
 
         return result;
@@ -278,6 +267,9 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
         boxSizing: 'border-box'
     };
 
+    // Helper helper for safe sorting in render
+    const safeSort = (a, b) => (a.name || '').localeCompare(b.name || '');
+
     if (loading) return <div className="container" style={{ textAlign: 'center', marginTop: 50 }}>Loading Tasks...</div>;
     if (error) return <div className="container error">{error}</div>;
 
@@ -300,7 +292,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                     id: orgId,
                                     name: processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown'
                                 }))
-                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .sort(safeSort)
                             }
                             selectedIds={selectedWorkspaceIds}
                             onChange={(ids) => {
@@ -320,7 +312,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                     id: boardId,
                                     name: processedTasks.find(t => t.boardId === boardId)?.boardName || 'Unknown'
                                 }))
-                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .sort(safeSort)
                             }
                             selectedIds={selectedBoardIds}
                             onChange={setSelectedBoardIds}
