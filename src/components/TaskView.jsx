@@ -108,8 +108,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             const orgId = board?.idOrganization;
             const org = orgMap.get(orgId) || { id: 'unknown', displayName: 'No Workspace', name: 'Unknown' };
 
-            // SETTINGS FILTER (Global "Task View Workspaces")
-            // This is "What workspaces to INCLUDE in the VIEW context".
+            // SETTINGS FILTER
             if (taskViewWorkspaces.length > 0 && orgId && !taskViewWorkspaces.includes(orgId)) {
                 return;
             }
@@ -122,55 +121,48 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 boardName: board?.name || 'Unknown Board',
                 orgId: org.id,
                 orgName: org.displayName || org.name,
-                isCompleted: card.dueComplete || false
+                isCompleted: card.dueComplete || false,
+                due: card.due,
+                labels: card.labels || []
             };
 
-            // 1. Checklist Items Assigned to Me
-            // Logic: iterate checklists. If checkItem.idMember == user.id OR checkItem.idMembers includes user.id
+            // 1. Identify User's Assigned Checklist Items
+            const myChecklistItems = [];
             if (card.checklists && card.checklists.length > 0) {
                 card.checklists.forEach(cl => {
                     cl.checkItems.forEach(ci => {
-                        // Support both idMember (old/singular) and idMembers (new/plural)
                         const assignedToMe = (ci.idMember && ci.idMember === user.id) || (ci.idMembers && ci.idMembers.includes(user.id));
-
                         if (assignedToMe) {
-                            tasks.push({
-                                ...baseProps,
+                            myChecklistItems.push({
                                 id: ci.id,
-                                type: 'checklist_item',
                                 name: ci.name,
-                                due: ci.due || card.due, // Checklist item due or Card due? Usually item due.
-                                isCompleted: ci.state === 'complete'
+                                state: ci.state,
+                                due: ci.due
                             });
                         }
                     });
                 });
             }
 
-            // 2. Card Membership
-            // We want to avoid duplicates if I am BOTH assigned a task AND on the card? 
-            // Usually separate. "Assigned Task" is granular. "Card Member" is general.
-            // Let's keep both, but maybe user wants distinct lists.
-            // If I filter 'Assigned Tasks', I see checklist items.
-            // If I filter 'Card Member', I see cards I am on.
-            // If I am on card, I see it as 'Card Member'.
+            // 2. Identify Card Membership
+            const isMember = card.idMembers && card.idMembers.includes(user.id);
 
-            // Check if user is actually member of card (not just implicit via checklist)
-            // members/me/cards ensures membership usually.
-            tasks.push({
-                ...baseProps,
-                id: card.id,
-                type: 'card_member',
-                name: card.name,
-                due: card.due,
-                isCompleted: card.dueComplete
-            });
+            // 3. Visibility Logic
+            // - Member: Show Card
+            // - Not Member but Assigned Items: Show Card (as context) + Items
+            // - Member AND Assigned Items: Show Card + Indented Items
+            if (isMember || myChecklistItems.length > 0) {
+                tasks.push({
+                    ...baseProps,
+                    // We treat the "Principal" task as the card itself.
+                    // If strict "Assigned Only" filter is on, we might need adjustments,
+                    // but usually "Assigned" means "I have work here".
+                    type: 'card',
+                    isMember: isMember,
+                    checkItems: myChecklistItems
+                });
+            }
         });
-
-
-
-        // Debug log for missing items
-        // console.log("Processed Tasks Count:", tasks.length);
 
         return tasks;
     }, [data, user.id, taskViewWorkspaces]);
@@ -179,14 +171,48 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
     const displayedTasks = useMemo(() => {
         let result = processedTasks;
 
-        // 1. Filter Type
+        // 1. Filter Type (Assignments vs Membership)
         if (!filterAssigned && !filterMember) return [];
-        if (!filterAssigned) result = result.filter(t => t.type !== 'checklist_item');
-        if (!filterMember) result = result.filter(t => t.type !== 'card_member');
+
+        result = result.filter(t => {
+            // If I want assigned tasks: Include if I have assigned items (regardless of membership)
+            // If I want membership tasks: Include if I am member (regardless of items)
+
+            // Current User Request: 
+            // - User is member: Show
+            // - User is not member but has item: Show
+            // - User matches BOTH: Show
+
+            // But we have toggles "Assigned" and "Member".
+            // If "Assigned" ON, "Member" OFF: Show only if has items? 
+            // If "Assigned" OFF, "Member" ON: Show only if member?
+            // If BOTH ON: Show if either.
+
+            const matchesAssigned = t.checkItems && t.checkItems.length > 0;
+            const matchesMember = t.isMember;
+
+            if (filterAssigned && filterMember) return matchesAssigned || matchesMember;
+            if (filterAssigned) return matchesAssigned;
+            if (filterMember) return matchesMember;
+            return false;
+        });
 
         // 2. Filter Status
         if (!filterComplete) {
-            result = result.filter(t => !t.isCompleted);
+            // If card is complete, hide? 
+            // Or if all my items are complete?
+            // Let's hide if Card is complete AND (no items are pending OR all items are complete)
+            // Simpler: If card is complete, hide. 
+            // If items are causing visibility, check if they are complete?
+            // User usually wants to see "Active" stuff.
+            // If Card is incomplete, show.
+            // If Card is complete, but I have incomplete item? Show.
+            result = result.filter(t => {
+                const cardActive = !t.isCompleted;
+                const itemsActive = t.checkItems && t.checkItems.some(ci => ci.state !== 'complete');
+
+                return cardActive || itemsActive;
+            });
         }
 
         // 3. Filter Workspace (Multi-select)
@@ -196,22 +222,20 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
         // 4. Filter Board (Multi-select)
         if (selectedBoardIds !== null && selectedBoardIds.size > 0) {
-            result = result.filter(t => {
-                // If I filtered WOrkspaces, I only see boards from those workspaces anyway?
-                // But if I want specific boards.
-                return selectedBoardIds.has(t.boardId);
-            });
+            result = result.filter(t => selectedBoardIds.has(t.boardId));
         }
 
         // 5. Sorting
         result.sort((a, b) => {
             if (sortBy === 'due') {
+                // Use card due or earliest item due?
+                // Let's use card due primarily
                 if (!a.due) return 1;
                 if (!b.due) return -1;
                 return new Date(a.due) - new Date(b.due);
             }
             if (sortBy === 'board') {
-                return a.boardName.localeCompare(b.boardName) || a.name.localeCompare(b.name);
+                return a.boardName.localeCompare(b.boardName) || a.cardName.localeCompare(b.cardName);
             }
             // Default Workspace
             return a.orgName.localeCompare(b.orgName) || a.boardName.localeCompare(b.boardName);
@@ -350,41 +374,104 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                     }}>
                                         <h3 style={{ marginTop: 0, fontSize: '1em', marginBottom: '15px', color: 'var(--text-primary)' }}>{boardData.name} <span style={{ fontSize: '0.8em', fontWeight: 'normal', color: 'var(--text-secondary)' }}>({boardData.tasks.length})</span></h3>
 
-                                        <div className="tasks-list">
+                                        <div className="tasks-list" style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                            gap: '10px'
+                                        }}>
                                             {boardData.tasks.map(task => (
-                                                <div key={`${task.type}-${task.id}`} className="task-card" style={{
+                                                <div key={task.type === 'card' ? `card-${task.cardId}` : task.id} className="task-card" style={{
                                                     background: 'var(--bg-primary)',
                                                     padding: '10px',
-                                                    marginBottom: '8px',
                                                     borderRadius: '4px',
                                                     boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                                    borderLeft: task.type === 'checklist_item' ? '4px solid #0079bf' : '4px solid #ff9f1a',
-                                                    color: 'var(--text-primary)'
+                                                    borderLeft: task.checkItems && task.checkItems.length > 0 ? '4px solid #0079bf' : '4px solid #ff9f1a', // Blue for items, Orange for just card
+                                                    color: 'var(--text-primary)',
+                                                    height: '100%', // For grid alignment
+                                                    display: 'flex',
+                                                    flexDirection: 'column'
                                                 }}>
-                                                    <div style={{ fontSize: '0.7em', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                                                        {task.type === 'checklist_item' ? 'Checklist Item' : 'Card Member'}
-                                                    </div>
+                                                    {/* Card Header (The "Card" itself) */}
+                                                    <div style={{ marginBottom: '8px' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                            <a href={task.cardUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: '600', fontSize: '1em', lineHeight: '1.2' }}>
+                                                                {task.cardName}
+                                                            </a>
+                                                            {task.isMember && (
+                                                                <span title="You are a member of this card" style={{ fontSize: '0.8em', marginLeft: '5px', opacity: 0.7 }}>👤</span>
+                                                            )}
+                                                        </div>
 
-                                                    <div style={{ marginBottom: '5px' }}>
-                                                        <a href={task.cardUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: '500' }}>
-                                                            {task.name}
-                                                        </a>
-                                                        {task.type === 'checklist_item' && (
-                                                            <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', marginTop: '2px' }}>on card: {task.cardName}</div>
+                                                        {/* Labels */}
+                                                        {task.labels && task.labels.length > 0 && (
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                                                                {task.labels.map(l => (
+                                                                    <span key={l.id} style={{
+                                                                        fontSize: '0.7em',
+                                                                        padding: '2px 6px',
+                                                                        borderRadius: '3px',
+                                                                        backgroundColor: l.color ? getLabelColor(l.color) : '#ccc',
+                                                                        color: l.color ? '#fff' : '#000',
+                                                                        fontWeight: '500'
+                                                                    }}>
+                                                                        {l.name}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Card Due Date */}
+                                                        {task.due && (
+                                                            <div style={{
+                                                                fontSize: '0.8em',
+                                                                marginTop: '6px',
+                                                                color: new Date(task.due) < new Date() && !task.isCompleted ? '#eb5a46' : '#5ba4cf',
+                                                                display: 'flex',
+                                                                alignItems: 'center'
+                                                            }}>
+                                                                <span style={{ marginRight: '4px' }}>🕒</span>
+                                                                {new Date(task.due).toLocaleDateString()} {new Date(task.due).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                {task.isCompleted && <span style={{ marginLeft: '5px', color: 'green' }}>✓ Done</span>}
+                                                            </div>
                                                         )}
                                                     </div>
 
-                                                    {task.due && (
-                                                        <div style={{
-                                                            fontSize: '0.8em',
-                                                            marginTop: '5px',
-                                                            color: new Date(task.due) < new Date() && !task.isCompleted ? '#eb5a46' : '#5ba4cf',
-                                                            display: 'flex',
-                                                            alignItems: 'center'
-                                                        }}>
-                                                            <span style={{ marginRight: '4px' }}>🕒</span>
-                                                            {new Date(task.due).toLocaleDateString()} {new Date(task.due).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            {task.isCompleted && <span style={{ marginLeft: '5px', color: 'green' }}>✓ Done</span>}
+                                                    {/* Checklist Items (Indented) */}
+                                                    {task.checkItems && task.checkItems.length > 0 && (
+                                                        <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--border-color, #eee)' }}>
+                                                            <div style={{ fontSize: '0.75em', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>Your Tasks:</div>
+                                                            {task.checkItems.map(item => (
+                                                                <div key={item.id} style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    padding: '4px 0',
+                                                                    paddingLeft: '10px', // INDENTATION
+                                                                    borderLeft: '2px solid #ddd',
+                                                                    fontSize: '0.9em',
+                                                                    marginBottom: '2px'
+                                                                }}>
+                                                                    <div style={{
+                                                                        width: '14px',
+                                                                        height: '14px',
+                                                                        borderRadius: '3px',
+                                                                        border: '1px solid #ccc',
+                                                                        marginRight: '8px',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        background: item.state === 'complete' ? '#5ba4cf' : 'transparent',
+                                                                        flexShrink: 0
+                                                                    }}>
+                                                                        {item.state === 'complete' && <span style={{ color: 'white', fontSize: '10px' }}>✓</span>}
+                                                                    </div>
+                                                                    <span style={{
+                                                                        color: item.state === 'complete' ? '#888' : 'var(--text-primary)',
+                                                                        textDecoration: item.state === 'complete' ? 'line-through' : 'none'
+                                                                    }}>
+                                                                        {item.name}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
@@ -443,6 +530,24 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             )}
         </div>
     );
+};
+
+// Helper for label colors
+const getLabelColor = (colorName) => {
+    const colors = {
+        green: '#61bd4f',
+        yellow: '#f2d600',
+        orange: '#ff9f1a',
+        red: '#eb5a46',
+        purple: '#c377e0',
+        blue: '#0079bf',
+        sky: '#00c2e0',
+        lime: '#51e898',
+        pink: '#ff78cb',
+        black: '#344563',
+        none: '#b3bac5'
+    };
+    return colors[colorName] || '#b3bac5';
 };
 
 // Generic Multi-Select Component (Internal)
