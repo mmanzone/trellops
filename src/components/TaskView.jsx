@@ -36,7 +36,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
     const [filterComplete, setFilterComplete] = useState(false);
 
     // Sort
-    const [sortBy, setSortBy] = useState('workspace'); // 'workspace', 'board', 'due'
+    const [sortBy, setSortBy] = useState('board'); // 'board', 'due'
 
     // Theme
     const { theme, toggleTheme } = useDarkMode();
@@ -106,10 +106,26 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
         data.cards.forEach(card => {
             const board = boardMap.get(card.idBoard);
             const orgId = board?.idOrganization;
-            const org = orgMap.get(orgId) || { id: 'unknown', displayName: 'No Workspace', name: 'Unknown' };
+            const rawOrg = orgMap.get(orgId);
+
+            let finalOrgName = rawOrg?.displayName || rawOrg?.name || 'External Workspaces';
+            let finalOrgId = rawOrg?.id || 'external_combined';
+
+            // Force grouping for all "External" (missing org) items
+            if (finalOrgName === 'External Workspaces') {
+                finalOrgId = 'external_combined';
+            }
 
             // SETTINGS FILTER
-            if (taskViewWorkspaces.length > 0 && orgId && !taskViewWorkspaces.includes(orgId)) {
+            // For external_combined, we check if the original orgId (if any) or the new ID is enabled?
+            // If the user's settings didn't capture 'external_combined' yet, they might disappear.
+            // But 'taskViewWorkspaces' usually contains IDs.
+            // If the user hasn't selected 'external_combined' explicitly, it might hide.
+            // However, "No Workspace" items previously had 'unknown'.
+            // Let's assume for now we allow them if strict filtering isn't blocking 'external_combined'.
+            // Actually, better to skip this filter if it's external, OR ensure 'external_combined' is in the default list.
+            // For now, let's proceed with standard logic:
+            if (taskViewWorkspaces.length > 0 && finalOrgId !== 'external_combined' && !taskViewWorkspaces.includes(orgId)) {
                 return;
             }
 
@@ -119,8 +135,8 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 cardUrl: card.url,
                 boardId: card.idBoard,
                 boardName: board?.name || 'Unknown Board',
-                orgId: org.id,
-                orgName: org.displayName || org.name || 'External Workspaces',
+                orgId: finalOrgId,
+                orgName: finalOrgName,
                 isCompleted: card.dueComplete || false,
                 due: card.due,
                 labels: card.labels || []
@@ -217,17 +233,24 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
         // 5. Sorting
         result.sort((a, b) => {
             if (sortBy === 'due') {
-                // Use card due or earliest item due?
-                // Let's use card due primarily
                 if (!a.due) return 1;
                 if (!b.due) return -1;
                 return new Date(a.due) - new Date(b.due);
             }
-            if (sortBy === 'board') {
-                return safeStr(a.boardName).localeCompare(safeStr(b.boardName)) || safeStr(a.cardName).localeCompare(safeStr(b.cardName));
-            }
-            // Default Workspace
-            return safeStr(a.orgName).localeCompare(safeStr(b.orgName)) || safeStr(a.boardName).localeCompare(safeStr(b.boardName));
+
+            // Primary Sort: Organization (Pinned "External Combined" to bottom)
+            const isExtA = a.orgId === 'external_combined';
+            const isExtB = b.orgId === 'external_combined';
+
+            if (isExtA && !isExtB) return 1; // A (external) goes AFTER B
+            if (!isExtA && isExtB) return -1; // A (normal) goes BEFORE B
+
+            // If same group (both external or both normal), sort by Org Name then Board Name
+            const orgCompare = safeStr(a.orgName).localeCompare(safeStr(b.orgName));
+            if (orgCompare !== 0) return orgCompare;
+
+            // Secondary Sort: Board Name
+            return safeStr(a.boardName).localeCompare(safeStr(b.boardName)) || safeStr(a.cardName).localeCompare(safeStr(b.cardName));
         });
 
         return result;
@@ -236,12 +259,18 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
     // --- Grouping for "All" View ---
     const groupedData = useMemo(() => {
-        const groups = {};
+        const groups = {}; // Map<orgId, { name, boards: Map<boardId, { name, tasks: [] }> }>
+        // We want to process them in the Sorted Order defined by displayedTasks
+        // displayedTasks is already sorted by User/External -> Org Name -> Board Name.
+        // So iterating it linearly preserves order.
+
         displayedTasks.forEach(task => {
             if (!groups[task.orgId]) {
                 groups[task.orgId] = {
                     name: task.orgName,
-                    boards: {}
+                    boards: {} // Insert order might not be preserved in object keys, but often is in modern JS. 
+                    // For safety, we can rely on Object.entries later sorting automatically? 
+                    // Actually, displayedTasks loop order determines insertion order.
                 };
             }
             if (!groups[task.orgId].boards[task.boardId]) {
@@ -319,7 +348,6 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                         />
 
                         <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.9em', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-                            <option value="workspace">Sort: Workspace</option>
                             <option value="board">Sort: Board</option>
                             <option value="due">Sort: Due Date</option>
                         </select>
