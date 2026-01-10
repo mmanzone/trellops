@@ -120,7 +120,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                 boardId: card.idBoard,
                 boardName: board?.name || 'Unknown Board',
                 orgId: org.id,
-                orgName: org.displayName || org.name || 'No Workspace',
+                orgName: org.displayName || org.name || 'External Workspaces',
                 isCompleted: card.dueComplete || false,
                 due: card.due,
                 labels: card.labels || []
@@ -332,7 +332,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                 <input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '4px' }} /> Member
                             </label>
                             <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-                                <input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '4px' }} /> Done
+                                <input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '4px' }} /> Completed
                             </label>
                         </div>
                     </div>
