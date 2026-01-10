@@ -388,8 +388,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         const loadInitialSettings = async () => {
             if (!user) return;
             try {
-                // 1. Fetch Boards
-                const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url', user.token);
+                // 1. Fetch Boards (including Organization data for grouping)
+                const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url,idOrganization&organization=true&organization_fields=displayName,name', user.token);
                 setBoards(boardsData);
 
                 const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
@@ -876,7 +876,42 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     </p>
                                     <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
                                         <option value="">-- Choose a Board --</option>
-                                        {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        {(() => {
+                                            // Group boards by Organization
+                                            const grouped = {};
+                                            const noOrg = [];
+                                            boards.forEach(b => {
+                                                if (b.organization) {
+                                                    const orgName = b.organization.displayName || b.organization.name;
+                                                    if (!grouped[orgName]) grouped[orgName] = [];
+                                                    grouped[orgName].push(b);
+                                                } else {
+                                                    noOrg.push(b);
+                                                }
+                                            });
+
+                                            // Sort keys
+                                            const sortedOrgNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+
+                                            return (
+                                                <>
+                                                    {sortedOrgNames.map(orgName => (
+                                                        <optgroup key={orgName} label={orgName}>
+                                                            {grouped[orgName].sort((a, b) => a.name.localeCompare(b.name)).map(b => (
+                                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    ))}
+                                                    {noOrg.length > 0 && (
+                                                        <optgroup label="Personal Boards">
+                                                            {noOrg.sort((a, b) => a.name.localeCompare(b.name)).map(b => (
+                                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </select>
                                 </div>
 
@@ -1584,22 +1619,19 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 </div>
             )}
 
-            <div className="admin-section" id="section-tasks" style={{ marginTop: viewMode === 'tasks' ? '0' : '20px', borderTop: viewMode === 'tasks' ? 'none' : '1px solid #eee' }}>
-                <div
-                    onClick={() => viewMode !== 'tasks' && setExpandedSection(expandedSection === 'tasks' ? 'board' : 'tasks')}
-                    style={{
-                        cursor: viewMode === 'tasks' ? 'default' : 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '10px 0'
-                    }}
-                >
-                    <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
-                    {viewMode !== 'tasks' && <span style={{ fontSize: '1.2em', color: '#666' }}>{expandedSection === 'tasks' ? '▼' : '▶'}</span>}
-                </div>
+            {viewMode === 'tasks' && (
+                <div className="admin-section" id="section-tasks" style={{ marginTop: '0', borderTop: 'none' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '10px 0'
+                        }}
+                    >
+                        <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
+                    </div>
 
-                {expandedSection === 'tasks' && (
                     <div style={{ paddingTop: '10px' }}>
                         <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
                             This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
@@ -1628,10 +1660,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <input
                                                         type="checkbox"
                                                         id={`ws-${org.id}`}
-                                                        checked={taskViewWorkspaces.includes(org.id)}
+                                                        checked={taskViewWorkspaces && taskViewWorkspaces.includes(org.id)}
                                                         onChange={(e) => {
                                                             if (e.target.checked) {
-                                                                setTaskViewWorkspaces([...taskViewWorkspaces, org.id]);
+                                                                setTaskViewWorkspaces([...(taskViewWorkspaces || []), org.id]);
                                                             } else {
                                                                 // Enforce at least one
                                                                 if (taskViewWorkspaces.length > 1) {
@@ -1682,8 +1714,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             <button className="button-secondary" onClick={onClose}>Cancel</button>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: '#aaa', fontWeight: 'bold' }}>
                 v4.5.{__BUILD_ID__ || 1000} - Jan 09, 2026

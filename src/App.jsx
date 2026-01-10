@@ -280,8 +280,8 @@ const App = () => {
                 onShowSettings={() => {
                     setPreviousView('tasks');
                     setSettingsTab('tasks');
-                    setView('settings');
-                    window.history.pushState({}, '', '/settings');
+                    setView('tasks-settings');
+                    window.history.pushState({}, '', '/tasks/settings');
                 }}
                 onShowMap={() => {
                     setPreviousView('tasks');
