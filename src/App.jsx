@@ -41,6 +41,7 @@ const App = () => {
         const path = window.location.pathname;
         if (path === '/map') setView('map');
         else if (path === '/tasks') setView('tasks');
+        else if (path === '/tasks/settings') setView('tasks-settings');
         else if (path === '/settings') setView('settings');
         // else default to landing (or dashboard if logged in logic below decides)
 
@@ -99,33 +100,47 @@ const App = () => {
             // ROUTING LOGIC POST-LOGIN
             const path = window.location.pathname;
 
-            // If explicit route, honour it
-            if (path === '/map') {
-                if (savedSettings && savedSettings.boardId) setSettings(savedSettings); // Load settings if avail
-                setView('map');
-            } else if (path === '/tasks') {
-                if (savedSettings && savedSettings.boardId) setSettings(savedSettings);
+            // Helper: Check if Task View is enabled in saved settings
+            const isTaskViewEnabled = savedSettings && savedSettings.enableTaskView;
+            // Helper: Check if Board is configured
+            const isBoardConfigured = savedSettings && savedSettings.boardId;
 
-                // Redirect if Task View is disabled
-                if (savedSettings && !savedSettings.enableTaskView) {
-                    setSettingsTab('tasks');
-                    setView('settings');
-                    window.history.replaceState({}, '', '/settings');
-                    console.log("Task View disabled, redirecting to settings");
+            // 1. Tasks Routes
+            if (path === '/tasks' || path === '/tasks/settings') {
+                if (path === '/tasks' && !isTaskViewEnabled) {
+                    console.log("Task View disabled, redirecting to /tasks/settings");
+                    setView('tasks-settings');
+                    window.history.replaceState({}, '', '/tasks/settings');
+                } else if (path === '/tasks/settings') {
+                    setView('tasks-settings');
                 } else {
                     setView('tasks');
                 }
-            } else if (path === '/settings') {
-                if (savedSettings && savedSettings.boardId) setSettings(savedSettings);
+            }
+            // 2. Map Route
+            else if (path === '/map') {
+                if (!isBoardConfigured) {
+                    console.log("No board configured, redirecting to /settings");
+                    setView('settings');
+                    window.history.replaceState({}, '', '/settings');
+                } else {
+                    if (savedSettings) setSettings(savedSettings);
+                    setView('map');
+                }
+            }
+            // 3. Settings Route
+            else if (path === '/settings') {
+                if (savedSettings) setSettings(savedSettings);
                 setView('settings');
-            } else {
-                // Default handling for Root '/' or unknown
-                if (savedSettings && savedSettings.boardId) {
+            }
+            // 4. Default / Dashboard
+            else {
+                if (isBoardConfigured) {
                     setSettings(savedSettings);
                     setView('dashboard');
-                    // Ensure URL reflects dashboard if implicit
-                    // window.history.replaceState({}, '', '/dashboard'); // Optional: User wants explicit URL?
+                    if (path !== '/dashboard') window.history.replaceState({}, '', '/dashboard');
                 } else {
+                    // No board configured -> Go to Settings
                     setView('settings');
                     window.history.replaceState({}, '', '/settings');
                 }
@@ -180,15 +195,32 @@ const App = () => {
         }
 
         // Return to previous view
-        if (previousView === 'map') {
+        // Return to previous view logic
+        if (view === 'tasks-settings') {
+            // If we were in tasks settings, check if we enabled it?
+            if (newSettings && newSettings.enableTaskView) {
+                // If enabled, maybe go to tasks?
+                // Or just stay? 
+                // Let's go to /tasks to show the result
+                setView('tasks');
+                window.history.pushState({}, '', '/tasks');
+                return;
+            }
+        }
+
+        if (previousView === 'map' && newSettings?.boardId) {
             setView('map');
             window.history.pushState({}, '', '/map');
-        } else if (previousView === 'tasks') {
+        } else if (previousView === 'tasks' && newSettings?.enableTaskView) {
             setView('tasks');
             window.history.pushState({}, '', '/tasks');
-        } else {
+        } else if (newSettings?.boardId) {
             setView('dashboard');
             window.history.pushState({}, '', '/dashboard');
+        } else {
+            // Fallback if nothing configured
+            setView('settings');
+            window.history.pushState({}, '', '/settings');
         }
     };
 
@@ -298,20 +330,48 @@ const App = () => {
                 initialTab={settingsTab}
                 onSave={handleSaveSettings}
                 onClose={() => {
-                    if (previousView === 'map') {
-                        setView('map');
-                        window.history.pushState({}, '', '/map');
-                    } else if (previousView === 'tasks') {
-                        setView('tasks');
-                        window.history.pushState({}, '', '/tasks');
+                    // Start strict redirection checks on logic
+                    if (settings?.boardId) {
+                        if (previousView === 'map') {
+                            setView('map');
+                            window.history.pushState({}, '', '/map');
+                        } else {
+                            setView('dashboard');
+                            window.history.pushState({}, '', '/dashboard');
+                        }
                     } else {
-                        setView('dashboard');
-                        window.history.pushState({}, '', '/dashboard');
+                        // No board configured -> Go to Landing or reload root
+                        window.location.href = '/';
                     }
                 }}
                 onLogout={handleLogout}
                 importedConfig={importConfig}
                 onClearImportConfig={() => setImportConfig(null)}
+                viewMode="default"
+            />
+        );
+    }
+
+    if (view === 'tasks-settings') {
+        return (
+            <SettingsScreen
+                user={user}
+                initialTab="tasks"
+                onSave={handleSaveSettings}
+                onClose={() => {
+                    // Back to Tasks if enabled
+                    if (settings?.enableTaskView) {
+                        setView('tasks');
+                        window.history.pushState({}, '', '/tasks');
+                    } else if (settings?.boardId) {
+                        setView('dashboard');
+                        window.history.pushState({}, '', '/dashboard');
+                    } else {
+                        window.location.href = '/';
+                    }
+                }}
+                onLogout={handleLogout}
+                viewMode="tasks"
             />
         );
     }

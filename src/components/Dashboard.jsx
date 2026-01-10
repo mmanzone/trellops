@@ -441,21 +441,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     )}
 
                     {settings?.enableTaskView && (
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex' }}>
-                                <button className="settings-button" onClick={onShowTasks}>
-                                    Tasks View
-                                </button>
-                                <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                    ▼
-                                </button>
-                            </div>
-                            {showTaskDropdown && (
-                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                    <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
-                                </div>
-                            )}
-                        </div>
+                        <button className="settings-button" onClick={() => window.open('/tasks', '_blank')}>
+                            Tasks View ↗
+                        </button>
                     )}
 
                     <button className="settings-button" onClick={onShowSettings}>Settings</button>
