@@ -352,25 +352,33 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                         <div key={orgId} className="workspace-section" style={{ marginBottom: '40px' }}>
                             <h2 style={{ borderBottom: '2px solid var(--border-color, #ccc)', paddingBottom: '10px', marginBottom: '20px', color: 'var(--text-primary)' }}>{orgData.name}</h2>
 
-                            {/* Layout Updated: Vertical Stack of Boards, Grid of Cards */}
-                            <div className="boards-stack" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                            {/* Layout Updated: Grid of Boards, Vertical List of Tasks per Board */}
+                            <div className="boards-grid" style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                                gap: '30px',
+                                alignItems: 'start'
+                            }}>
                                 {Object.entries(orgData.boards).map(([boardId, boardData]) => (
-                                    <div key={boardId} className="board-section" style={{
-                                        width: '100%',
+                                    <div key={boardId} className="board-card" style={{
                                         background: 'var(--bg-secondary)',
                                         borderRadius: '8px',
                                         padding: '15px',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        maxHeight: '600px'
                                     }}>
                                         <h3 style={{ marginTop: 0, fontSize: '1.1em', marginBottom: '15px', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color, #eee)', paddingBottom: '8px' }}>
                                             {boardData.name} <span style={{ fontSize: '0.8em', fontWeight: 'normal', color: 'var(--text-secondary)' }}>({boardData.tasks.length})</span>
                                         </h3>
 
-                                        <div className="tasks-grid" style={{
-                                            display: 'grid',
-                                            // Grid Layout: Auto-fit with min width ~280px. Approx 4 per row on standard desktop (1200px+).
-                                            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                                            gap: '15px'
+                                        <div className="tasks-list-vertical" style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '15px',
+                                            overflowY: 'auto',
+                                            paddingRight: '5px' // Space for scrollbar
                                         }}>
                                             {boardData.tasks.map(task => (
                                                 <div key={task.type === 'card' ? `card-${task.cardId}` : task.id} className="task-card" style={{
@@ -380,7 +388,6 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                                     boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                                                     borderLeft: task.checkItems && task.checkItems.length > 0 ? '4px solid #0079bf' : '4px solid #ff9f1a', // Blue for items, Orange for just card
                                                     color: 'var(--text-primary)',
-                                                    height: '100%', // For grid alignment
                                                     display: 'flex',
                                                     flexDirection: 'column'
                                                 }}>

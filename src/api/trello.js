@@ -147,6 +147,39 @@ export const fetchAllTasksData = async (token) => {
 
     const allCards = [...memberCards, ...additionalCards];
 
+    // 6. Missing Boards Fix (Round 17)
+    // Cards found via Search might belong to boards we didn't fetch via members/me/boards
+    // (e.g. Boards I am not a member of, but have a checklist item assigned).
+    const knownBoardIds = new Set(boards.map(b => b.id));
+    const potentialBoardIds = new Set(allCards.map(c => c.idBoard));
+
+    const missingBoardIds = [...potentialBoardIds].filter(id => id && !knownBoardIds.has(id));
+
+    if (missingBoardIds.length > 0) {
+        const BATCH_SIZE = 10;
+        const chunks = [];
+        for (let i = 0; i < missingBoardIds.length; i += BATCH_SIZE) {
+            chunks.push(missingBoardIds.slice(i, i + BATCH_SIZE));
+        }
+
+        const batchPromises = chunks.map(chunk => {
+            const batchUrls = chunk.map(id => `/boards/${id}?fields=id,name,idOrganization,shortUrl,prefs`).join(',');
+            return trelloFetch(`/batch?urls=${batchUrls}`, token);
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        batchResults.forEach(batch => {
+            if (Array.isArray(batch)) {
+                batch.forEach(item => {
+                    if (item['200']) {
+                        boards.push(item['200']);
+                    }
+                });
+            }
+        });
+    }
+
     // 7. Missing Organizations Fix (Round 16)
     // Collect all org IDs from Boards and Cards
     const knownOrgIds = new Set(orgs.map(o => o.id));
