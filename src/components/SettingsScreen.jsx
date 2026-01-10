@@ -177,9 +177,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             // Note: If user saved specifically "empty", it might contest this.
                             // But since we just changed init to null, saved "[]" would be loaded as "[]".
                             // So if strictly null, we default.
-                            if (taskViewWorkspaces === null) {
-                                setTaskViewWorkspaces(uniqueOrgs.map(o => o.id));
-                            }
+                            setTaskViewWorkspaces(uniqueOrgs.map(o => o.id));
                         }
                     })
                     .catch(e => console.warn("Failed to fetch orgs for settings", e));

@@ -82,20 +82,55 @@ export const fetchAllTasksData = async (token) => {
     // 1. Fetch Organizations (Workspaces)
     const orgsPromise = trelloFetch('/members/me/organizations?fields=id,displayName,name', token);
 
-    // 2. Fetch Boards (needed to map Board -> Org, as Card -> Board might not have Org info populated or we want all boards structure)
-    // We want open boards mostly? Or all? User said "across all workspaces and boards".
-    // Let's fetch all open boards.
+    // 2. Fetch Boards
     const boardsPromise = trelloFetch('/members/me/boards?filter=open&fields=id,name,idOrganization,shortUrl,prefs', token);
 
-    // 3. Fetch Cards (member of)
-    // We want cards where user is memeber.
-    // Trello API: members/me/cards returns cards the member is on.
-    // Include checklists to find assigned tasks.
-    // Include board to get board name if needed, but we have boardsPromise. 
-    // We need board ID to map. works default.
-    const cardsPromise = trelloFetch('/members/me/cards?filter=visible&fields=id,name,due,dueComplete,idBoard,idList,url,shortUrl,desc&checklists=all&checklist_fields=all', token);
+    const [orgs, boards] = await Promise.all([orgsPromise, boardsPromise]);
 
-    const [orgs, boards, cards] = await Promise.all([orgsPromise, boardsPromise, cardsPromise]);
+    // 3. Fetch Cards from ALL Boards using Batch API
+    // We need to fetch cards from all boards to find checklist items assigned to me,
+    // even if I'm not a member of the card.
+    // Trello Batch API allows up to 10 requests per call.
 
-    return { orgs, boards, cards };
+    let allCards = [];
+    const boardIds = boards.map(b => b.id);
+    const BATCH_SIZE = 10;
+
+    // Chunk board IDs
+    const chunks = [];
+    for (let i = 0; i < boardIds.length; i += BATCH_SIZE) {
+        chunks.push(boardIds.slice(i, i + BATCH_SIZE));
+    }
+
+    // Process batches
+    // We want cards: visible, fields=..., checklists=all
+    const cardFields = 'id,name,due,dueComplete,idBoard,idList,url,shortUrl,desc,idMembers,labels'; // Added idMembers to check membership
+    const checklistParams = 'checklists=all&checklist_fields=all';
+
+    const batchPromises = chunks.map(chunk => {
+        const batchUrls = chunk.map(bid => `/boards/${bid}/cards?filter=visible&fields=${cardFields}&${checklistParams}`).join(',');
+        return trelloFetch(`/batch?urls=${batchUrls}`, token);
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+
+    // Flatten results
+    // Batch result is array of { 200: [data], ... } objects? 
+    // Trello Batch response: Array of objects { 200: ..., body: ... } or just array of results if simple?
+    // Trello Batch returns: [ { "200": ... }, ... ] NO.
+    // Actual response: [ { "200": <result_body, can be array> }, { "404": ... } ]
+    // Each item in array corresponds to requested URL.
+
+    batchResults.forEach(batch => {
+        if (Array.isArray(batch)) {
+            batch.forEach(item => {
+                // Item structure: { "200": [ ...cards... ] }
+                if (item['200']) {
+                    allCards = allCards.concat(item['200']);
+                }
+            });
+        }
+    });
+
+    return { orgs, boards, cards: allCards };
 };
