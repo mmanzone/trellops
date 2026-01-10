@@ -1633,182 +1633,180 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             </div>
                         </div>
                     )}
-        </div>
-    )
-}
 
-{
-    viewMode === 'default' && (
-        <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
-            <button className="button-secondary" onClick={onClose}>Cancel</button>
-            {activeTab !== 'tasks' && (
-                <>
-                    <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
-                    <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
-                </>
-            )}
-        </div>
-    )
-}
+
+                {
+                    viewMode === 'default' && (
+                        <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
+                            <button className="button-secondary" onClick={onClose}>Cancel</button>
+                            {activeTab !== 'tasks' && (
+                                <>
+                                    <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
+                                    <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
+                                </>
+                            )}
+                        </div>
+                    )
+                }
             </DragDropContext >
 
 
-    {/* MANAGE TASKS LINK (Default Mode Only) */ }
-{
-    viewMode === 'default' && (
-        <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <strong>Looking for Task View settings?</strong>
-                    <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#666' }}>
-                        Use the dedicated page to configure your global task dashboard.
-                    </p>
-                </div>
-                <a
-                    href="/tasks/settings"
-                    onClick={(e) => {
-                        window.history.pushState({}, '', '/tasks/settings');
-                        // Use prop if available
-                        if (onManageTasks) onManageTasks();
-                        else window.dispatchEvent(new Event('popstate'));
-                    }}
-                    className="button-secondary"
-                    style={{ textDecoration: 'none', display: 'inline-block' }}
-                >
-                    Manage Tasks View
-                </a>
-            </div>
-        </div>
-    )
-}
+            {/* MANAGE TASKS LINK (Default Mode Only) */}
+            {
+                viewMode === 'default' && (
+                    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <strong>Looking for Task View settings?</strong>
+                                <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#666' }}>
+                                    Use the dedicated page to configure your global task dashboard.
+                                </p>
+                            </div>
+                            <a
+                                href="/tasks/settings"
+                                onClick={(e) => {
+                                    window.history.pushState({}, '', '/tasks/settings');
+                                    // Use prop if available
+                                    if (onManageTasks) onManageTasks();
+                                    else window.dispatchEvent(new Event('popstate'));
+                                }}
+                                className="button-secondary"
+                                style={{ textDecoration: 'none', display: 'inline-block' }}
+                            >
+                                Manage Tasks View
+                            </a>
+                        </div>
+                    </div>
+                )
+            }
 
-{
-    viewMode === 'tasks' && (
-        <div className="admin-section" id="section-tasks" style={{ marginTop: '0', borderTop: 'none' }}>
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '10px 0'
-                }}
-            >
-                <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
-            </div>
-
-            <div style={{ paddingTop: '10px' }}>
-                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                    This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
-                </p>
-                <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
-                    <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
-                    <span>Enable Tasks View</span>
-                </div>
-
-                {enableTaskView && (
-                    <>
-                        <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-                            <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
+            {
+                viewMode === 'tasks' && (
+                    <div className="admin-section" id="section-tasks" style={{ marginTop: '0', borderTop: 'none' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '10px 0'
+                            }}
+                        >
+                            <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
                         </div>
 
-                        {/* Workspace Selection */}
-                        <div className="setting-group" style={{ marginBottom: '20px' }}>
-                            <label className="setting-label">Workspaces to Include</label>
-                            <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
-                                Select which workspaces to show tasks from. At least one workspace must be selected.
+                        <div style={{ paddingTop: '10px' }}>
+                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
+                            </p>
+                            <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
+                                <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
+                                <span>Enable Tasks View</span>
                             </div>
-                            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
-                                {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
-                                    userOrgs.map(org => (
-                                        <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                            <input
-                                                type="checkbox"
-                                                id={`ws-${org.id}`}
-                                                checked={taskViewWorkspaces && taskViewWorkspaces.includes(org.id)}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setTaskViewWorkspaces([...(taskViewWorkspaces || []), org.id]);
-                                                    } else {
-                                                        // Enforce at least one
-                                                        if (taskViewWorkspaces.length > 1) {
-                                                            setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
-                                                        } else {
-                                                            alert("At least one workspace must be selected.");
-                                                        }
-                                                    }
-                                                }}
-                                                style={{ marginRight: '8px' }}
-                                            />
-                                            <label htmlFor={`ws-${org.id}`} style={{ cursor: 'pointer' }}>{org.displayName}</label>
+
+                            {enableTaskView && (
+                                <>
+                                    <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                                        <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
+                                    </div>
+
+                                    {/* Workspace Selection */}
+                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                        <label className="setting-label">Workspaces to Include</label>
+                                        <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
+                                            Select which workspaces to show tasks from. At least one workspace must be selected.
                                         </div>
-                                    ))
-                                }
+                                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
+                                            {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
+                                                userOrgs.map(org => (
+                                                    <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`ws-${org.id}`}
+                                                            checked={taskViewWorkspaces && taskViewWorkspaces.includes(org.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setTaskViewWorkspaces([...(taskViewWorkspaces || []), org.id]);
+                                                                } else {
+                                                                    // Enforce at least one
+                                                                    if (taskViewWorkspaces.length > 1) {
+                                                                        setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
+                                                                    } else {
+                                                                        alert("At least one workspace must be selected.");
+                                                                    }
+                                                                }
+                                                            }}
+                                                            style={{ marginRight: '8px' }}
+                                                        />
+                                                        <label htmlFor={`ws-${org.id}`} style={{ cursor: 'pointer' }}>{org.displayName}</label>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    </div>
+
+                                    {/* Refresh Interval */}
+                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                        <label className="setting-label">Auto-Refresh Interval</label>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={taskViewRefreshInterval.value}
+                                                onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
+                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            />
+                                            <select
+                                                value={taskViewRefreshInterval.unit}
+                                                onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
+                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            >
+                                                <option value="minutes">Minutes</option>
+                                                <option value="hours">Hours</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
+                                            Minimum 1 minute.
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
+                                <button className="save-layout-button" onClick={handleSaveTasks}>Save Tasks Settings</button>
+                                <button className="button-secondary" onClick={onClose}>Cancel</button>
                             </div>
                         </div>
+                    </div>
+                )
+            }
 
-                        {/* Refresh Interval */}
-                        <div className="setting-group" style={{ marginBottom: '20px' }}>
-                            <label className="setting-label">Auto-Refresh Interval</label>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={taskViewRefreshInterval.value}
-                                    onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
-                                    style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                />
-                                <select
-                                    value={taskViewRefreshInterval.unit}
-                                    onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
-                                    style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                >
-                                    <option value="minutes">Minutes</option>
-                                    <option value="hours">Hours</option>
-                                </select>
-                            </div>
-                            <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
-                                Minimum 1 minute.
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
-                    <button className="save-layout-button" onClick={handleSaveTasks}>Save Tasks Settings</button>
-                    <button className="button-secondary" onClick={onClose}>Cancel</button>
-                </div>
+            <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: '#aaa', fontWeight: 'bold' }}>
+                v4.5.{__BUILD_ID__ || 1000} - Jan 09, 2026
             </div>
-        </div>
-    )
-}
 
-<div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: '#aaa', fontWeight: 'bold' }}>
-    v4.5.{__BUILD_ID__ || 1000} - Jan 09, 2026
-</div>
+            {
+                showShareModal && (
+                    <ShareConfigModal
+                        config={getConfigObject()}
+                        onClose={() => setShowShareModal(false)}
+                        boardName={selectedBoard?.name}
+                    />
+                )
+            }
 
-{
-    showShareModal && (
-        <ShareConfigModal
-            config={getConfigObject()}
-            onClose={() => setShowShareModal(false)}
-            boardName={selectedBoard?.name}
-        />
-    )
-}
-
-{
-    showMoreOptions && (
-        <MoreOptionsModal
-            onClose={() => setShowMoreOptions(false)}
-            onReset={handleClearBoardConfig}
-            onExport={handleExportConfig}
-            onImport={handleImportConfig}
-            selectedBoardId={selectedBoardId}
-            boardName={selectedBoard?.name}
-        />
-    )
-}
+            {
+                showMoreOptions && (
+                    <MoreOptionsModal
+                        onClose={() => setShowMoreOptions(false)}
+                        onReset={handleClearBoardConfig}
+                        onExport={handleExportConfig}
+                        onImport={handleImportConfig}
+                        selectedBoardId={selectedBoardId}
+                        boardName={selectedBoard?.name}
+                    />
+                )
+            }
         </div >
     );
 };
