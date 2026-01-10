@@ -144,7 +144,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     // Fetch Orgs for Tasks Dashboard if needed
     useEffect(() => {
-        if (expandedSection === 'tasks') {
+        if (expandedSection === 'tasks' && boards.length > 0) {
             if (userOrgs.length === 0 && user && user.token) {
                 // Fetch direct organizations
                 trelloFetch('/members/me/organizations?fields=id,displayName,name', user.token)
@@ -177,15 +177,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             // Note: If user saved specifically "empty", it might contest this.
                             // But since we just changed init to null, saved "[]" would be loaded as "[]".
                             // So if strictly null, we default.
-                            if (taskViewWorkspaces === null) {
-                                setTaskViewWorkspaces(uniqueOrgs.map(o => o.id));
-                            }
+                            setTaskViewWorkspaces(uniqueOrgs.map(o => o.id));
                         }
                     })
                     .catch(e => console.warn("Failed to fetch orgs for settings", e));
             }
         }
-    }, [expandedSection, user, userOrgs.length]);
+    }, [expandedSection, user, boards]);
 
     // CLICK OUTSIDE HANDLER
     useEffect(() => {

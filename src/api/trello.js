@@ -82,20 +82,141 @@ export const fetchAllTasksData = async (token) => {
     // 1. Fetch Organizations (Workspaces)
     const orgsPromise = trelloFetch('/members/me/organizations?fields=id,displayName,name', token);
 
-    // 2. Fetch Boards (needed to map Board -> Org, as Card -> Board might not have Org info populated or we want all boards structure)
-    // We want open boards mostly? Or all? User said "across all workspaces and boards".
-    // Let's fetch all open boards.
+    // 2. Fetch Boards
     const boardsPromise = trelloFetch('/members/me/boards?filter=open&fields=id,name,idOrganization,shortUrl,prefs', token);
 
-    // 3. Fetch Cards (member of)
-    // We want cards where user is memeber.
-    // Trello API: members/me/cards returns cards the member is on.
-    // Include checklists to find assigned tasks.
-    // Include board to get board name if needed, but we have boardsPromise. 
-    // We need board ID to map. works default.
-    const cardsPromise = trelloFetch('/members/me/cards?filter=visible&fields=id,name,due,dueComplete,idBoard,idList,url,shortUrl,desc&checklists=all&checklist_fields=all', token);
+    // 3. Fetch Member Cards (Reliable for cards I am a member of)
+    const memberCardsPromise = trelloFetch('/members/me/cards?filter=visible&fields=id,name,due,dueComplete,idBoard,idList,url,shortUrl,desc,idMembers,labels&checklists=all&checklist_fields=all', token);
 
-    const [orgs, boards, cards] = await Promise.all([orgsPromise, boardsPromise, cardsPromise]);
+    // 4. Fetch Assigned Checklist Items (via Search)
+    // "checklist:me" finds cards with items assigned to me. "is:open" filters for active cards.
+    // limit=1000 to be safe (default is usually small).
+    const searchPromise = trelloFetch('/search?query=checklist:me is:open&modelTypes=cards&cards_limit=1000&card_fields=id', token);
 
-    return { orgs, boards, cards };
+    const [orgs, boards, memberCards, searchResult] = await Promise.all([
+        orgsPromise,
+        boardsPromise,
+        memberCardsPromise,
+        searchPromise
+    ]);
+
+    // 5. Merge Strategy
+    // memberCards contains full data.
+    // searchResult.cards contains IDs of cards with assignments.
+    const memberCardIds = new Set(memberCards.map(c => c.id));
+    const searchCards = searchResult.cards || [];
+
+    // Identify cards found in search that we DON'T have data for yet
+    const missingCardIds = searchCards
+        .map(c => c.id)
+        .filter(id => !memberCardIds.has(id));
+
+    let additionalCards = [];
+
+    // 6. Fetch details for missing cards
+    if (missingCardIds.length > 0) {
+        // We need full details: fields + checklists
+        // Use Batch API for efficiency
+        const BATCH_SIZE = 10;
+        const chunks = [];
+        for (let i = 0; i < missingCardIds.length; i += BATCH_SIZE) {
+            chunks.push(missingCardIds.slice(i, i + BATCH_SIZE));
+        }
+
+        const cardFields = 'id,name,due,dueComplete,idBoard,idList,url,shortUrl,desc,idMembers,labels';
+        const checklistParams = 'checklists=all&checklist_fields=all';
+
+        const batchPromises = chunks.map(chunk => {
+            const batchUrls = chunk.map(id => `/cards/${id}?fields=${cardFields}&${checklistParams}`).join(',');
+            return trelloFetch(`/batch?urls=${batchUrls}`, token);
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        batchResults.forEach(batch => {
+            if (Array.isArray(batch)) {
+                batch.forEach(item => {
+                    // Start looking for success responses (200)
+                    if (item['200']) {
+                        additionalCards.push(item['200']);
+                    }
+                });
+            }
+        });
+    }
+
+    const allCards = [...memberCards, ...additionalCards];
+
+    // 6. Missing Boards Fix (Round 17)
+    // Cards found via Search might belong to boards we didn't fetch via members/me/boards
+    // (e.g. Boards I am not a member of, but have a checklist item assigned).
+    const knownBoardIds = new Set(boards.map(b => b.id));
+    const potentialBoardIds = new Set(allCards.map(c => c.idBoard));
+
+    const missingBoardIds = [...potentialBoardIds].filter(id => id && !knownBoardIds.has(id));
+
+    if (missingBoardIds.length > 0) {
+        const BATCH_SIZE = 10;
+        const chunks = [];
+        for (let i = 0; i < missingBoardIds.length; i += BATCH_SIZE) {
+            chunks.push(missingBoardIds.slice(i, i + BATCH_SIZE));
+        }
+
+        const batchPromises = chunks.map(chunk => {
+            const batchUrls = chunk.map(id => `/boards/${id}?fields=id,name,idOrganization,shortUrl,prefs`).join(',');
+            return trelloFetch(`/batch?urls=${batchUrls}`, token);
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        batchResults.forEach(batch => {
+            if (Array.isArray(batch)) {
+                batch.forEach(item => {
+                    if (item['200']) {
+                        boards.push(item['200']);
+                    }
+                });
+            }
+        });
+    }
+
+    // 7. Missing Organizations Fix (Round 16)
+    // Collect all org IDs from Boards and Cards
+    const knownOrgIds = new Set(orgs.map(o => o.id));
+    const potentialOrgIds = new Set();
+
+    boards.forEach(b => { if (b.idOrganization) potentialOrgIds.add(b.idOrganization); });
+    // Cards usually rely on Board's org, but sometimes might have it? Usually no.
+    // But we map Org via Board. So ensuring Board->Org mapping is covered is enough.
+    // Boards fetched via `members/me/boards` include `idOrganization`.
+
+    // Identify missing Orgs
+    const missingOrgIds = [...potentialOrgIds].filter(id => !knownOrgIds.has(id));
+
+    if (missingOrgIds.length > 0) {
+        const BATCH_SIZE = 10;
+        const chunks = [];
+        for (let i = 0; i < missingOrgIds.length; i += BATCH_SIZE) {
+            chunks.push(missingOrgIds.slice(i, i + BATCH_SIZE));
+        }
+
+        const batchPromises = chunks.map(chunk => {
+            const batchUrls = chunk.map(id => `/organizations/${id}?fields=id,displayName,name`).join(',');
+            return trelloFetch(`/batch?urls=${batchUrls}`, token);
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        batchResults.forEach(batch => {
+            if (Array.isArray(batch)) {
+                batch.forEach(item => {
+                    if (item['200']) {
+                        orgs.push(item['200']);
+                    }
+                });
+            }
+        });
+    }
+
+    return { orgs, boards, cards: allCards };
 };
