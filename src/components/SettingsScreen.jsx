@@ -58,7 +58,9 @@ const ShareConfigModal = ({ config, onClose, boardName }) => {
     );
 };
 
-const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { } }) => {
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { }, viewMode = 'default', onManageTasks }) => {
+    // viewMode: 'default' (Board Settings) | 'tasks' (Task Settings Only)
+
     // --- State ---
     const [boards, setBoards] = useState([]);
     const [selectedBoardId, setSelectedBoardId] = useState('');
@@ -107,8 +109,17 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [error, setError] = useState('');
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [loadingLists, setLoadingLists] = useState(false);
-    const [activeTab, setActiveTab] = useState(initialTab === 'tasks' ? 'dashboard' : initialTab); // Default tab for board settings
-    const [expandedSection, setExpandedSection] = useState(initialTab === 'tasks' ? 'tasks' : 'board');
+    const [activeTab, setActiveTab] = useState(initialTab === 'tasks' ? 'dashboard' : initialTab);
+    const [expandedSection, setExpandedSection] = useState(viewMode === 'tasks' ? 'tasks' : 'board');
+
+    // Force expanded section based on viewMode
+    useEffect(() => {
+        if (viewMode === 'tasks') {
+            setExpandedSection('tasks');
+        } else {
+            setExpandedSection('board');
+        }
+    }, [viewMode]);
 
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingImport, setPendingImport] = useState(null);
@@ -135,16 +146,39 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     useEffect(() => {
         if (expandedSection === 'tasks') {
             if (userOrgs.length === 0 && user && user.token) {
+                // Fetch direct organizations
                 trelloFetch('/members/me/organizations?fields=id,displayName,name', user.token)
-                    .then(orgs => {
-                        setUserOrgs(orgs);
+                    .then(fetchedOrgs => {
+                        // MERGE with organizations derived from boards (to include boards where user is just a member)
+                        const allOrgsMap = new Map();
+                        fetchedOrgs.forEach(o => allOrgsMap.set(o.id, o));
+
+                        // Extract orgs from boards
+                        if (boards && boards.length > 0) {
+                            boards.forEach(b => {
+                                if (b.idOrganization && b.organization) {
+                                    if (!allOrgsMap.has(b.idOrganization)) {
+                                        allOrgsMap.set(b.idOrganization, {
+                                            id: b.idOrganization,
+                                            displayName: b.organization.displayName || b.organization.name,
+                                            name: b.organization.name
+                                        });
+                                    }
+                                }
+                            });
+                        }
+
+                        const uniqueOrgs = Array.from(allOrgsMap.values()).sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name));
+
+                        setUserOrgs(uniqueOrgs);
+
                         // Default to ALL if not set (null or empty from init, but null distinguishes initial load)
                         if (taskViewWorkspaces === null || (Array.isArray(taskViewWorkspaces) && taskViewWorkspaces.length === 0)) {
                             // Note: If user saved specifically "empty", it might contest this.
                             // But since we just changed init to null, saved "[]" would be loaded as "[]".
                             // So if strictly null, we default.
                             if (taskViewWorkspaces === null) {
-                                setTaskViewWorkspaces(orgs.map(o => o.id));
+                                setTaskViewWorkspaces(uniqueOrgs.map(o => o.id));
                             }
                         }
                     })
@@ -377,8 +411,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         const loadInitialSettings = async () => {
             if (!user) return;
             try {
-                // 1. Fetch Boards
-                const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url', user.token);
+                // 1. Fetch Boards (including Organization data for grouping)
+                const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url,idOrganization&organization=true&organization_fields=displayName,name', user.token);
                 setBoards(boardsData);
 
                 const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
@@ -667,7 +701,36 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 taskViewRefreshInterval
             });
 
-            alert("Task View settings saved!");
+            // alert("Task View settings saved!");
+            // Simply close/redirect
+            if (onManageTasks) {
+                // If we are in default mode, logic might differ, but typically this is called in 'tasks' mode
+                // Actually, if we are in 'tasks' mode, onClose usually redirects to Dashboard.
+                // Request says "load the /tasks view".
+                // We should check if onClose handles this or if we need a specific nav.
+                // App.jsx: onClose -> setView('dashboard').
+                // We want to go to /tasks.
+                if (viewMode === 'tasks') {
+                    // We don't have a direct "GoToTasks" prop other than onManageTasks which goes to settings.
+                    // But wait, the parent App passes onClose.
+                    // If we want to go strictly to /tasks, we might need a new prop or rely on window location?
+                    // Ideally, onSave updates state, then we call something else.
+                    // Let's modify App.jsx to handle this? Or just use window.location for now to be safe/easy?
+                    // Actually, simply redirecting via window.location.href = '/tasks' works but is a full reload.
+                    // Using history is better.
+                    window.history.pushState({}, '', '/tasks');
+                    window.dispatchEvent(new Event('popstate'));
+                } else {
+                    onClose();
+                }
+            } else {
+                if (viewMode === 'tasks') {
+                    window.history.pushState({}, '', '/tasks');
+                    window.dispatchEvent(new Event('popstate'));
+                } else {
+                    onClose();
+                }
+            }
 
         } catch (e) {
             console.error("Failed to save task settings", e);
@@ -805,32 +868,83 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     return (
         <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
-            <h2>Dashboard Settings</h2>
+            {viewMode === 'default' && (
+                <>
+                    <h2>Dashboard Settings</h2>
 
-            {/* TABS HEADER */}
-            <div className="settings-tabs">
-                <button
-                    className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('dashboard')}
-                >
-                    Dashboard View Settings
-                </button>
-                <button
-                    className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
-                    onClick={() => {
-                        setActiveTab('map');
-                        checkPermissions();
-                    }}
-                >
-                    Map View Settings
-                </button>
-                <button
-                    className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('other')}
-                >
-                    Other Board settings
-                </button>
-            </div>
+                    {/* BOARD SELECTOR (GLOBAL) */}
+                    <div className="admin-section" style={{ marginBottom: '20px' }}>
+                        <h3>Choose your Trello Board</h3>
+                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                            Boards are pulled directly from your Trello account, across all workspaces.
+                        </p>
+                        <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
+                            <option value="">-- Choose a Board --</option>
+                            {(() => {
+                                // Group boards by Organization
+                                const grouped = {};
+                                const noOrg = [];
+                                boards.forEach(b => {
+                                    if (b.organization) {
+                                        const orgName = b.organization.displayName || b.organization.name;
+                                        if (!grouped[orgName]) grouped[orgName] = [];
+                                        grouped[orgName].push(b);
+                                    } else {
+                                        noOrg.push(b);
+                                    }
+                                });
+
+                                // Sort keys
+                                const sortedOrgNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+
+                                return (
+                                    <>
+                                        {sortedOrgNames.map(orgName => (
+                                            <optgroup key={orgName} label={orgName}>
+                                                {grouped[orgName].sort((a, b) => a.name.localeCompare(b.name)).map(b => (
+                                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
+                                        {noOrg.length > 0 && (
+                                            <optgroup label="Personal Boards">
+                                                {noOrg.sort((a, b) => a.name.localeCompare(b.name)).map(b => (
+                                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                    </>
+                                );
+                            })()}
+                        </select>
+                    </div>
+
+                    {/* TABS HEADER */}
+                    <div className="settings-tabs">
+                        <button
+                            className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('dashboard')}
+                        >
+                            Dashboard View Settings
+                        </button>
+                        <button
+                            className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
+                            onClick={() => {
+                                setActiveTab('map');
+                                checkPermissions();
+                            }}
+                        >
+                            Map View Settings
+                        </button>
+                        <button
+                            className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('other')}
+                        >
+                            Other Board settings
+                        </button>
+                    </div>
+                </>
+            )}
 
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
 
@@ -850,90 +964,47 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
             <DragDropContext onDragEnd={onDragEnd}>
-                {/* TAB CONTENT: DASHBOARD */}
-                {activeTab === 'dashboard' && (
-                    <div className="tab-content">
+                {/* BOARD SETTINGS ONLY SHOW IF VIEWMODE IS DEFAULT */}
+                {viewMode === 'default' && (
+                    <div style={{ display: 'flex', borderBottom: '1px solid #ddd', marginBottom: '20px' }}>
+                        {/* TAB CONTENT: DASHBOARD */}
+                        {activeTab === 'dashboard' && (
+                            <div className="tab-content">
 
-                        {/* SECTION 1: BOARD */}
-                        <div className="admin-section">
-                            <h3>1. Choose your Trello Board</h3>
-                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                                Boards are pulled directly from your Trello account, across all workspaces.
-                            </p>
-                            <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
-                                <option value="">-- Choose a Board --</option>
-                                {boards.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                        </div>
-
-                        {selectedBoard ? (
-                            <>
-                                {/* SECTION 2: BLOCKS */}
-                                <div className="admin-section" id="section-2">
-                                    <h3>2. Manage your Trellops blocks</h3>
-                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                                        A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demand on the dashboard.
-                                    </p>
-                                    <Droppable droppableId="blocks-list" type="BLOCK">
-                                        {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.droppableProps}>
-                                                {blocks.map((block, index) => (
-                                                    <Draggable key={block.id} draggableId={block.id} index={index}>
-                                                        {(provided) => (
-                                                            <div
-                                                                ref={provided.innerRef}
-                                                                {...provided.draggableProps}
-                                                                style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: '#fff', padding: '8px', border: '1px solid #eee', borderRadius: '4px', ...provided.draggableProps.style }}
-                                                            >
-                                                                <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
-                                                                <input
-                                                                    type="text"
-                                                                    value={block.name}
-                                                                    onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
-                                                                    className="block-name-input"
-                                                                />
-                                                                <button
-                                                                    onClick={() => handleRemoveBlock(block.id)}
-                                                                    style={{ color: 'red', marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: 'bold' }}
-                                                                    title="Remove Block"
-                                                                >
-                                                                    X
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </Draggable>
-                                                ))}
-                                                {provided.placeholder}
-                                            </div>
-                                        )}
-                                    </Droppable>
-                                    <button className="add-block-button" onClick={handleAddBlock} style={{ marginTop: '10px' }}>+ Add Block</button>
-                                </div>
-
-                                {/* SECTION 3: ASSIGN TILES */}
-                                <div className="admin-section" id="section-3">
-                                    <h3>3. Assign tiles to your blocks</h3>
-                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
-                                        Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
-                                    </p>
-
-                                    <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
-                                        {/* UNASSIGNED */}
-                                        <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
-                                            <h4>Available Lists</h4>
-                                            <Droppable droppableId="unassigned" type="LIST">
+                                {/* SECTION 1: BLOCK MANAGEMENT (Renumbered) */}
+                                {selectedBoard ? (
+                                    <>
+                                        {/* SECTION 1: BLOCKS */}
+                                        <div className="admin-section" id="section-2">
+                                            <h3>1. Manage your Trellops blocks</h3>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                                A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demand on the dashboard.
+                                            </p>
+                                            <Droppable droppableId="blocks-list" type="BLOCK">
                                                 {(provided) => (
-                                                    <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
-                                                        {unassignedLists.map((list, index) => (
-                                                            <Draggable key={list.id} draggableId={list.id} index={index}>
+                                                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                                                        {blocks.map((block, index) => (
+                                                            <Draggable key={block.id} draggableId={block.id} index={index}>
                                                                 {(provided) => (
                                                                     <div
                                                                         ref={provided.innerRef}
                                                                         {...provided.draggableProps}
-                                                                        {...provided.dragHandleProps}
-                                                                        style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                                        style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: '#fff', padding: '8px', border: '1px solid #eee', borderRadius: '4px', ...provided.draggableProps.style }}
                                                                     >
-                                                                        {list.name}
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={block.name}
+                                                                            onChange={(e) => handleUpdateBlockName(block.id, e.target.value)}
+                                                                            className="block-name-input"
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => handleRemoveBlock(block.id)}
+                                                                            style={{ color: 'red', marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                                            title="Remove Block"
+                                                                        >
+                                                                            X
+                                                                        </button>
                                                                     </div>
                                                                 )}
                                                             </Draggable>
@@ -942,96 +1013,133 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     </div>
                                                 )}
                                             </Droppable>
+                                            <button className="add-block-button" onClick={handleAddBlock} style={{ marginTop: '10px' }}>+ Add Block</button>
                                         </div>
 
-                                        {/* BLOCKS TARGETS */}
-                                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                            {blocks.map(block => (
-                                                <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
-                                                    <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
+                                        {/* SECTION 2: ASSIGN TILES (Renumbered) */}
+                                        <div className="admin-section" id="section-3">
+                                            <h3>2. Assign tiles to your blocks</h3>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                                Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
+                                            </p>
 
-                                                    {/* Block Options Inside Section 3 */}
-                                                    <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
-                                                        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                                                            <div
-                                                                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                                                                onClick={() => handleUpdateBlockProp(block.id, 'ignoreFirstCard', !block.ignoreFirstCard)}
-                                                            >
-                                                                <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
-                                                                <span>Do not count the first card in the total</span>
-                                                            </div>
-                                                            {block.ignoreFirstCard && (
-                                                                <div
-                                                                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                                                                    onClick={() => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', !block.displayFirstCardDescription)}
-                                                                >
-                                                                    <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
-                                                                    <span>Display the first card as tile description</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                    <Droppable droppableId={block.id} type="LIST">
+                                            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
+                                                {/* UNASSIGNED */}
+                                                <div style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                                    <h4>Available Lists</h4>
+                                                    <Droppable droppableId="unassigned" type="LIST">
                                                         {(provided) => (
-                                                            <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px' }}>
-                                                                {block.listIds.map((listId, index) => {
-                                                                    const list = allLists.find(l => l.id === listId);
-                                                                    if (!list) return null;
-                                                                    const color = listColors[listId] || '#0079bf';
-                                                                    return (
-                                                                        <Draggable key={listId} draggableId={listId} index={index}>
-                                                                            {(provided) => (
-                                                                                <div
-                                                                                    ref={provided.innerRef}
-                                                                                    {...provided.draggableProps}
-                                                                                    {...provided.dragHandleProps}
-                                                                                    style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', ...provided.draggableProps.style }}
-                                                                                >
-                                                                                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
-
-                                                                                    {block.ignoreFirstCard && block.displayFirstCardDescription && list.cards && list.cards.length > 0 && (
-                                                                                        <span style={{
-                                                                                            width: '20%',
-                                                                                            textAlign: 'right',
-                                                                                            fontSize: '0.85em',
-                                                                                            color: '#666',
-                                                                                            fontStyle: 'italic',
-                                                                                            overflow: 'hidden',
-                                                                                            textOverflow: 'ellipsis',
-                                                                                            whiteSpace: 'nowrap',
-                                                                                            flexShrink: 0
-                                                                                        }}>
-                                                                                            [{list.cards[0].name}]
-                                                                                        </span>
-                                                                                    )}
-
-                                                                                    <input
-                                                                                        type="color"
-                                                                                        value={color}
-                                                                                        onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
-                                                                                        style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
-                                                                                        title="Tile Colour"
-                                                                                    />
-                                                                                </div>
-                                                                            )}
-                                                                        </Draggable>
-                                                                    );
-                                                                })}
+                                                            <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
+                                                                {unassignedLists.map((list, index) => (
+                                                                    <Draggable key={list.id} draggableId={list.id} index={index}>
+                                                                        {(provided) => (
+                                                                            <div
+                                                                                ref={provided.innerRef}
+                                                                                {...provided.draggableProps}
+                                                                                {...provided.dragHandleProps}
+                                                                                style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                                            >
+                                                                                {list.name}
+                                                                            </div>
+                                                                        )}
+                                                                    </Draggable>
+                                                                ))}
                                                                 {provided.placeholder}
                                                             </div>
                                                         )}
                                                     </Droppable>
-
-
                                                 </div>
-                                            ))}
+
+                                                {/* BLOCKS TARGETS */}
+                                                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                                    {blocks.map(block => (
+                                                        <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
+                                                            <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
+
+                                                            {/* Block Options Inside Section 3 */}
+                                                            <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
+                                                                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                                                    <div
+                                                                        style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                                                                        onClick={() => handleUpdateBlockProp(block.id, 'ignoreFirstCard', !block.ignoreFirstCard)}
+                                                                    >
+                                                                        <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
+                                                                        <span>Do not count the first card in the total</span>
+                                                                    </div>
+                                                                    {block.ignoreFirstCard && (
+                                                                        <div
+                                                                            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                                                                            onClick={() => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', !block.displayFirstCardDescription)}
+                                                                        >
+                                                                            <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
+                                                                            <span>Display the first card as tile description</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            <Droppable droppableId={block.id} type="LIST">
+                                                                {(provided) => (
+                                                                    <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px' }}>
+                                                                        {block.listIds.map((listId, index) => {
+                                                                            const list = allLists.find(l => l.id === listId);
+                                                                            if (!list) return null;
+                                                                            const color = listColors[listId] || '#0079bf';
+                                                                            return (
+                                                                                <Draggable key={listId} draggableId={listId} index={index}>
+                                                                                    {(provided) => (
+                                                                                        <div
+                                                                                            ref={provided.innerRef}
+                                                                                            {...provided.draggableProps}
+                                                                                            {...provided.dragHandleProps}
+                                                                                            style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', ...provided.draggableProps.style }}
+                                                                                        >
+                                                                                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
+
+                                                                                            {block.ignoreFirstCard && block.displayFirstCardDescription && list.cards && list.cards.length > 0 && (
+                                                                                                <span style={{
+                                                                                                    width: '20%',
+                                                                                                    textAlign: 'right',
+                                                                                                    fontSize: '0.85em',
+                                                                                                    color: '#666',
+                                                                                                    fontStyle: 'italic',
+                                                                                                    overflow: 'hidden',
+                                                                                                    textOverflow: 'ellipsis',
+                                                                                                    whiteSpace: 'nowrap',
+                                                                                                    flexShrink: 0
+                                                                                                }}>
+                                                                                                    [{list.cards[0].name}]
+                                                                                                </span>
+                                                                                            )}
+
+                                                                                            <input
+                                                                                                type="color"
+                                                                                                value={color}
+                                                                                                onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
+                                                                                                style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                                                                                title="Tile Colour"
+                                                                                            />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </Draggable>
+                                                                            );
+                                                                        })}
+                                                                        {provided.placeholder}
+                                                                    </div>
+                                                                )}
+                                                            </Droppable>
+
+
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure blocks</div>
+                                    </>
+                                ) : (
+                                    <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure blocks</div>
+                                )}
+                            </div>
                         )}
                     </div>
                 )}
@@ -1524,124 +1632,154 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 )}
                             </div>
                         </div>
+                    )}
+
+
+                {
+                    viewMode === 'default' && (
+                        <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
+                            <button className="button-secondary" onClick={onClose}>Cancel</button>
+                            {activeTab !== 'tasks' && (
+                                <>
+                                    <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
+                                    <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
+                                </>
+                            )}
+                        </div>
                     )
                 }
             </DragDropContext >
 
 
-
-
-            <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
-                <button className="button-secondary" onClick={onClose}>Cancel</button>
-                {activeTab !== 'tasks' && (
-                    <>
-                        <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
-                        <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
-                    </>
-                )}
-            </div>
-
-            <div className="admin-section" id="section-tasks" style={{ marginTop: '20px', borderTop: '1px solid #eee' }}>
-                <div
-                    onClick={() => setExpandedSection(expandedSection === 'tasks' ? 'board' : 'tasks')}
-                    style={{
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '10px 0'
-                    }}
-                >
-                    <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
-                    <span style={{ fontSize: '1.2em', color: '#666' }}>{expandedSection === 'tasks' ? '▼' : '▶'}</span>
-                </div>
-
-                {expandedSection === 'tasks' && (
-                    <div style={{ paddingTop: '10px' }}>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
-                            This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
-                        </p>
-                        <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
-                            <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
-                            <span>Enable Tasks View</span>
-                        </div>
-
-                        {enableTaskView && (
-                            <>
-                                <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-                                    <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
-                                </div>
-
-                                {/* Workspace Selection */}
-                                <div className="setting-group" style={{ marginBottom: '20px' }}>
-                                    <label className="setting-label">Workspaces to Include</label>
-                                    <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
-                                        Select which workspaces to show tasks from. At least one workspace must be selected.
-                                    </div>
-                                    <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
-                                        {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
-                                            userOrgs.map(org => (
-                                                <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        id={`ws-${org.id}`}
-                                                        checked={taskViewWorkspaces.includes(org.id)}
-                                                        onChange={(e) => {
-                                                            if (e.target.checked) {
-                                                                setTaskViewWorkspaces([...taskViewWorkspaces, org.id]);
-                                                            } else {
-                                                                // Enforce at least one
-                                                                if (taskViewWorkspaces.length > 1) {
-                                                                    setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
-                                                                } else {
-                                                                    alert("At least one workspace must be selected.");
-                                                                }
-                                                            }
-                                                        }}
-                                                        style={{ marginRight: '8px' }}
-                                                    />
-                                                    <label htmlFor={`ws-${org.id}`} style={{ cursor: 'pointer' }}>{org.displayName}</label>
-                                                </div>
-                                            ))
-                                        }
-                                    </div>
-                                </div>
-
-                                {/* Refresh Interval */}
-                                <div className="setting-group" style={{ marginBottom: '20px' }}>
-                                    <label className="setting-label">Auto-Refresh Interval</label>
-                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            value={taskViewRefreshInterval.value}
-                                            onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
-                                            style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                        />
-                                        <select
-                                            value={taskViewRefreshInterval.unit}
-                                            onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
-                                            style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                        >
-                                            <option value="minutes">Minutes</option>
-                                            <option value="hours">Hours</option>
-                                        </select>
-                                    </div>
-                                    <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
-                                        Minimum 1 minute.
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
-                            <button className="save-layout-button" onClick={handleSaveTasks}>Save Tasks Settings</button>
-                            <button className="button-secondary" onClick={onClose}>Cancel</button>
+            {/* MANAGE TASKS LINK (Default Mode Only) */}
+            {
+                viewMode === 'default' && (
+                    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <strong>Looking for Task View settings?</strong>
+                                <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#666' }}>
+                                    Use the dedicated page to configure your global task dashboard.
+                                </p>
+                            </div>
+                            <a
+                                href="/tasks/settings"
+                                onClick={(e) => {
+                                    window.history.pushState({}, '', '/tasks/settings');
+                                    // Use prop if available
+                                    if (onManageTasks) onManageTasks();
+                                    else window.dispatchEvent(new Event('popstate'));
+                                }}
+                                className="button-secondary"
+                                style={{ textDecoration: 'none', display: 'inline-block' }}
+                            >
+                                Manage Tasks View
+                            </a>
                         </div>
                     </div>
-                )}
-            </div>
+                )
+            }
+
+            {
+                viewMode === 'tasks' && (
+                    <div className="admin-section" id="section-tasks" style={{ marginTop: '0', borderTop: 'none' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '10px 0'
+                            }}
+                        >
+                            <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
+                        </div>
+
+                        <div style={{ paddingTop: '10px' }}>
+                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
+                            </p>
+                            <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
+                                <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
+                                <span>Enable Tasks View</span>
+                            </div>
+
+                            {enableTaskView && (
+                                <>
+                                    <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+                                        <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
+                                    </div>
+
+                                    {/* Workspace Selection */}
+                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                        <label className="setting-label">Workspaces to Include</label>
+                                        <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
+                                            Select which workspaces to show tasks from. At least one workspace must be selected.
+                                        </div>
+                                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
+                                            {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
+                                                userOrgs.map(org => (
+                                                    <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`ws-${org.id}`}
+                                                            checked={taskViewWorkspaces && taskViewWorkspaces.includes(org.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setTaskViewWorkspaces([...(taskViewWorkspaces || []), org.id]);
+                                                                } else {
+                                                                    // Enforce at least one
+                                                                    if (taskViewWorkspaces.length > 1) {
+                                                                        setTaskViewWorkspaces(taskViewWorkspaces.filter(id => id !== org.id));
+                                                                    } else {
+                                                                        alert("At least one workspace must be selected.");
+                                                                    }
+                                                                }
+                                                            }}
+                                                            style={{ marginRight: '8px' }}
+                                                        />
+                                                        <label htmlFor={`ws-${org.id}`} style={{ cursor: 'pointer' }}>{org.displayName}</label>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    </div>
+
+                                    {/* Refresh Interval */}
+                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
+                                        <label className="setting-label">Auto-Refresh Interval</label>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={taskViewRefreshInterval.value}
+                                                onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
+                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            />
+                                            <select
+                                                value={taskViewRefreshInterval.unit}
+                                                onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
+                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            >
+                                                <option value="minutes">Minutes</option>
+                                                <option value="hours">Hours</option>
+                                            </select>
+                                        </div>
+                                        <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
+                                            Minimum 1 minute.
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
+                                <button className="save-layout-button" onClick={handleSaveTasks}>Save Tasks Settings</button>
+                                <button className="button-secondary" onClick={onClose}>Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
 
             <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: '#aaa', fontWeight: 'bold' }}>
                 v4.5.{__BUILD_ID__ || 1000} - Jan 09, 2026

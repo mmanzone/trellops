@@ -412,7 +412,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                     <div style={{ position: 'relative' }}>
                         <div style={{ display: 'flex' }}>
                             <button className="settings-button" onClick={() => onMainView ? onMainView() : onClose()}>
-                                Dashboard View
+                                Dashboard and Map View
                             </button>
                             <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
                                 ▼
@@ -425,24 +425,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                         )}
                     </div>
 
-                    {/* MAP VIEW BUTTON */}
-                    {settings?.enableMapView && (
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex' }}>
-                                <button className="settings-button" onClick={onShowMap}>
-                                    Map View
-                                </button>
-                                <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
-                                    ▼
-                                </button>
-                            </div>
-                            {showMapDropdown && (
-                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                    <div className="menu-item" onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    {/* MAP VIEW BUTTON REMOVED */}
 
 
                     <button className="settings-button" onClick={onShowSettings}>
