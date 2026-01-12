@@ -271,6 +271,138 @@ const MapBounds = ({ fitTrigger, visibleCards, homeLocation, showHomeLocation, p
     return null;
 };
 
+// --- ERROR TOAST COMPONENT ---
+const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
+    const [manualAddress, setManualAddress] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchTimeoutRef = useRef(null);
+
+    const handleManualAddressChange = (e) => {
+        const val = e.target.value;
+        setManualAddress(val);
+
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+        if (!val || val.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        searchTimeoutRef.current = setTimeout(() => {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`)
+                .then(res => res.json())
+                .then(data => {
+                    setSearchResults(data);
+                    setIsSearching(false);
+                })
+                .catch(e => {
+                    console.error(e);
+                    setIsSearching(false);
+                });
+        }, 1000);
+    };
+
+    return (
+        <div className="status-message error-toast" style={{
+            borderColor: '#ff6b6b',
+            width: '350px',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            padding: '12px',
+            gap: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            backgroundColor: 'var(--bg-primary)',
+            color: 'var(--text-primary)',
+            marginBottom: '10px',
+            animation: 'slideIn 0.3s ease-out'
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
+                <button
+                    onClick={() => onDismiss(error.cardId)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: '0 4px', color: '#666' }}
+                >
+                    &times;
+                </button>
+            </div>
+
+            <div style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                Failed: <strong>
+                    <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(error.failedAddress)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: 'inherit', textDecoration: 'underline' }}
+                    >
+                        {error.failedAddress}
+                    </a>
+                </strong>
+            </div>
+
+            {error.cardUrl && (
+                <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', textDecoration: 'underline' }}>
+                    View Card
+                </a>
+            )}
+
+            <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+                <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
+                    Manual Fix (Search Address or paste lat/long):
+                </label>
+                <div style={{ position: 'relative' }}>
+                    <input
+                        type="text"
+                        value={manualAddress}
+                        onChange={handleManualAddressChange}
+                        placeholder="Type correct address..."
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+                    />
+                    {isSearching && (
+                        <div style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#888', fontSize: '0.8em' }}>
+                            ...
+                        </div>
+                    )}
+
+                    {searchResults.length > 0 && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            zIndex: 3000,
+                            background: 'var(--bg-primary)',
+                            border: '1px solid #ccc',
+                            borderRadius: '4px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            maxHeight: '150px',
+                            overflowY: 'auto'
+                        }}>
+                            {searchResults.map((result, idx) => (
+                                <div
+                                    key={idx}
+                                    onClick={() => onApply(error.cardId, result)}
+                                    style={{
+                                        padding: '8px',
+                                        cursor: 'pointer',
+                                        borderBottom: '1px solid #eee',
+                                        fontSize: '0.9em'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                >
+                                    {result.display_name}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
@@ -289,13 +421,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const [visibleRuleIds, setVisibleRuleIds] = useState(new Set(['default']));
 
     const [baseMap, setBaseMap] = useState('topo');
-    const [errorState, setErrorState] = useState(null); // { message, cardUrl, cardId, failedAddress }
-
-    // MANUAL FIX STATE
-    const [manualAddress, setManualAddress] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const searchTimeoutRef = useRef(null);
+    const [errors, setErrors] = useState([]); // Array of error objects
 
 
     const [fitTrigger, setFitTrigger] = useState(0); // For manual fit bounds
@@ -626,14 +752,17 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 } catch (e) {
                     console.warn(`Geocoding failed for ${card.name}:`, e);
                     // Persist error manually
-                    setErrorState({
+                    const errorObj = {
                         message: `Geocoding failed for: ${card.name}`,
                         cardUrl: card.shortUrl,
                         cardId: card.id,
                         failedAddress: parseAddressFromDescription(card.desc) || (card.name.length > 5 ? card.name : "Unknown")
+                    };
+                    setErrors(prev => {
+                        if (prev.some(e => e.cardId === card.id)) return prev;
+                        return [...prev, errorObj];
                     });
-                    // Don't auto-dismiss 5000ms. Let user interact or click close.
-                    // setTimeout(() => setErrorState(null), 5000); 
+                    // Don't auto-dismiss. Let user interact or click close. 
                 }
 
                 setGeocodingQueue(prev => prev.slice(1));
@@ -646,52 +775,22 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     }, [geocodingQueue, cards, status, updateTrelloCoordinates]);
 
-    // --- MANUAL FIX HANDLERS ---
-    const handleManualAddressChange = (e) => {
-        const val = e.target.value;
-        setManualAddress(val);
-
-        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
-        if (!val || val.length < 3) {
-            setSearchResults([]);
-            return;
-        }
-
-        setIsSearching(true);
-        searchTimeoutRef.current = setTimeout(() => {
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`)
-                .then(res => res.json())
-                .then(data => {
-                    setSearchResults(data);
-                    setIsSearching(false);
-                })
-                .catch(err => {
-                    console.error("Nominatim search error", err);
-                    setIsSearching(false);
-                });
-        }, 1000);
+    // --- ERROR HANDLERS ---
+    const handleDismissError = (cardId) => {
+        setErrors(prev => prev.filter(e => e.cardId !== cardId));
     };
 
-    const handleApplyManualFix = (result) => {
-        if (!errorState || !errorState.cardId) return;
-
+    const handleApplyResult = (cardId, result) => {
         const coords = { lat: parseFloat(result.lat), lng: parseFloat(result.lon) };
-        const cardId = errorState.cardId;
-
         // Apply locally
         setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
         saveLocalGeocode(cardId, coords);
-
         // Update Trello if enabled
         if (updateTrelloCoordinates) {
             updateTrelloCardCoordinates(cardId, coords);
         }
-
-        // Close Error Toast
-        setErrorState(null);
-        setManualAddress('');
-        setSearchResults([]);
+        // Dismiss error
+        handleDismissError(cardId);
     };
 
     // --- FILTER HANDLERS ---
@@ -1035,97 +1134,25 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => { setShowDashboardDropdown(false); setShowTaskDropdown(false); }} />
             )}
 
-            {status && (
-                <div className="status-message">
-                    <div className="spinner"></div>
-                    <span>{status}</span>
-                </div>
-            )}
-
-            {errorState && (
-                <div className="status-message error-toast" style={{
-                    borderColor: '#ff6b6b',
-                    maxWidth: '400px',
-                    flexDirection: 'column',
+            {errors.length > 0 && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '80px', // Above footer
+                    left: '20px',
+                    zIndex: 9999,
+                    display: 'flex',
+                    flexDirection: 'column-reverse', // Stack upwards
                     alignItems: 'flex-start',
-                    padding: '12px',
-                    gap: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    backgroundColor: 'var(--bg-primary)',
-                    color: 'var(--text-primary)'
+                    pointerEvents: 'none' // Allow click through on container, re-enable on toasts
                 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
-                        <button
-                            onClick={() => setErrorState(null)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: '0 4px', color: '#666' }}
-                        >
-                            &times;
-                        </button>
-                    </div>
-
-                    <div style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                        Could not locate directly: <strong>{errorState.failedAddress}</strong>
-                    </div>
-
-                    {errorState.cardUrl && (
-                        <a href={errorState.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', textDecoration: 'underline' }}>
-                            View Card
-                        </a>
-                    )}
-
-                    <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
-                        <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Manual Fix (Search Address):</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type="text"
-                                value={manualAddress}
-                                onChange={handleManualAddressChange}
-                                placeholder="Type correct address..."
-                                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
-                            />
-                            {isSearching && (
-                                <div style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#888', fontSize: '0.8em' }}>
-                                    ...
-                                </div>
-                            )}
-
-                            {searchResults.length > 0 && (
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    left: 0,
-                                    right: 0,
-                                    zIndex: 3000,
-                                    background: 'var(--bg-primary)',
-                                    border: '1px solid #ccc',
-                                    borderRadius: '4px',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                    maxHeight: '150px',
-                                    overflowY: 'auto'
-                                }}>
-                                    {searchResults.map((result, idx) => (
-                                        <div
-                                            key={idx}
-                                            onClick={() => handleApplyManualFix(result)}
-                                            style={{
-                                                padding: '8px',
-                                                cursor: 'pointer',
-                                                borderBottom: '1px solid #eee',
-                                                fontSize: '0.9em'
-                                            }}
-                                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
-                                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                                        >
-                                            {result.display_name}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                    {errors.map(err => (
+                        <div key={err.cardId} style={{ pointerEvents: 'auto' }}>
+                            <GeocodingErrorToast error={err} onDismiss={handleDismissError} onApply={handleApplyResult} />
                         </div>
-                    </div>
+                    ))}
                 </div>
             )}
+
         </div>
     );
 };
