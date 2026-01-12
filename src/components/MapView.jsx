@@ -98,6 +98,38 @@ const getMarkerConfig = (card, block, markerRules) => {
 };
 
 // --- GEOCODING UTILS ---
+function expandAbbreviations(address) {
+    if (!address) return address;
+    let expanded = address;
+
+    // "CNR" or "Corner" at start
+    expanded = expanded.replace(/^(?:CNR|Corner)\s+/i, 'Corner of ');
+
+    // Standard Suffixes (Case insensitive, word boundary)
+    // We use a mapping for common ones
+    const replacements = [
+        [/\bRd\b/gi, 'Road'],
+        [/\bAv\b/gi, 'Avenue'],
+        [/\bAve\b/gi, 'Avenue'],
+        [/\bSt\b/gi, 'Street'],
+        [/\bDr\b/gi, 'Drive'],
+        [/\bLn\b/gi, 'Lane'],
+        [/\bCt\b/gi, 'Court'],
+        [/\bPl\b/gi, 'Place'],
+        [/\bCres\b/gi, 'Crescent'],
+        [/\bBlvd\b/gi, 'Boulevard'],
+        [/\bPde\b/gi, 'Parade'],
+        [/\bHwy\b/gi, 'Highway'],
+        [/\bFwy\b/gi, 'Freeway'],
+    ];
+
+    replacements.forEach(([regex, replacement]) => {
+        expanded = expanded.replace(regex, replacement);
+    });
+
+    return expanded;
+}
+
 async function geocodeAddress(address) {
     try {
         const coordMatch = address.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
@@ -257,7 +289,14 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const [visibleRuleIds, setVisibleRuleIds] = useState(new Set(['default']));
 
     const [baseMap, setBaseMap] = useState('topo');
-    const [errorState, setErrorState] = useState(null);
+    const [errorState, setErrorState] = useState(null); // { message, cardUrl, cardId, failedAddress }
+
+    // MANUAL FIX STATE
+    const [manualAddress, setManualAddress] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const searchTimeoutRef = useRef(null);
+
 
     const [fitTrigger, setFitTrigger] = useState(0); // For manual fit bounds
     // const hasInitialZoom = useRef(false); // REMOVED in favor of signature check
@@ -509,6 +548,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             // If local geocoding is disabled, stop here
             if (mapGeocodeMode === 'disabled') return false;
 
+            // Note: We don't need strict address parsing check to Queue, but we do it to avoid queuing impossibles
             const addressCandidate = parseAddressFromDescription(c.desc) || (c.name.length > 10 ? c.name : null);
 
             // STRICTER CHECK IF NOMINATIM IS USED: Require Description
@@ -565,8 +605,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 await new Promise(r => setTimeout(r, 1000));
 
                 try {
-                    const address = parseAddressFromDescription(card.desc) || (card.name.length > 5 ? card.name : null);
+                    let address = parseAddressFromDescription(card.desc) || (card.name.length > 5 ? card.name : null);
                     if (address) {
+                        // SMART PARSING: Expand Abbreviations
+                        address = expandAbbreviations(address);
+
                         const coords = await geocodeAddress(address);
                         if (coords) {
                             setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
@@ -575,18 +618,22 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                 updateTrelloCardCoordinates(cardId, coords);
                             }
                         } else {
-                            throw new Error("Nominatim returned no valid results");
+                            throw new Error(`Nominatim returned no valid results for: ${address}`);
                         }
                     } else {
                         throw new Error("No address found in description or name");
                     }
                 } catch (e) {
                     console.warn(`Geocoding failed for ${card.name}:`, e);
+                    // Persist error manually
                     setErrorState({
                         message: `Geocoding failed for: ${card.name}`,
-                        cardUrl: card.shortUrl
+                        cardUrl: card.shortUrl,
+                        cardId: card.id,
+                        failedAddress: parseAddressFromDescription(card.desc) || (card.name.length > 5 ? card.name : "Unknown")
                     });
-                    setTimeout(() => setErrorState(null), 5000);
+                    // Don't auto-dismiss 5000ms. Let user interact or click close.
+                    // setTimeout(() => setErrorState(null), 5000); 
                 }
 
                 setGeocodingQueue(prev => prev.slice(1));
@@ -598,6 +645,54 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         processQueue();
 
     }, [geocodingQueue, cards, status, updateTrelloCoordinates]);
+
+    // --- MANUAL FIX HANDLERS ---
+    const handleManualAddressChange = (e) => {
+        const val = e.target.value;
+        setManualAddress(val);
+
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+        if (!val || val.length < 3) {
+            setSearchResults([]);
+            return;
+        }
+
+        setIsSearching(true);
+        searchTimeoutRef.current = setTimeout(() => {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`)
+                .then(res => res.json())
+                .then(data => {
+                    setSearchResults(data);
+                    setIsSearching(false);
+                })
+                .catch(err => {
+                    console.error("Nominatim search error", err);
+                    setIsSearching(false);
+                });
+        }, 1000);
+    };
+
+    const handleApplyManualFix = (result) => {
+        if (!errorState || !errorState.cardId) return;
+
+        const coords = { lat: parseFloat(result.lat), lng: parseFloat(result.lon) };
+        const cardId = errorState.cardId;
+
+        // Apply locally
+        setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: coords } : c));
+        saveLocalGeocode(cardId, coords);
+
+        // Update Trello if enabled
+        if (updateTrelloCoordinates) {
+            updateTrelloCardCoordinates(cardId, coords);
+        }
+
+        // Close Error Toast
+        setErrorState(null);
+        setManualAddress('');
+        setSearchResults([]);
+    };
 
     // --- FILTER HANDLERS ---
     const handleToggleList = (listId) => {
@@ -948,14 +1043,87 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             )}
 
             {errorState && (
-                <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', maxWidth: '400px', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
-                    <span style={{ color: '#333', fontSize: '0.9em' }}>{errorState.message}</span>
+                <div className="status-message error-toast" style={{
+                    borderColor: '#ff6b6b',
+                    maxWidth: '400px',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    padding: '12px',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-primary)'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
+                        <button
+                            onClick={() => setErrorState(null)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: '0 4px', color: '#666' }}
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                        Could not locate directly: <strong>{errorState.failedAddress}</strong>
+                    </div>
+
                     {errorState.cardUrl && (
-                        <a href={errorState.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', marginTop: '4px', textDecoration: 'underline' }}>
+                        <a href={errorState.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', textDecoration: 'underline' }}>
                             View Card
                         </a>
                     )}
+
+                    <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+                        <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Manual Fix (Search Address):</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type="text"
+                                value={manualAddress}
+                                onChange={handleManualAddressChange}
+                                placeholder="Type correct address..."
+                                style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            />
+                            {isSearching && (
+                                <div style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', color: '#888', fontSize: '0.8em' }}>
+                                    ...
+                                </div>
+                            )}
+
+                            {searchResults.length > 0 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    right: 0,
+                                    zIndex: 3000,
+                                    background: 'var(--bg-primary)',
+                                    border: '1px solid #ccc',
+                                    borderRadius: '4px',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                    maxHeight: '150px',
+                                    overflowY: 'auto'
+                                }}>
+                                    {searchResults.map((result, idx) => (
+                                        <div
+                                            key={idx}
+                                            onClick={() => handleApplyManualFix(result)}
+                                            style={{
+                                                padding: '8px',
+                                                cursor: 'pointer',
+                                                borderBottom: '1px solid #eee',
+                                                fontSize: '0.9em'
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                        >
+                                            {result.display_name}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
