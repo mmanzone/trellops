@@ -318,8 +318,15 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
             marginBottom: '10px',
             animation: 'slideIn 0.3s ease-out'
         }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
+                    {error.cardUrl && (
+                        <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.85em', textDecoration: 'underline' }}>
+                            View Card
+                        </a>
+                    )}
+                </div>
                 <button
                     onClick={() => onDismiss(error.cardId)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: '0 4px', color: '#666' }}
@@ -341,15 +348,9 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
                 </strong>
             </div>
 
-            {error.cardUrl && (
-                <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.9em', textDecoration: 'underline' }}>
-                    View Card
-                </a>
-            )}
-
             <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
                 <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>
-                    Manual Fix (Search Address or paste lat/long):
+                    Manual Fix (Search Address or enter lat/long):
                 </label>
                 <div style={{ position: 'relative' }}>
                     <input
