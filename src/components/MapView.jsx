@@ -18,6 +18,10 @@ const DARK_MODE_STYLE = [
     { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
     { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
     {
+        featureType: "poi",
+        stylers: [{ visibility: "off" }],
+    },
+    {
         featureType: "administrative.locality",
         elementType: "labels.text.fill",
         stylers: [{ color: "#d59563" }],
@@ -352,7 +356,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const [visibleRuleIds, setVisibleRuleIds] = useState(new Set(['default']));
     const [showHomeLocation, setShowHomeLocation] = useState(true);
 
-    const [baseMap, setBaseMap] = useState('terrain');
+    const [baseMap, setBaseMap] = useState('roadmap');
     const [errors, setErrors] = useState([]);
     const [markerRules, setMarkerRules] = useState([]);
     const [homeLocation, setHomeLocation] = useState(null);
@@ -453,7 +457,19 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     useEffect(() => {
         loadGoogleMaps().then((maps) => {
             if (!mapRef.current) return;
-            const mapOptions = { center: { lat: 0, lng: 0 }, zoom: 2, mapTypeControl: false, streetViewControl: false, fullscreenControl: false };
+            // Default styles to hide POIs
+            const defaultStyles = [
+                { featureType: "poi", stylers: [{ visibility: "off" }] }
+            ];
+
+            const mapOptions = {
+                center: { lat: 0, lng: 0 },
+                zoom: 2,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false,
+                styles: defaultStyles
+            };
             const map = new maps.Map(mapRef.current, mapOptions);
             googleMapRef.current = map;
             geocoderRef.current = new maps.Geocoder();
@@ -901,11 +917,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         {geocodingQueue.length > 0 && <span> (Geocoding {geocodingQueue.length}...)</span>}
                     </span>
 
-                    <button className="button-secondary" onClick={() => loadData(true)}>Refresh Map</button>
-                    <button className="button-secondary" onClick={() => onClose()}>Dashboard View</button>
-                    <button className="button-secondary" onClick={() => onShowTasks()}>Tasks View</button>
-                    <button className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
-                    <button className="button-secondary" onClick={onLogout}>Logout</button>
+                    <button className="settings-button" onClick={() => window.open(window.location.href, '_blank')} title="Open in New Window" style={{ padding: '6px 10px' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: ICONS['external-link'] }} />
+                    </button>
+
+                    <button className="settings-button" onClick={() => loadData(true)}>Refresh Map</button>
+                    <button className="settings-button" onClick={() => onClose()}>Dashboard View</button>
+                    <button className="settings-button" onClick={() => onShowTasks()}>Tasks View</button>
+                    <button className="settings-button" onClick={() => onShowSettings('board')}>Settings</button>
+                    <button className="logout-button" onClick={onLogout}>Logout</button>
                 </div>
             </div>
         </div>
