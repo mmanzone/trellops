@@ -449,7 +449,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     }, [mapLoaded]);
 
     const fitMapBounds = () => {
-        if (!googleMapRef.current || Object.keys(markersRef.current).length === 0) return;
+        if (!googleMapRef.current) return;
         const bounds = new window.google.maps.LatLngBounds();
         let count = 0;
         Object.values(markersRef.current).forEach(marker => {
@@ -462,13 +462,68 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             bounds.extend(homeMarkerRef.current.getPosition());
             count++;
         }
-        if (count > 0) googleMapRef.current.fitBounds(bounds);
+        if (count > 0) {
+            googleMapRef.current.fitBounds(bounds);
+        } else {
+            // Fallback: No cards visible
+            if (homeLocation && homeLocation.coords) {
+                googleMapRef.current.setCenter({ lat: homeLocation.coords.lat, lng: homeLocation.coords.lon });
+                googleMapRef.current.setZoom(12);
+            } else {
+                // Fallback: Victoria, Australia
+                googleMapRef.current.setCenter({ lat: -36.5, lng: 145.0 }); // Approx Center of VIC
+                googleMapRef.current.setZoom(6);
+            }
+        }
     };
+
+    // --- TRAFFIC LAYER MANAGEMENT ---
+    const trafficLayerRef = useRef(null);
+
+    useEffect(() => {
+        if (!googleMapRef.current || !mapLoaded) return;
+
+        if (baseMap === 'traffic') {
+            googleMapRef.current.setMapTypeId('roadmap');
+            if (!trafficLayerRef.current) {
+                trafficLayerRef.current = new window.google.maps.TrafficLayer();
+            }
+            trafficLayerRef.current.setMap(googleMapRef.current);
+        } else {
+            if (trafficLayerRef.current) {
+                trafficLayerRef.current.setMap(null);
+            }
+            // Map 'satellite' to 'satellite', 'roadmap' to 'roadmap', 'terrain' to 'terrain', 'hybrid' to 'hybrid'
+            // 'dark' is custom styled roadmap usually, handled by map options?
+            // Wait, existing code handles 'dark' via stylized map options?
+            // Let's check where baseMap is used. It's used in this useEffect technically if we add it.
+            // Actually, the previous implementation of baseMap switching might be missing?
+            // Let me check if there was an existing baseMap effect.
+            // I don't see one in the previous `view_file`.
+            // Wait, line 890 sets `baseMap`. But where is it USED?
+            // I might have missed it.
+            // If it wasn't used, then "Roadmap/Topo/Sat" wasn't working?
+            // Ah, I need to check if there is an existing effect for `baseMap`.
+            // If not, I should add it.
+            // I'll assume I need to add it.
+
+            // For 'dark', usually we set options.
+            // But for standard types:
+            if (baseMap !== 'dark' && baseMap !== 'traffic') {
+                googleMapRef.current.setMapTypeId(baseMap);
+            } else if (baseMap === 'dark') {
+                // Use the registered 'dark_mode' map type
+                googleMapRef.current.setMapTypeId('dark_mode');
+            }
+        }
+    }, [baseMap, mapLoaded]);
 
 
     // --- INIT MAP ---
     const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
     const [showTaskDropdown, setShowTaskDropdown] = useState(false);
+    const [visibleMarkersCount, setVisibleMarkersCount] = useState(0);
+    const [refreshVersion, setRefreshVersion] = useState(0);
 
     useEffect(() => {
         loadGoogleMaps().then((maps) => {
@@ -495,17 +550,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         }).catch(console.error);
     }, []);
 
-    useEffect(() => {
-        if (!googleMapRef.current) return;
-        const map = googleMapRef.current;
-        switch (baseMap) {
-            case 'topo': map.setMapTypeId(window.google.maps.MapTypeId.TERRAIN); break;
-            case 'sat': map.setMapTypeId(window.google.maps.MapTypeId.HYBRID); break;
-            case 'roadmap': map.setMapTypeId(window.google.maps.MapTypeId.ROADMAP); break; // Renamed logic
-            case 'dark': map.setMapTypeId('dark_mode'); break;
-            default: map.setMapTypeId(window.google.maps.MapTypeId.TERRAIN);
-        }
-    }, [baseMap, mapLoaded]);
+
 
     // --- DATA LOADING ---
     const isFetchingRef = useRef(false);
@@ -573,7 +618,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             console.error(e); setStatus(`Error: ${e.message}`);
         } finally {
             isFetchingRef.current = false;
-            if (!isRefresh) { setLoading(false); setStatus(''); }
+            if (isRefresh) {
+                setRefreshVersion(v => v + 1);
+            } else {
+                setLoading(false);
+                setStatus('');
+            }
         }
     }, [user, boardId, ignoreTemplateCards]);
 
@@ -618,12 +668,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     // --- PROCESS GEOCODING QUEUE ---
     useEffect(() => {
         if (geocodingQueue.length === 0) {
-            // If we just finished geocoding and added cards, fit bounds
-            const currentValidCount = cards.filter(c => c.coordinates).length;
-            if (currentValidCount > prevValidCardCount.current && mapLoaded) {
-                fitMapBounds();
-            }
-            prevValidCardCount.current = currentValidCount;
+            // If we just finished geocoding and added cards, fit bounds will happen in main effect if cards updated
+            // But geocoding effect updates cards incrementally.
             return;
         }
         if (!mapLoaded) return;
@@ -796,6 +842,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     };
 
     // --- MARKERS RENDER ---
+    const prevRefreshVersion = useRef(0);
     useEffect(() => {
         if (!googleMapRef.current || !mapLoaded) return;
         const map = googleMapRef.current;
@@ -858,6 +905,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 newMarkers[c.id] = m;
             }
         });
+        setVisibleMarkersCount(Object.keys(newMarkers).length);
 
         Object.keys(markersRef.current).forEach(id => {
             if (!newMarkers[id]) markersRef.current[id].setMap(null);
@@ -868,16 +916,39 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             const pos = { lat: homeLocation.coords.lat, lng: homeLocation.coords.lon };
             const icon = getGoogleMarkerIcon({ icon: homeLocation.icon || 'home', color: 'purple' });
             if (homeMarkerRef.current) { homeMarkerRef.current.setPosition(pos); homeMarkerRef.current.setIcon(icon); homeMarkerRef.current.setMap(map); }
-            else { homeMarkerRef.current = new window.google.maps.Marker({ position: pos, map, icon: icon, zIndex: 1000 }); }
+            else {
+                const homeM = new window.google.maps.Marker({ position: pos, map, icon: icon, zIndex: 1000, title: 'Home Location' });
+                homeM.addListener("click", () => {
+                    const content = `
+                        <div style="padding: 5px;">
+                            <strong>Home Address</strong><br/>
+                            ${homeLocation.address || homeLocation.coords.display_name || 'No address set'}
+                        </div>
+                    `;
+                    infoWindowRef.current.setContent(content);
+                    infoWindowRef.current.open(map, homeM);
+                });
+                homeMarkerRef.current = homeM;
+            }
         } else if (homeMarkerRef.current) { homeMarkerRef.current.setMap(null); }
 
         if (visibleCards.length > 0 && !initialFitDone) {
             fitMapBounds();
             setInitialFitDone(true);
             prevValidCardCount.current = validCards.length;
+            prevRefreshVersion.current = refreshVersion;
+        } else if (refreshVersion !== prevRefreshVersion.current) {
+            // Force Refresh
+            if (visibleCards.length > 0) fitMapBounds();
+            prevRefreshVersion.current = refreshVersion;
+            prevValidCardCount.current = validCards.length;
+        } else if (initialFitDone && validCards.length !== prevValidCardCount.current) {
+            // New cards added or removed -> Re-fit bounds
+            fitMapBounds();
+            prevValidCardCount.current = validCards.length;
         }
 
-    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists]);
+    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists, refreshVersion]);
 
     return (
         <div className="map-view-container">
@@ -889,16 +960,31 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
+                    {/* Card Count */}
+                    <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                        {visibleMarkersCount} cards
+                    </span>
+
                     {/* Base Layer */}
-                    <select value={baseMap} onChange={e => setBaseMap(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.9em' }}>
+                    <select
+                        value={baseMap}
+                        onChange={e => setBaseMap(e.target.value)}
+                        className="time-filter-select" // Reuse dashboard class
+                    >
                         <option value="roadmap">Roadmap</option>
-                        <option value="topo">Topographic</option>
-                        <option value="sat">Satellite</option>
+                        <option value="traffic">Traffic</option>
+                        <option value="satellite">Satellite</option>
+                        <option value="hybrid">Hybrid</option>
+                        <option value="terrain">Terrain</option>
                         <option value="dark">Dark Mode</option>
                     </select>
 
-                    <button onClick={() => toggleTheme()} title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'} className="theme-toggle-button" style={{ marginLeft: '10px' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: theme === 'dark' ? ICONS.sun : ICONS.moon }} />
+                    <button
+                        className="theme-toggle-button"
+                        onClick={() => toggleTheme()}
+                        style={{ marginLeft: '10px' }}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
                 </div>
             </div>
