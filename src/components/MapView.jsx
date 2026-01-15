@@ -449,7 +449,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     }, [mapLoaded]);
 
     const fitMapBounds = () => {
-        if (!googleMapRef.current || Object.keys(markersRef.current).length === 0) return;
+        if (!googleMapRef.current) return;
         const bounds = new window.google.maps.LatLngBounds();
         let count = 0;
         Object.values(markersRef.current).forEach(marker => {
@@ -462,7 +462,19 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             bounds.extend(homeMarkerRef.current.getPosition());
             count++;
         }
-        if (count > 0) googleMapRef.current.fitBounds(bounds);
+        if (count > 0) {
+            googleMapRef.current.fitBounds(bounds);
+        } else {
+            // Fallback: No cards visible
+            if (homeLocation && homeLocation.coords) {
+                googleMapRef.current.setCenter({ lat: homeLocation.coords.lat, lng: homeLocation.coords.lon });
+                googleMapRef.current.setZoom(12);
+            } else {
+                // Fallback: Victoria, Australia
+                googleMapRef.current.setCenter({ lat: -36.5, lng: 145.0 }); // Approx Center of VIC
+                googleMapRef.current.setZoom(6);
+            }
+        }
     };
 
 
