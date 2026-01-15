@@ -139,6 +139,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     }, [user, importedConfig]);
 
+    const [enableStreetView, setEnableStreetView] = useState(false);
+
     // Fetch Orgs for Tasks Dashboard if needed
     useEffect(() => {
         if (expandedSection === 'tasks' && boards.length > 0) {
@@ -277,7 +279,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (config.ignoreNoDescCards !== undefined) setIgnoreNoDescCards(config.ignoreNoDescCards);
         if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
         if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+        if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
         if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+        if (config.enableStreetView !== undefined) setEnableStreetView(config.enableStreetView);
         if (config.updateTrelloCoordinates !== undefined) setUpdateTrelloCoordinates(config.updateTrelloCoordinates);
         if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
         if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
@@ -402,6 +406,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
             setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
             setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
+
+            const savedEnableStreetView = localStorage.getItem('enableStreetView_' + boardId);
+            setEnableStreetView(savedEnableStreetView === 'true');
 
         } catch (e) {
             console.warn("Error loading board settings", e);
@@ -622,6 +629,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                 const safeEnableCardMove = enableCardMove && hasWritePermission;
                 localStorage.setItem('enableCardMove_' + selectedBoardId, safeEnableCardMove ? 'true' : 'false');
+                localStorage.setItem('enableStreetView_' + selectedBoardId, enableStreetView ? 'true' : 'false');
 
                 // If enabling Trello updates, reset the cache to force decoding and updating
                 if (safeUpdateTrello) {
@@ -643,7 +651,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                 enableMapView,
                 mapGeocodeMode,
+                enableMapView,
+                mapGeocodeMode,
                 enableCardMove: enableCardMove && hasWritePermission,
+                enableStreetView,
                 enableTaskView,
                 taskViewWorkspaces,
                 taskViewRefreshInterval
@@ -771,6 +782,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             enableMapView,
             mapGeocodeMode,
             enableCardMove,
+            enableStreetView,
             enableTaskView,
             taskViewWorkspaces,
             taskViewRefreshInterval
@@ -839,6 +851,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
                 if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+                if (config.enableStreetView !== undefined) setEnableStreetView(config.enableStreetView);
                 if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
                 if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
                 if (config.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(config.taskViewRefreshInterval);
@@ -1322,6 +1335,22 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
                                         </div>
 
+                                        {/* STREET VIEW SETTING */}
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableStreetView(!enableStreetView)}>
+                                                <ToggleSwitch
+                                                    checked={enableStreetView}
+                                                    onChange={e => setEnableStreetView(e.target.checked)}
+                                                />
+                                                <span style={{ marginLeft: '10px' }}>
+                                                    <strong>Show street view</strong><br />
+                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                        Enable to add a link to a Google Street View of the address that will open in a new window
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        </div>
+
                                         {/* MOVING CARDS SETTING */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableCardMove(!enableCardMove)}>
@@ -1619,6 +1648,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                             key.startsWith('MAP_GEOCODING_CACHE_') ||
                                                             key.startsWith('updateTrelloCoordinates_') ||
                                                             key.startsWith('enableCardMove_') ||
+                                                            key.startsWith('enableStreetView_') ||
                                                             key.startsWith('refreshInterval_') // old keys might exist
                                                         )) {
                                                             keysToRemove.push(key);

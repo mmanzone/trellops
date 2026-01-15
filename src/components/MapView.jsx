@@ -263,7 +263,7 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
 };
 
 // --- POPUP COMPONENT ---
-const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
+const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStreetView }) => {
     // Group lists by Block
     const groupedLists = blocks.reduce((acc, block) => {
         if (block.includeOnMap === false) return acc;
@@ -320,7 +320,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #eee' }}>
                 {/* View Street View Button */}
-                {card.coordinates && (
+                {card.coordinates && enableStreetView && (
                     <button
                         title="Open in Street View"
                         onClick={() => window.open(`https://www.google.com/maps?layer=c&cbll=${card.coordinates.lat},${card.coordinates.lng}`, '_blank')}
@@ -402,6 +402,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
     const enableCardMove = localStorage.getItem('enableCardMove_' + boardId) === 'true';
+    const enableStreetView = localStorage.getItem('enableStreetView_' + boardId) === 'true';
 
     const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
     const defaultRefreshSetting = { value: 1, unit: 'minutes' };
@@ -782,6 +783,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         blocks={blocks}
                         lists={lists}
                         onMove={handleMoveCard}
+                        enableStreetView={enableStreetView}
                     />
                 );
                 infoWindowRef.current.setContent(div);
@@ -845,6 +847,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             blocks={blocks}
                             lists={enableCardMove ? lists : []}
                             onMove={handleMoveCard}
+                            enableStreetView={enableStreetView}
                         />
                     );
 
