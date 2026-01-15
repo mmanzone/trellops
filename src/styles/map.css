@@ -1,9 +1,10 @@
 /* Map View Styles */
 
-.map-container {
+.map-view-container {
     display: flex;
     height: 100vh;
     flex-direction: column;
+    background-color: var(--bg-primary);
 }
 
 #map {

@@ -213,10 +213,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (autocompleteService.current) {
             setIsSearching(true);
             autocompleteService.current.getPlacePredictions({ input: val }, (predictions, status) => {
+                console.log("[GoogleMaps] Autocomplete status:", status);
+                console.log("[GoogleMaps] Autocomplete predictions:", predictions);
                 setIsSearching(false);
                 if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
                     setSearchResults(predictions);
                 } else {
+                    console.warn("[GoogleMaps] Autocomplete failed or empty:", status);
                     setSearchResults([]);
                 }
             });
