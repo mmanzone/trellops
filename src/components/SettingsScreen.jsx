@@ -1779,7 +1779,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             )}
 
                             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
-                                <button className="save-layout-button" onClick={handleSaveTasks}>Save Tasks Settings</button>
+                                <button className="button-secondary" onClick={handleSaveTasks}>Save Tasks Settings</button>
                                 <button className="button-secondary" onClick={onClose}>Cancel</button>
                             </div>
                         </div>

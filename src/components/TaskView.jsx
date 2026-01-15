@@ -523,15 +523,15 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                         Next refresh in {formatCountdown(refreshCountdown)}
                     </span>
 
-                    <button className="refresh-button" onClick={() => loadData(true)}>Refresh</button>
+                    <button className="button-secondary" onClick={() => loadData(true)}>Refresh</button>
 
                     {/* DASHBOARD BUTTON WITH DROPDOWN */}
                     <div style={{ position: 'relative' }}>
                         <div style={{ display: 'flex' }}>
-                            <button className="settings-button" onClick={() => onMainView ? onMainView() : onClose()}>
+                            <button className="button-secondary" onClick={() => onMainView ? onMainView() : onClose()}>
                                 Dashboard and Map View
                             </button>
-                            <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
+                            <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', padding: '0 5px', borderLeft: 'none' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
                                 ▼
                             </button>
                         </div>
@@ -545,10 +545,10 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                     {/* MAP VIEW BUTTON REMOVED */}
 
 
-                    <button className="settings-button" onClick={onShowSettings}>
+                    <button className="button-secondary" onClick={onShowSettings}>
                         Settings
                     </button>
-                    <button className="logout-button" onClick={onLogout}>
+                    <button className="button-secondary" onClick={onLogout}>
                         Log Out
                     </button>
                 </div>

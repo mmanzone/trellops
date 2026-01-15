@@ -873,8 +873,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     {!mapLoaded && <span className="spinner"></span>}
                     {/* Base Layer */}
                     <select value={baseMap} onChange={e => setBaseMap(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.9em' }}>
-                        <option value="topo">Topographic</option>
                         <option value="roadmap">Roadmap</option>
+                        <option value="topo">Topographic</option>
                         <option value="sat">Satellite</option>
                         <option value="dark">Dark Mode</option>
                     </select>
@@ -917,15 +917,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         {geocodingQueue.length > 0 && <span> (Geocoding {geocodingQueue.length}...)</span>}
                     </span>
 
-                    <button className="settings-button" onClick={() => window.open(window.location.href, '_blank')} title="Open in New Window" style={{ padding: '6px 10px' }}>
+                    <button className="button-secondary" onClick={() => window.open(window.location.href, '_blank')} title="Open in New Window" style={{ padding: '6px 10px' }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: ICONS['external-link'] }} />
                     </button>
 
-                    <button className="settings-button" onClick={() => loadData(true)}>Refresh Map</button>
-                    <button className="settings-button" onClick={() => onClose()}>Dashboard View</button>
-                    <button className="settings-button" onClick={() => onShowTasks()}>Tasks View</button>
-                    <button className="settings-button" onClick={() => onShowSettings('board')}>Settings</button>
-                    <button className="logout-button" onClick={onLogout}>Logout</button>
+                    <button className="button-secondary" onClick={() => loadData(true)}>Refresh Map</button>
+                    <button className="button-secondary" onClick={() => onClose()}>Dashboard View</button>
+                    <button className="button-secondary" onClick={() => onShowTasks()}>Tasks View</button>
+                    <button className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
+                    <button className="button-secondary" onClick={onLogout}>Logout</button>
                 </div>
             </div>
         </div>
