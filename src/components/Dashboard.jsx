@@ -420,15 +420,15 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         Next refresh in {formatCountdown(countdown)}
                     </span>
 
-                    <button className="refresh-button" onClick={() => fetchData(true)}>Refresh Tiles</button>
+                    <button className="button-secondary" onClick={() => fetchData(true)}>Refresh Tiles</button>
 
                     {enableMapView && (
                         <div style={{ position: 'relative' }}>
                             <div style={{ display: 'flex' }}>
-                                <button className="settings-button" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
+                                <button className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
                                     Map View
                                 </button>
-                                <button className="settings-button dropdown-arrow" style={{ marginLeft: '-2px', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
+                                <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
                                     ▼
                                 </button>
                             </div>
@@ -441,13 +441,25 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     )}
 
                     {settings?.enableTaskView && (
-                        <button className="settings-button" onClick={() => window.open('/tasks', '_blank')}>
-                            Tasks View ↗
-                        </button>
+                        <div style={{ position: 'relative' }}>
+                            <div style={{ display: 'flex' }}>
+                                <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
+                                    Tasks View
+                                </button>
+                                <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                    ▼
+                                </button>
+                            </div>
+                            {showTaskDropdown && (
+                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                    <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                </div>
+                            )}
+                        </div>
                     )}
 
-                    <button className="settings-button" onClick={onShowSettings}>Settings</button>
-                    <button className="logout-button" onClick={onLogout}>Log Out</button>
+                    <button className="button-secondary" onClick={onShowSettings}>Settings</button>
+                    <button className="button-secondary" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
 

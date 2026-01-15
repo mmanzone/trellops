@@ -97,11 +97,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
     // NOMINATIM AUTOCOMPLETE STATE
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const searchTimeoutRef = React.useRef(null);
-    const searchInputRef = React.useRef(null); // Ref to input for dropdown positioning if needed
-    const wrapperRef = React.useRef(null); // Ref for click outside
+    // State for Marker Rules
+
 
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
@@ -141,6 +138,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             });
         }
     }, [user, importedConfig]);
+
+    const [enableStreetView, setEnableStreetView] = useState(false);
 
     // Fetch Orgs for Tasks Dashboard if needed
     useEffect(() => {
@@ -185,56 +184,66 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     }, [expandedSection, user, boards]);
 
-    // CLICK OUTSIDE HANDLER
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setSearchResults([]);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [wrapperRef]);
+    // GOOGLE MAPS AUTOCOMPLETE STATE
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const wrapperRef = React.useRef(null);
+    const autocompleteService = React.useRef(null);
+    const geocoderRef = React.useRef(null);
 
-    // DEBOUNCED SEARCH HANDLER
+    useEffect(() => {
+        // Ensure Google Maps is loaded for Settings Screen
+        import('../utils/googleMapsLoader').then(({ loadGoogleMaps }) => {
+            loadGoogleMaps().then(maps => {
+                if (!autocompleteService.current) {
+                    autocompleteService.current = new maps.places.AutocompleteService();
+                    geocoderRef.current = new maps.Geocoder();
+                }
+            }).catch(e => console.warn("Google Maps not loaded for Settings:", e));
+        });
+    }, []);
+
     const handleHomeAddressChange = (e) => {
         const val = e.target.value;
         setHomeAddress(val);
-
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
 
         if (!val || val.length < 3) {
             setSearchResults([]);
             return;
         }
 
-        setIsSearching(true);
-        searchTimeoutRef.current = setTimeout(() => {
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`)
-                .then(res => res.json())
-                .then(data => {
-                    setSearchResults(data);
-                    setIsSearching(false);
-                })
-                .catch(err => {
-                    console.error("Nominatim search error", err);
-                    setIsSearching(false);
-                });
-        }, 1000); // 1s Debounce
+        if (autocompleteService.current) {
+            setIsSearching(true);
+            autocompleteService.current.getPlacePredictions({ input: val }, (predictions, status) => {
+                console.log("[GoogleMaps] Autocomplete status:", status);
+                console.log("[GoogleMaps] Autocomplete predictions:", predictions);
+                setIsSearching(false);
+                if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    setSearchResults(predictions);
+                } else {
+                    console.warn("[GoogleMaps] Autocomplete failed or empty:", status);
+                    setSearchResults([]);
+                }
+            });
+        }
     };
 
-    const handleSelectResult = (result) => {
-        setHomeAddress(result.display_name);
-        setHomeCoordinates({
-            lat: parseFloat(result.lat),
-            lon: parseFloat(result.lon),
-            display_name: result.display_name
-        });
+    const handleSelectResult = (prediction) => {
+        setHomeAddress(prediction.description);
         setSearchResults([]);
+
+        if (geocoderRef.current) {
+            geocoderRef.current.geocode({ placeId: prediction.place_id }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    const loc = results[0].geometry.location;
+                    setHomeCoordinates({
+                        lat: loc.lat(),
+                        lon: loc.lng(),
+                        display_name: prediction.description
+                    });
+                }
+            });
+        }
     };
 
     const applyImportedConfig = () => {
@@ -270,7 +279,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (config.ignoreNoDescCards !== undefined) setIgnoreNoDescCards(config.ignoreNoDescCards);
         if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
         if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
+        if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
         if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+        if (config.enableStreetView !== undefined) setEnableStreetView(config.enableStreetView);
         if (config.updateTrelloCoordinates !== undefined) setUpdateTrelloCoordinates(config.updateTrelloCoordinates);
         if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
         if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
@@ -395,6 +406,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
             setHomeCoordinates(savedHomeCoords ? JSON.parse(savedHomeCoords) : null);
             setHomeIcon(localStorage.getItem(`homeIcon_${boardId}`) || 'home');
+
+            const savedEnableStreetView = localStorage.getItem('enableStreetView_' + boardId);
+            setEnableStreetView(savedEnableStreetView === 'true');
 
         } catch (e) {
             console.warn("Error loading board settings", e);
@@ -615,6 +629,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                 const safeEnableCardMove = enableCardMove && hasWritePermission;
                 localStorage.setItem('enableCardMove_' + selectedBoardId, safeEnableCardMove ? 'true' : 'false');
+                localStorage.setItem('enableStreetView_' + selectedBoardId, enableStreetView ? 'true' : 'false');
 
                 // If enabling Trello updates, reset the cache to force decoding and updating
                 if (safeUpdateTrello) {
@@ -636,7 +651,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                 enableMapView,
                 mapGeocodeMode,
+                enableMapView,
+                mapGeocodeMode,
                 enableCardMove: enableCardMove && hasWritePermission,
+                enableStreetView,
                 enableTaskView,
                 taskViewWorkspaces,
                 taskViewRefreshInterval
@@ -764,6 +782,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             enableMapView,
             mapGeocodeMode,
             enableCardMove,
+            enableStreetView,
             enableTaskView,
             taskViewWorkspaces,
             taskViewRefreshInterval
@@ -832,6 +851,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 if (config.enableMapView !== undefined) setEnableMapView(config.enableMapView);
                 if (config.mapGeocodeMode) setMapGeocodeMode(config.mapGeocodeMode);
                 if (config.enableCardMove !== undefined) setEnableCardMove(config.enableCardMove);
+                if (config.enableStreetView !== undefined) setEnableStreetView(config.enableStreetView);
                 if (config.enableTaskView !== undefined) setEnableTaskView(config.enableTaskView);
                 if (config.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(config.taskViewWorkspaces);
                 if (config.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(config.taskViewRefreshInterval);
@@ -1189,7 +1209,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 <span style={{ marginLeft: '8px' }}>
                                                     If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
                                                     <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
-                                                        Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
+                                                        Note: this will use Google Maps Geocoding API, and will store the coordinates locally on your browser cache
                                                     </span>
                                                     <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
                                                         Note: Cards without a description will be skipped.
@@ -1208,7 +1228,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
                                                     />
                                                     <span style={{ marginLeft: '8px' }}>
-                                                        Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
+                                                        Update the Trello card coordinates using the decoded address from Google Maps (beta).<br />
                                                         <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
                                                             It is recommended to only have one dashboard enabled with this feature for each Trello board
                                                         </span>
@@ -1315,6 +1335,22 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
                                         </div>
 
+                                        {/* STREET VIEW SETTING */}
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableStreetView(!enableStreetView)}>
+                                                <ToggleSwitch
+                                                    checked={enableStreetView}
+                                                    onChange={e => setEnableStreetView(e.target.checked)}
+                                                />
+                                                <span style={{ marginLeft: '10px' }}>
+                                                    <strong>Show street view</strong><br />
+                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                        Enable to add a link to a Google Street View of the address that will open in a new window
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        </div>
+
                                         {/* MOVING CARDS SETTING */}
                                         <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableCardMove(!enableCardMove)}>
@@ -1409,12 +1445,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                 padding: '8px 12px',
                                                                                 cursor: 'pointer',
                                                                                 borderBottom: idx < searchResults.length - 1 ? '1px solid #eee' : 'none',
-                                                                                fontSize: '0.9em'
+                                                                                fontSize: '0.9em',
+                                                                                color: 'black'
                                                                             }}
                                                                             onMouseEnter={e => e.target.style.background = '#f5f5f5'}
                                                                             onMouseLeave={e => e.target.style.background = 'white'}
                                                                         >
-                                                                            {result.display_name}
+                                                                            {result.description}
                                                                         </div>
                                                                     ))}
                                                                 </div>
@@ -1611,6 +1648,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                             key.startsWith('MAP_GEOCODING_CACHE_') ||
                                                             key.startsWith('updateTrelloCoordinates_') ||
                                                             key.startsWith('enableCardMove_') ||
+                                                            key.startsWith('enableStreetView_') ||
                                                             key.startsWith('refreshInterval_') // old keys might exist
                                                         )) {
                                                             keysToRemove.push(key);
@@ -1771,7 +1809,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             )}
 
                             <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
-                                <button className="save-layout-button" onClick={handleSaveTasks}>Save Tasks Settings</button>
+                                <button className="button-secondary" onClick={handleSaveTasks}>Save Tasks Settings</button>
                                 <button className="button-secondary" onClick={onClose}>Cancel</button>
                             </div>
                         </div>
