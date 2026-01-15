@@ -98,8 +98,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     // NOMINATIM AUTOCOMPLETE STATE
     // State for Marker Rules
-    const [markerRules, setMarkerRules] = useState([]);
-    const [hasWritePermission, setHasWritePermission] = useState(false);
+
 
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
