@@ -97,11 +97,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
     // NOMINATIM AUTOCOMPLETE STATE
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const searchTimeoutRef = React.useRef(null);
-    const searchInputRef = React.useRef(null); // Ref to input for dropdown positioning if needed
-    const wrapperRef = React.useRef(null); // Ref for click outside
+    // State for Marker Rules
+    const [markerRules, setMarkerRules] = useState([]);
+    const [hasWritePermission, setHasWritePermission] = useState(false);
 
     const [markerRules, setMarkerRules] = useState([]);
     const [hasWritePermission, setHasWritePermission] = useState(false);
