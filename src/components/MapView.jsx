@@ -512,10 +512,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             if (baseMap !== 'dark' && baseMap !== 'traffic') {
                 googleMapRef.current.setMapTypeId(baseMap);
             } else if (baseMap === 'dark') {
-                // Logic for dark mode map style is usually set via `styles` option.
-                // But `setMapTypeId` might not handle 'dark'.
-                // Let's assume 'roadmap' for dark but with styles?
-                googleMapRef.current.setMapTypeId('roadmap');
+                // Use the registered 'dark_mode' map type
+                googleMapRef.current.setMapTypeId('dark_mode');
             }
         }
     }, [baseMap, mapLoaded]);
@@ -550,17 +548,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         }).catch(console.error);
     }, []);
 
-    useEffect(() => {
-        if (!googleMapRef.current) return;
-        const map = googleMapRef.current;
-        switch (baseMap) {
-            case 'topo': map.setMapTypeId(window.google.maps.MapTypeId.TERRAIN); break;
-            case 'sat': map.setMapTypeId(window.google.maps.MapTypeId.HYBRID); break;
-            case 'roadmap': map.setMapTypeId(window.google.maps.MapTypeId.ROADMAP); break; // Renamed logic
-            case 'dark': map.setMapTypeId('dark_mode'); break;
-            default: map.setMapTypeId(window.google.maps.MapTypeId.TERRAIN);
-        }
-    }, [baseMap, mapLoaded]);
+
 
     // --- DATA LOADING ---
     const isFetchingRef = useRef(false);
