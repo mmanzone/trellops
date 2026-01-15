@@ -185,6 +185,25 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     }, [expandedSection, user, boards]);
 
+    // GOOGLE MAPS AUTOCOMPLETE STATE
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const wrapperRef = React.useRef(null);
+    const autocompleteService = React.useRef(null);
+    const geocoderRef = React.useRef(null);
+
+    useEffect(() => {
+        // Ensure Google Maps is loaded for Settings Screen
+        import('../utils/googleMapsLoader').then(({ loadGoogleMaps }) => {
+            loadGoogleMaps().then(maps => {
+                if (!autocompleteService.current) {
+                    autocompleteService.current = new maps.places.AutocompleteService();
+                    geocoderRef.current = new maps.Geocoder();
+                }
+            }).catch(e => console.warn("Google Maps not loaded for Settings:", e));
+        });
+    }, []);
+
     const handleHomeAddressChange = (e) => {
         const val = e.target.value;
         setHomeAddress(val);
