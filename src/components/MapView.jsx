@@ -277,19 +277,24 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
         return acc;
     }, {});
 
+    const creationDate = new Date(1000 * parseInt(card.id.substring(0, 8), 16));
+
     return (
         <div style={{ padding: '5px', minWidth: '240px', maxWidth: '300px', fontFamily: 'sans-serif' }}>
-            <strong style={{ fontSize: '1.2em', display: 'block', marginBottom: '4px', color: 'var(--text-color)' }}>{card.name}</strong>
-            <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '8px' }}>
-                {blockName ? <span style={{ fontWeight: '600' }}>{blockName} &rsaquo; </span> : ''}
+            <a href={card.shortUrl} target="_blank" rel="noreferrer" style={{ fontSize: '1.2em', display: 'block', marginBottom: '4px', color: 'var(--text-color)', fontWeight: 'bold', textDecoration: 'none' }}>
+                {card.name} ↗
+            </a>
+            <div style={{ fontSize: '1.05em', color: '#555', marginBottom: '8px', fontWeight: '500' }}>
+                {blockName ? <span style={{ fontWeight: '700' }}>{blockName} &rsaquo; </span> : ''}
                 {listName}
             </div>
 
             {/* Description (Markdown) */}
+            {/* Description (Markdown) */}
             {card.desc && card.desc.trim() !== "" && (
                 <div
                     className="popup-desc"
-                    style={{ marginBottom: '10px', fontSize: '0.95em', color: '#333', lineHeight: '1.5' }}
+                    style={{ marginBottom: '10px', fontSize: '0.95em', color: '#111', lineHeight: '1.5' }}
                     dangerouslySetInnerHTML={{ __html: marked.parse(card.desc) }}
                 />
             )}
@@ -308,15 +313,22 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
                 </div>
             )}
 
-            {/* Due Date */}
-            {card.due && (
-                <div style={{ fontSize: '0.9em', color: '#555', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ fontWeight: 'bold' }}>Due:</span> {new Date(card.due).toLocaleDateString()}
-                </div>
-            )}
+            {/* Creation Date instead of Due Date */}
+            <div style={{ fontSize: '0.9em', color: '#333', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>Created:</span> {creationDate.toLocaleDateString()} {creationDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #eee' }}>
-                <a href={card.shortUrl} target="_blank" rel="noreferrer" style={{ color: '#0079bf', textDecoration: 'none', fontWeight: 'bold' }}>View in Trello</a>
+                {/* View Street View Button */}
+                {card.coordinates && (
+                    <button
+                        title="Open in Street View"
+                        onClick={() => window.open(`https://www.google.com/maps?layer=c&cbll=${card.coordinates.lat},${card.coordinates.lng}`, '_blank')}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '4px' }}
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: ICONS['street-view'] }} />
+                    </button>
+                )}
 
                 {/* Move Action */}
                 {onMove && lists.length > 0 && (
@@ -919,6 +931,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         {status || (countdown !== null ? `Refreshing in ${formatCountdown(countdown)}` : 'Ready')}
                         {geocodingQueue.length > 0 && <span> (Geocoding {geocodingQueue.length}...)</span>}
                     </span>
+
+                    <button className="button-secondary" onClick={() => loadData(true)}>Refresh Map</button>
 
                     <div style={{ position: 'relative' }}>
                         <div style={{ display: 'flex' }}>
