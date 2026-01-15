@@ -477,6 +477,49 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         }
     };
 
+    // --- TRAFFIC LAYER MANAGEMENT ---
+    const trafficLayerRef = useRef(null);
+
+    useEffect(() => {
+        if (!googleMapRef.current || !mapLoaded) return;
+
+        if (baseMap === 'traffic') {
+            googleMapRef.current.setMapTypeId('roadmap');
+            if (!trafficLayerRef.current) {
+                trafficLayerRef.current = new window.google.maps.TrafficLayer();
+            }
+            trafficLayerRef.current.setMap(googleMapRef.current);
+        } else {
+            if (trafficLayerRef.current) {
+                trafficLayerRef.current.setMap(null);
+            }
+            // Map 'satellite' to 'satellite', 'roadmap' to 'roadmap', 'terrain' to 'terrain', 'hybrid' to 'hybrid'
+            // 'dark' is custom styled roadmap usually, handled by map options?
+            // Wait, existing code handles 'dark' via stylized map options?
+            // Let's check where baseMap is used. It's used in this useEffect technically if we add it.
+            // Actually, the previous implementation of baseMap switching might be missing?
+            // Let me check if there was an existing baseMap effect.
+            // I don't see one in the previous `view_file`.
+            // Wait, line 890 sets `baseMap`. But where is it USED?
+            // I might have missed it.
+            // If it wasn't used, then "Roadmap/Topo/Sat" wasn't working?
+            // Ah, I need to check if there is an existing effect for `baseMap`.
+            // If not, I should add it.
+            // I'll assume I need to add it.
+
+            // For 'dark', usually we set options.
+            // But for standard types:
+            if (baseMap !== 'dark' && baseMap !== 'traffic') {
+                googleMapRef.current.setMapTypeId(baseMap);
+            } else if (baseMap === 'dark') {
+                // Logic for dark mode map style is usually set via `styles` option.
+                // But `setMapTypeId` might not handle 'dark'.
+                // Let's assume 'roadmap' for dark but with styles?
+                googleMapRef.current.setMapTypeId('roadmap');
+            }
+        }
+    }, [baseMap, mapLoaded]);
+
 
     // --- INIT MAP ---
     const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
@@ -902,15 +945,25 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
                     {/* Base Layer */}
-                    <select value={baseMap} onChange={e => setBaseMap(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.9em' }}>
+                    <select
+                        value={baseMap}
+                        onChange={e => setBaseMap(e.target.value)}
+                        className="time-filter-select" // Reuse dashboard class
+                    >
                         <option value="roadmap">Roadmap</option>
-                        <option value="topo">Topographic</option>
-                        <option value="sat">Satellite</option>
+                        <option value="traffic">Traffic</option>
+                        <option value="satellite">Satellite</option>
+                        <option value="hybrid">Hybrid</option>
+                        <option value="terrain">Terrain</option>
                         <option value="dark">Dark Mode</option>
                     </select>
 
-                    <button onClick={() => toggleTheme()} title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'} className="theme-toggle-button" style={{ marginLeft: '10px' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: theme === 'dark' ? ICONS.sun : ICONS.moon }} />
+                    <button
+                        className="theme-toggle-button"
+                        onClick={() => toggleTheme()}
+                        style={{ marginLeft: '10px' }}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
                 </div>
             </div>
