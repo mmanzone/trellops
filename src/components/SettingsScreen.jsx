@@ -1196,7 +1196,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 <span style={{ marginLeft: '8px' }}>
                                                     If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
                                                     <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
-                                                        Note: this will use Nominatim throttled API, and will store the coordinates locally on your browser cache
+                                                        Note: this will use Google Maps Geocoding API, and will store the coordinates locally on your browser cache
                                                     </span>
                                                     <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
                                                         Note: Cards without a description will be skipped.
@@ -1215,7 +1215,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
                                                     />
                                                     <span style={{ marginLeft: '8px' }}>
-                                                        Update the Trello card coordinates using the decoded address from Nominatim (beta).<br />
+                                                        Update the Trello card coordinates using the decoded address from Google Maps (beta).<br />
                                                         <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
                                                             It is recommended to only have one dashboard enabled with this feature for each Trello board
                                                         </span>
