@@ -232,6 +232,14 @@ const parseAddressFromDescription = (desc) => {
     return null;
 };
 
+// --- HELPER FUNCTIONS ---
+const formatCountdown = (seconds) => {
+    if (seconds === null || seconds === undefined) return '';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
 // --- ERROR TOAST WITH GOOGLE AUTOCOMPLETE ---
 const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
     const [manualAddress, setManualAddress] = useState('');
