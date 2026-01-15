@@ -261,11 +261,9 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
 // --- POPUP COMPONENT ---
 const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
     // Group lists by Block
-    // Structure: { blockId: { name: blockName, lists: [] } }
     const groupedLists = blocks.reduce((acc, block) => {
         if (block.includeOnMap === false) return acc;
         acc[block.id] = { name: block.name, lists: [] };
-        // Find visible lists in this block that are also in 'lists' prop
         const blockListIds = block.listIds;
         lists.forEach(l => {
             if (blockListIds.includes(l.id)) {
@@ -274,9 +272,6 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
         });
         return acc;
     }, {});
-    // Add "Unassigned" or others if lists exist in 'lists' but not in blocks?
-    // For now assuming all relevant lists are in blocks or we just show them flat if not found.
-    // Actually, 'blocks' drives the grouping. 
 
     return (
         <div style={{ padding: '5px', minWidth: '240px', maxWidth: '300px', fontFamily: 'sans-serif' }}>
@@ -287,7 +282,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
             </div>
 
             {/* Description (Markdown) */}
-            {card.desc && (
+            {card.desc && card.desc.trim() !== "" && (
                 <div
                     className="popup-desc"
                     style={{ marginBottom: '10px', fontSize: '0.95em', color: '#333', lineHeight: '1.5' }}
@@ -336,8 +331,6 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove }) => {
                                 </optgroup>
                             )
                         ))}
-                        {/* Fallback for lists not in blocks? */}
-                        {/* If a list is not in any block, it won't appear. Assuming efficient config. */}
                     </select>
                 )}
             </div>
@@ -361,12 +354,18 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     const [baseMap, setBaseMap] = useState('terrain');
     const [errors, setErrors] = useState([]);
-    const [fitTrigger, setFitTrigger] = useState(0); // Deprecated button, using direct fit on load
     const [markerRules, setMarkerRules] = useState([]);
     const [homeLocation, setHomeLocation] = useState(null);
     const [countdown, setCountdown] = useState(null);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [initialFitDone, setInitialFitDone] = useState(false);
+
+    // --- NEW: Single InfoWindow Ref & Currently Open Card ---
+    const infoWindowRef = useRef(null);
+    const currentOpenCardId = useRef(null);
+
+    // --- NEW: Track Previous Card Count for Fit Bounds ---
+    const prevValidCardCount = useRef(0);
 
     const { theme, toggleTheme } = useDarkMode();
     const mapRef = useRef(null);
@@ -374,7 +373,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const markersRef = useRef({});
     const homeMarkerRef = useRef(null);
     const geocoderRef = useRef(null);
-    const popupRootsRef = useRef({});
 
     // --- SETTINGS ---
     const getStoredSettings = () => {
@@ -400,7 +398,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         if (!mapLoaded || !googleMapRef.current) return;
         const map = googleMapRef.current;
 
-        // Create custom control DIV
+        // Ensure only one control
+        if (map.controls[window.google.maps.ControlPosition.TOP_CENTER].getLength() > 0) return;
+
         const controlDiv = document.createElement('div');
         controlDiv.style.margin = '10px';
         controlDiv.style.cursor = 'pointer';
@@ -421,21 +421,31 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             fitMapBounds();
         });
 
-        // Push to top-right
         map.controls[window.google.maps.ControlPosition.TOP_CENTER].push(controlDiv);
+
+        // Init shared info window
+        infoWindowRef.current = new window.google.maps.InfoWindow();
+        infoWindowRef.current.addListener('closeclick', () => {
+            currentOpenCardId.current = null;
+        });
 
     }, [mapLoaded]);
 
     const fitMapBounds = () => {
         if (!googleMapRef.current || Object.keys(markersRef.current).length === 0) return;
         const bounds = new window.google.maps.LatLngBounds();
+        let count = 0;
         Object.values(markersRef.current).forEach(marker => {
-            bounds.extend(marker.getPosition());
+            if (marker.getMap()) {
+                bounds.extend(marker.getPosition());
+                count++;
+            }
         });
-        if (homeMarkerRef.current) {
+        if (homeMarkerRef.current && homeMarkerRef.current.getMap()) {
             bounds.extend(homeMarkerRef.current.getPosition());
+            count++;
         }
-        googleMapRef.current.fitBounds(bounds);
+        if (count > 0) googleMapRef.current.fitBounds(bounds);
     };
 
 
@@ -459,7 +469,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         switch (baseMap) {
             case 'topo': map.setMapTypeId(window.google.maps.MapTypeId.TERRAIN); break;
             case 'sat': map.setMapTypeId(window.google.maps.MapTypeId.HYBRID); break;
-            case 'osm': case 'osmhot': map.setMapTypeId(window.google.maps.MapTypeId.ROADMAP); break;
+            case 'roadmap': map.setMapTypeId(window.google.maps.MapTypeId.ROADMAP); break; // Renamed logic
             case 'dark': map.setMapTypeId('dark_mode'); break;
             default: map.setMapTypeId(window.google.maps.MapTypeId.TERRAIN);
         }
@@ -509,7 +519,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             const processedCards = cardsData.filter(c => {
                 if (ignoreTemplateCards && c.isTemplate) return false;
                 if (ignoreCompletedCards && c.dueComplete) return false;
-                if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) return false;
+                if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) return false; // Basic catch, specific logic in geocoding
                 return true;
             }).map(c => {
                 let coords = null;
@@ -537,19 +547,32 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     // --- BUILD GEOCODING QUEUE ---
     useEffect(() => {
-        // Run whenever cards are loaded or cache changes
         if (!cards.length) return;
+
+        // Identify first cards in each list (min pos)
+        const minPosByList = {};
+        cards.forEach(c => {
+            if (minPosByList[c.idList] === undefined || c.pos < minPosByList[c.idList]) {
+                minPosByList[c.idList] = c.pos;
+            }
+        });
 
         const newQueue = cards.filter(c => {
             // 1. Check if card belongs to a block allowed on map
             const block = blocks.find(b => b.listIds.includes(c.idList));
             if (!block || block.includeOnMap === false) return false;
 
-            // 2. Find cards WITHOUT coordinates
+            // 2. Ignore first card logic
+            if (block.ignoreFirstCard && c.pos === minPosByList[c.idList]) return false;
+
+            // 3. Ignore if description is empty (Explicitly for Geocoding)
+            if (!c.desc || !c.desc.trim()) return false;
+
+            // 4. Find cards WITHOUT coordinates
             const hasCoords = c.coordinates && c.coordinates.lat;
             if (hasCoords) return false;
 
-            // 3. ... but WITH a potential address in description
+            // 5. ... but WITH a potential address in description
             const address = parseAddressFromDescription(c.desc);
             return !!address;
         });
@@ -562,18 +585,29 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     // --- PROCESS GEOCODING QUEUE ---
     useEffect(() => {
-        if (geocodingQueue.length === 0 || !mapLoaded) return;
+        if (geocodingQueue.length === 0) {
+            // If we just finished geocoding and added cards, fit bounds
+            const currentValidCount = cards.filter(c => c.coordinates).length;
+            if (currentValidCount > prevValidCardCount.current && mapLoaded) {
+                fitMapBounds();
+            }
+            prevValidCardCount.current = currentValidCount;
+            return;
+        }
+        if (!mapLoaded) return;
 
         const processQueue = async () => {
             const card = geocodingQueue[0];
             const address = parseAddressFromDescription(card.desc);
             const cleanAddress = expandAbbreviations(address);
 
-            setStatus(`Geocoding: ${card.name}...`);
+            // Truncate status
+            const statusText = `Geocoding: ${card.name}`;
+            setStatus(statusText.length > 30 ? statusText.substring(0, 30) + '...' : statusText);
 
             if (geocoderRef.current) {
-                geocoderRef.current.geocode({ address: cleanAddress }, async (results, status) => {
-                    if (status === 'OK' && results[0]) {
+                geocoderRef.current.geocode({ address: cleanAddress }, async (results, statusCode) => {
+                    if (statusCode === 'OK' && results[0]) {
                         const loc = results[0].geometry.location;
                         const coords = { lat: loc.lat(), lng: loc.lng(), display_name: results[0].formatted_address };
 
@@ -585,7 +619,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         cache[card.id] = coords;
                         localStorage.setItem(cacheKey, JSON.stringify(cache));
 
-                        // Trello Update if enabled
                         if (updateTrelloCoordinates) {
                             try {
                                 await trelloFetch(`/cards/${card.id}`, user.token, {
@@ -597,24 +630,22 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         }
 
                     } else {
-                        // Fallback or Fail
-                        if (status === 'OVER_QUERY_LIMIT') {
-                            // Retry later? For now, we just skip to next but maybe pause
+                        if (statusCode === 'OVER_QUERY_LIMIT') {
                             await new Promise(r => setTimeout(r, 2000));
                         } else {
                             setErrors(prev => [...prev, { cardId: card.id, cardUrl: card.shortUrl, failedAddress: cleanAddress }]);
                         }
                     }
 
-                    // Move to next
                     setGeocodingQueue(prev => prev.slice(1));
+                    if (geocodingQueue.length === 1) setStatus(''); // Clear on last
                 });
             }
         };
 
-        const timer = setTimeout(processQueue, 1200); // Rate limit
+        const timer = setTimeout(processQueue, 1200);
         return () => clearTimeout(timer);
-    }, [geocodingQueue, mapLoaded, updateTrelloCoordinates, boardId, user]);
+    }, [geocodingQueue, mapLoaded, updateTrelloCoordinates, boardId, user, cards]);
 
 
     // --- REFRESH LOOP ---
@@ -690,8 +721,41 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 body: JSON.stringify({ idList: newListId }),
                 headers: { 'Content-Type': 'application/json' }
             });
-            // Optimistic update
+            // Update local state
             setCards(prev => prev.map(c => c.id === cardId ? { ...c, idList: newListId } : c));
+
+            // Refresh Popup Logic
+            // If the moved card is currently open, we must re-render the popup to show the new list name.
+            if (currentOpenCardId.current === cardId && markersRef.current[cardId] && infoWindowRef.current) {
+                // Close and Re-open to refresh content
+                // Or better: Re-render content.
+                // We re-trigger the click handler indirectly or just update the content?
+                // Since `createRoot` is one-off, we need to manually trigger.
+                // Simplest: Close it. User asked to "refresh", but closing is safer to reset state.
+                // Re-opening automatically might be jarring if position shifts or List Name changed prominently.
+                // Let's RE-RENDER it.
+                const card = cards.find(c => c.id === cardId);
+                const updatedCard = { ...card, idList: newListId };
+                const list = lists.find(l => l.id === newListId);
+                const listName = list ? list.name : 'Unknown';
+                const block = blocks.find(b => b.listIds.includes(newListId));
+                const blockName = block ? block.name : '';
+
+                const div = document.createElement('div');
+                const root = createRoot(div);
+                root.render(
+                    <CardPopup
+                        card={updatedCard}
+                        listName={listName}
+                        blockName={blockName}
+                        blocks={blocks}
+                        lists={lists}
+                        onMove={handleMoveCard}
+                    />
+                );
+                infoWindowRef.current.setContent(div);
+            }
+
         } catch (e) {
             console.error("Failed to move card", e);
             alert("Failed to move card.");
@@ -729,16 +793,18 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 const m = new window.google.maps.Marker({ position, map, icon: googleIcon, title: c.name });
                 m.set('cardData', c);
 
-                const infoWindow = new window.google.maps.InfoWindow();
                 m.addListener("click", () => {
                     const currentCard = m.get('cardData');
+                    // Close existing if specific one open? (Handled by shared InfoWindow)
+                    // Just Render content
                     const div = document.createElement('div');
                     const root = createRoot(div);
-                    // Find current list Name and Block Name
                     const list = lists.find(l => l.id === currentCard.idList);
                     const listName = list ? list.name : 'Unknown List';
                     const parentBlock = blocks.find(b => b.listIds.includes(currentCard.idList));
                     const blockName = parentBlock ? parentBlock.name : '';
+
+                    currentOpenCardId.current = currentCard.id;
 
                     root.render(
                         <CardPopup
@@ -751,21 +817,19 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         />
                     );
 
-                    infoWindow.setContent(div);
-                    infoWindow.open(map, m);
+                    infoWindowRef.current.setContent(div);
+                    infoWindowRef.current.open(map, m);
                 });
 
                 newMarkers[c.id] = m;
             }
         });
 
-        // Remove stale
         Object.keys(markersRef.current).forEach(id => {
             if (!newMarkers[id]) markersRef.current[id].setMap(null);
         });
         markersRef.current = newMarkers;
 
-        // Home
         if (homeLocation && homeLocation.coords && showHomeLocation) {
             const pos = { lat: homeLocation.coords.lat, lng: homeLocation.coords.lon };
             const icon = getGoogleMarkerIcon({ icon: homeLocation.icon || 'home', color: 'purple' });
@@ -773,10 +837,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             else { homeMarkerRef.current = new window.google.maps.Marker({ position: pos, map, icon: icon, zIndex: 1000 }); }
         } else if (homeMarkerRef.current) { homeMarkerRef.current.setMap(null); }
 
-        // --- FIT BOUNDS ON FIRST LOAD ---
         if (visibleCards.length > 0 && !initialFitDone) {
             fitMapBounds();
             setInitialFitDone(true);
+            prevValidCardCount.current = validCards.length;
         }
 
     }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists]);
@@ -789,29 +853,22 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     {showClock && <DigitalClock boardId={boardId} />}
                     <h1 style={{ margin: 0, fontSize: '1.5em', marginLeft: showClock ? '20px' : '0' }}>{boardName} Map</h1>
                 </div>
-                {/* Right Aligned Controls in Header */}
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
                     {/* Base Layer */}
                     <select value={baseMap} onChange={e => setBaseMap(e.target.value)} style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '0.9em' }}>
-                        <option value="topo">Topo (Default)</option>
+                        <option value="topo">Topographic</option>
+                        <option value="roadmap">Roadmap</option>
                         <option value="sat">Satellite</option>
                         <option value="dark">Dark Mode</option>
                     </select>
 
-                    {/* Theme Toggle Button */}
-                    <button
-                        onClick={() => toggleTheme()}
-                        title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                        className="theme-toggle-button"
-                        style={{ marginLeft: '10px' }}
-                    >
+                    <button onClick={() => toggleTheme()} title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'} className="theme-toggle-button" style={{ marginLeft: '10px' }}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: theme === 'dark' ? ICONS.sun : ICONS.moon }} />
                     </button>
                 </div>
             </div>
 
-            {/* Toasts */}
             <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999, pointerEvents: 'none' }}>
                 <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                     {errors.map(err => <GeocodingErrorToast key={err.cardId} error={err} onDismiss={handleDismissError} onApply={handleApplyResult} />)}
@@ -834,7 +891,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 </div>
             </div>
 
-            {/* Footer */}
             <div className="map-footer">
                 <div className="map-footer-left">
                     <div style={{ fontSize: '0.8em', color: '#888' }}>Powered by Google Maps & Trello</div>
