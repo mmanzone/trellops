@@ -541,11 +541,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         if (!cards.length) return;
 
         const newQueue = cards.filter(c => {
-            // Find cards WITHOUT coordinates
+            // 1. Check if card belongs to a block allowed on map
+            const block = blocks.find(b => b.listIds.includes(c.idList));
+            if (!block || block.includeOnMap === false) return false;
+
+            // 2. Find cards WITHOUT coordinates
             const hasCoords = c.coordinates && c.coordinates.lat;
             if (hasCoords) return false;
 
-            // ... but WITH a potential address in description
+            // 3. ... but WITH a potential address in description
             const address = parseAddressFromDescription(c.desc);
             return !!address;
         });
@@ -553,7 +557,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         if (newQueue.length > 0) {
             setGeocodingQueue(newQueue);
         }
-    }, [cards]);
+    }, [cards, blocks]);
 
 
     // --- PROCESS GEOCODING QUEUE ---
