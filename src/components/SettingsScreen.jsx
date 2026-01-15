@@ -185,56 +185,44 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
     }, [expandedSection, user, boards]);
 
-    // CLICK OUTSIDE HANDLER
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setSearchResults([]);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [wrapperRef]);
-
-    // DEBOUNCED SEARCH HANDLER
     const handleHomeAddressChange = (e) => {
         const val = e.target.value;
         setHomeAddress(val);
-
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
 
         if (!val || val.length < 3) {
             setSearchResults([]);
             return;
         }
 
-        setIsSearching(true);
-        searchTimeoutRef.current = setTimeout(() => {
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&addressdetails=1&limit=5`)
-                .then(res => res.json())
-                .then(data => {
-                    setSearchResults(data);
-                    setIsSearching(false);
-                })
-                .catch(err => {
-                    console.error("Nominatim search error", err);
-                    setIsSearching(false);
-                });
-        }, 1000); // 1s Debounce
+        if (autocompleteService.current) {
+            setIsSearching(true);
+            autocompleteService.current.getPlacePredictions({ input: val }, (predictions, status) => {
+                setIsSearching(false);
+                if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    setSearchResults(predictions);
+                } else {
+                    setSearchResults([]);
+                }
+            });
+        }
     };
 
-    const handleSelectResult = (result) => {
-        setHomeAddress(result.display_name);
-        setHomeCoordinates({
-            lat: parseFloat(result.lat),
-            lon: parseFloat(result.lon),
-            display_name: result.display_name
-        });
+    const handleSelectResult = (prediction) => {
+        setHomeAddress(prediction.description);
         setSearchResults([]);
+
+        if (geocoderRef.current) {
+            geocoderRef.current.geocode({ placeId: prediction.place_id }, (results, status) => {
+                if (status === 'OK' && results[0]) {
+                    const loc = results[0].geometry.location;
+                    setHomeCoordinates({
+                        lat: loc.lat(),
+                        lon: loc.lng(),
+                        display_name: prediction.description
+                    });
+                }
+            });
+        }
     };
 
     const applyImportedConfig = () => {
