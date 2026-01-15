@@ -1416,12 +1416,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                 padding: '8px 12px',
                                                                                 cursor: 'pointer',
                                                                                 borderBottom: idx < searchResults.length - 1 ? '1px solid #eee' : 'none',
-                                                                                fontSize: '0.9em'
+                                                                                fontSize: '0.9em',
+                                                                                color: 'black'
                                                                             }}
                                                                             onMouseEnter={e => e.target.style.background = '#f5f5f5'}
                                                                             onMouseLeave={e => e.target.style.background = 'white'}
                                                                         >
-                                                                            {result.display_name}
+                                                                            {result.description}
                                                                         </div>
                                                                     ))}
                                                                 </div>
