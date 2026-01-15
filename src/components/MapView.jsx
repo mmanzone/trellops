@@ -523,6 +523,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
     const [showTaskDropdown, setShowTaskDropdown] = useState(false);
     const [visibleMarkersCount, setVisibleMarkersCount] = useState(0);
+    const [refreshVersion, setRefreshVersion] = useState(0);
 
     useEffect(() => {
         loadGoogleMaps().then((maps) => {
@@ -617,7 +618,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             console.error(e); setStatus(`Error: ${e.message}`);
         } finally {
             isFetchingRef.current = false;
-            if (!isRefresh) { setLoading(false); setStatus(''); }
+            if (isRefresh) {
+                setRefreshVersion(v => v + 1);
+            } else {
+                setLoading(false);
+                setStatus('');
+            }
         }
     }, [user, boardId, ignoreTemplateCards]);
 
@@ -662,12 +668,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     // --- PROCESS GEOCODING QUEUE ---
     useEffect(() => {
         if (geocodingQueue.length === 0) {
-            // If we just finished geocoding and added cards, fit bounds
-            const currentValidCount = cards.filter(c => c.coordinates).length;
-            if (currentValidCount > prevValidCardCount.current && mapLoaded) {
-                fitMapBounds();
-            }
-            prevValidCardCount.current = currentValidCount;
+            // If we just finished geocoding and added cards, fit bounds will happen in main effect if cards updated
+            // But geocoding effect updates cards incrementally.
             return;
         }
         if (!mapLoaded) return;
@@ -840,6 +842,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     };
 
     // --- MARKERS RENDER ---
+    const prevRefreshVersion = useRef(0);
     useEffect(() => {
         if (!googleMapRef.current || !mapLoaded) return;
         const map = googleMapRef.current;
@@ -933,13 +936,19 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             fitMapBounds();
             setInitialFitDone(true);
             prevValidCardCount.current = validCards.length;
+            prevRefreshVersion.current = refreshVersion;
+        } else if (refreshVersion !== prevRefreshVersion.current) {
+            // Force Refresh
+            if (visibleCards.length > 0) fitMapBounds();
+            prevRefreshVersion.current = refreshVersion;
+            prevValidCardCount.current = validCards.length;
         } else if (initialFitDone && validCards.length !== prevValidCardCount.current) {
             // New cards added or removed -> Re-fit bounds
             fitMapBounds();
             prevValidCardCount.current = validCards.length;
         }
 
-    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists]);
+    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists, refreshVersion]);
 
     return (
         <div className="map-view-container">
