@@ -116,15 +116,7 @@ const MapFilters = ({
                 {/* BLOCKS SECTION */}
                 <div className="filter-section">
                     <div className="section-header-row">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={allBlocksVisible}
-                                ref={input => { if (input) input.indeterminate = someBlocksVisible && !allBlocksVisible; }}
-                                onChange={(e) => onToggleAllBlocks(e.target.checked)}
-                            />
-                            <h4>Blocks</h4>
-                        </label>
+                        <h4>Blocks</h4>
                     </div>
 
                     {blocks.filter(b => b.includeOnMap !== false).map(block => {
@@ -174,15 +166,7 @@ const MapFilters = ({
                 {/* VARIANTS SECTION */}
                 <div className="filter-section">
                     <div className="section-header-row">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={allRulesVisible}
-                                ref={input => { if (input) input.indeterminate = someRulesVisible && !allRulesVisible; }}
-                                onChange={(e) => onToggleAllRules(e.target.checked)}
-                            />
-                            <h4>Marker Variants</h4>
-                        </label>
+                        <h4>Marker Variants</h4>
                     </div>
 
                     {/* Default Variant */}

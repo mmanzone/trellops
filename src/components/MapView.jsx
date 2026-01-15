@@ -522,6 +522,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     // --- INIT MAP ---
     const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
     const [showTaskDropdown, setShowTaskDropdown] = useState(false);
+    const [visibleMarkersCount, setVisibleMarkersCount] = useState(0);
 
     useEffect(() => {
         loadGoogleMaps().then((maps) => {
@@ -901,6 +902,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 newMarkers[c.id] = m;
             }
         });
+        setVisibleMarkersCount(Object.keys(newMarkers).length);
 
         Object.keys(markersRef.current).forEach(id => {
             if (!newMarkers[id]) markersRef.current[id].setMap(null);
@@ -911,7 +913,20 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             const pos = { lat: homeLocation.coords.lat, lng: homeLocation.coords.lon };
             const icon = getGoogleMarkerIcon({ icon: homeLocation.icon || 'home', color: 'purple' });
             if (homeMarkerRef.current) { homeMarkerRef.current.setPosition(pos); homeMarkerRef.current.setIcon(icon); homeMarkerRef.current.setMap(map); }
-            else { homeMarkerRef.current = new window.google.maps.Marker({ position: pos, map, icon: icon, zIndex: 1000 }); }
+            else {
+                const homeM = new window.google.maps.Marker({ position: pos, map, icon: icon, zIndex: 1000, title: 'Home Location' });
+                homeM.addListener("click", () => {
+                    const content = `
+                        <div style="padding: 5px;">
+                            <strong>Home Address</strong><br/>
+                            ${homeLocation.address || homeLocation.coords.display_name || 'No address set'}
+                        </div>
+                    `;
+                    infoWindowRef.current.setContent(content);
+                    infoWindowRef.current.open(map, homeM);
+                });
+                homeMarkerRef.current = homeM;
+            }
         } else if (homeMarkerRef.current) { homeMarkerRef.current.setMap(null); }
 
         if (visibleCards.length > 0 && !initialFitDone) {
@@ -932,6 +947,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
+                    {/* Card Count */}
+                    <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                        {visibleMarkersCount} cards
+                    </span>
+
                     {/* Base Layer */}
                     <select
                         value={baseMap}
