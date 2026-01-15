@@ -933,6 +933,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             fitMapBounds();
             setInitialFitDone(true);
             prevValidCardCount.current = validCards.length;
+        } else if (initialFitDone && validCards.length !== prevValidCardCount.current) {
+            // New cards added or removed -> Re-fit bounds
+            fitMapBounds();
+            prevValidCardCount.current = validCards.length;
         }
 
     }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists]);
