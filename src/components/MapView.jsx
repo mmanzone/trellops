@@ -410,42 +410,13 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
     const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
 
-    // --- FIT MAP CONTROL ---
+    // Initialize shared InfoWindow
     useEffect(() => {
-        if (!mapLoaded || !googleMapRef.current) return;
-        const map = googleMapRef.current;
-
-        // Ensure only one control
-        if (map.controls[window.google.maps.ControlPosition.TOP_CENTER].getLength() > 0) return;
-
-        const controlDiv = document.createElement('div');
-        controlDiv.style.margin = '10px';
-        controlDiv.style.cursor = 'pointer';
-
-        const controlUI = document.createElement('div');
-        controlUI.style.backgroundColor = '#fff';
-        controlUI.style.border = '2px solid #fff';
-        controlUI.style.borderRadius = '3px';
-        controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
-        controlUI.style.padding = '5px 10px';
-        controlUI.textContent = 'Fit Map';
-        controlUI.title = 'Click to fit map to markers';
-        controlUI.style.fontSize = '14px';
-        controlUI.style.fontFamily = 'Roboto,Arial,sans-serif';
-        controlDiv.appendChild(controlUI);
-
-        controlUI.addEventListener('click', () => {
-            fitMapBounds();
-        });
-
-        map.controls[window.google.maps.ControlPosition.TOP_CENTER].push(controlDiv);
-
-        // Init shared info window
+        if (!mapLoaded) return;
         infoWindowRef.current = new window.google.maps.InfoWindow();
         infoWindowRef.current.addListener('closeclick', () => {
             currentOpenCardId.current = null;
         });
-
     }, [mapLoaded]);
 
     const fitMapBounds = () => {
@@ -993,6 +964,35 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                     {errors.map(err => <GeocodingErrorToast key={err.cardId} error={err} onDismiss={handleDismissError} onApply={handleApplyResult} />)}
                 </div>
+            </div>
+
+            {/* Fit Map Button (Custom Overlay) */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: '20px',
+                    right: '20px',
+                    zIndex: 800,
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    padding: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#333'
+                }}
+                onClick={fitMapBounds}
+                title="Fit Map to Markers"
+            >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="22" y1="12" x2="18" y2="12" />
+                    <line x1="6" y1="12" x2="2" y2="12" />
+                    <line x1="12" y1="6" x2="12" y2="2" />
+                    <line x1="12" y1="22" x2="12" y2="18" />
+                </svg>
             </div>
 
             <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>

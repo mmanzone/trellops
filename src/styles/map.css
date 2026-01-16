@@ -254,7 +254,7 @@
 /* Map Filters Overlay */
 .map-filters-overlay {
     position: absolute;
-    top: 20px;
+    top: 70px;
     right: 20px;
     z-index: 800;
     /* Above Leaflet controls */
