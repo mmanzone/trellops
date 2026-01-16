@@ -1009,35 +1009,35 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             </div>
 
             {/* Fit Map Button (Custom Overlay) */}
-            <div
-                style={{
-                    position: 'absolute',
-                    top: '130px',
-                    right: '25px',
-                    zIndex: 800,
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                    padding: '8px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#333'
-                }}
-                onClick={fitMapBounds}
-                title="Fit Map to Markers"
-            >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="22" y1="12" x2="18" y2="12" />
-                    <line x1="6" y1="12" x2="2" y2="12" />
-                    <line x1="12" y1="6" x2="12" y2="2" />
-                    <line x1="12" y1="22" x2="12" y2="18" />
-                </svg>
-            </div>
-
             <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
+                {/* Fit Map Button (Custom Overlay - Absolute to this relative container) */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: '5px',
+                        right: '20px',
+                        zIndex: 800,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#333'
+                    }}
+                    onClick={fitMapBounds}
+                    title="Fit Map to Markers"
+                >
+                    <svg width="60" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="22" y1="12" x2="18" y2="12" />
+                        <line x1="6" y1="12" x2="2" y2="12" />
+                        <line x1="12" y1="6" x2="12" y2="2" />
+                        <line x1="12" y1="22" x2="12" y2="18" />
+                    </svg>
+                </div>
                 <div className="map-sidebar">
                     <MapFilters
                         lists={lists} cards={cards} allLabels={boardLabels}
