@@ -11,7 +11,6 @@ import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
-import LabelFilter from './common/LabelFilter';
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import '../styles/map.css';
 

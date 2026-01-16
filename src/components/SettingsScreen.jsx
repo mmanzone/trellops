@@ -651,8 +651,6 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 selectedLists: assignedLists, // THIS FIXES THE "NO BOARD CONFIG" ERROR
                 enableMapView,
                 mapGeocodeMode,
-                enableMapView,
-                mapGeocodeMode,
                 enableCardMove: enableCardMove && hasWritePermission,
                 enableStreetView,
                 enableTaskView,

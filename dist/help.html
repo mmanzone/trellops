@@ -212,14 +212,14 @@
             <li><strong>Coordinates (Preferred):</strong> If a card has latitude/longitude stored in it, it plots
                 instantly.</li>
             <li><strong>Address Decoding:</strong> If no coordinates are found, Trellops reads the card's
-                <strong>description field</strong>. If it finds an address, it uses the <em>Nominatim</em> service to
+                <strong>description field</strong>. If it finds an address, it uses the <em>Google Maps</em> service to
                 find the location.
             </li>
         </ol>
 
         <blockquote>
-            <strong>⚠️ Important Note on Speed:</strong> The Nominatim service limits requests to <strong>one address
-                per second</strong>. If you open a map with 50 new addresses, it will take about 50 seconds to fully
+            <strong>⚠️ Important Note on Speed:</strong> The Google Maps service limits requests to prevent abuse. If
+            you open a map with 50 new addresses, it may take a moment to fully
             populate. We cache these locations on your browser, so the <em>next</em> time you load the map, it will be
             instant!
         </blockquote>

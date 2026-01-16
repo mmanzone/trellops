@@ -3,8 +3,6 @@ import { fetchAllTasksData } from '../api/trello';
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import '../styles/index.css';
-import '../styles/index.css';
-import '../styles/map.css';
 import '../styles/map.css';
 // import { formatCountdown } from '../utils/timeUtils'; // Removed
 import { formatDynamicCountdown } from '../utils/helpers';
