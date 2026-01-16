@@ -263,7 +263,7 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
 };
 
 // --- POPUP COMPONENT ---
-const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStreetView }) => {
+const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStreetView, onZoom }) => {
     // Group lists by Block
     const groupedLists = blocks.reduce((acc, block) => {
         if (block.includeOnMap === false) return acc;
@@ -278,6 +278,19 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
     }, {});
 
     const creationDate = new Date(1000 * parseInt(card.id.substring(0, 8), 16));
+    const now = new Date();
+    const diffMs = now - creationDate;
+    const diffMins = Math.floor(diffMs / 60000);
+    let timeText = '';
+    if (diffMins < 60) {
+        timeText = `${diffMins} min${diffMins !== 1 ? 's' : ''}`;
+    } else if (diffMins < 1440) {
+        const hours = Math.round(diffMins / 60);
+        timeText = `${hours} hour${hours !== 1 ? 's' : ''}`;
+    } else {
+        const days = Math.round(diffMins / 1440);
+        timeText = `${days} day${days !== 1 ? 's' : ''}`;
+    }
 
     return (
         <div style={{ padding: '5px', minWidth: '240px', maxWidth: '300px', fontFamily: 'sans-serif' }}>
@@ -314,21 +327,37 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
             )}
 
             {/* Creation Date instead of Due Date */}
-            <div style={{ fontSize: '0.9em', color: '#333', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ fontWeight: 'bold' }}>Created:</span> {creationDate.toLocaleDateString()} {creationDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <div style={{ fontSize: '0.9em', color: '#555', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>Active for:</span> {timeText}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #eee' }}>
                 {/* View Street View Button */}
-                {card.coordinates && enableStreetView && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    {card.coordinates && enableStreetView && (
+                        <button
+                            title="Open in Street View"
+                            onClick={() => window.open(`https://www.google.com/maps?layer=c&cbll=${card.coordinates.lat},${card.coordinates.lng}`, '_blank')}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '4px' }}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: ICONS['street-view'] }} />
+                        </button>
+                    )}
+                    {/* Zoom to Card Button */}
                     <button
-                        title="Open in Street View"
-                        onClick={() => window.open(`https://www.google.com/maps?layer=c&cbll=${card.coordinates.lat},${card.coordinates.lng}`, '_blank')}
+                        title="Zoom to Card"
+                        onClick={() => onZoom && onZoom(card)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '4px' }}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: ICONS['street-view'] }} />
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="22" y1="12" x2="18" y2="12" />
+                            <line x1="6" y1="12" x2="2" y2="12" />
+                            <line x1="12" y1="6" x2="12" y2="2" />
+                            <line x1="12" y1="22" x2="12" y2="18" />
+                        </svg>
                     </button>
-                )}
+                </div>
 
                 {/* Move Action */}
                 {onMove && lists.length > 0 && (
@@ -873,6 +902,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             lists={enableCardMove ? lists : []}
                             onMove={handleMoveCard}
                             enableStreetView={enableStreetView}
+                            onZoom={(c) => {
+                                if (googleMapRef.current && c.coordinates) {
+                                    googleMapRef.current.setCenter({ lat: c.coordinates.lat, lng: c.coordinates.lng });
+                                    googleMapRef.current.setZoom(16); // Close in zoom
+                                }
+                            }}
                         />
                     );
 
