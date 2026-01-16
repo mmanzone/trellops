@@ -263,7 +263,7 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
 };
 
 // --- POPUP COMPONENT ---
-const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStreetView }) => {
+const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStreetView, onZoom }) => {
     // Group lists by Block
     const groupedLists = blocks.reduce((acc, block) => {
         if (block.includeOnMap === false) return acc;
@@ -278,6 +278,19 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
     }, {});
 
     const creationDate = new Date(1000 * parseInt(card.id.substring(0, 8), 16));
+    const now = new Date();
+    const diffMs = now - creationDate;
+    const diffMins = Math.floor(diffMs / 60000);
+    let timeText = '';
+    if (diffMins < 60) {
+        timeText = `${diffMins} min${diffMins !== 1 ? 's' : ''}`;
+    } else if (diffMins < 1440) {
+        const hours = Math.round(diffMins / 60);
+        timeText = `${hours} hour${hours !== 1 ? 's' : ''}`;
+    } else {
+        const days = Math.round(diffMins / 1440);
+        timeText = `${days} day${days !== 1 ? 's' : ''}`;
+    }
 
     return (
         <div style={{ padding: '5px', minWidth: '240px', maxWidth: '300px', fontFamily: 'sans-serif' }}>
@@ -314,21 +327,37 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
             )}
 
             {/* Creation Date instead of Due Date */}
-            <div style={{ fontSize: '0.9em', color: '#333', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ fontWeight: 'bold' }}>Created:</span> {creationDate.toLocaleDateString()} {creationDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <div style={{ fontSize: '0.9em', color: '#555', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ fontWeight: 'bold' }}>Active for:</span> {timeText}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #eee' }}>
                 {/* View Street View Button */}
-                {card.coordinates && enableStreetView && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    {card.coordinates && enableStreetView && (
+                        <button
+                            title="Open in Street View"
+                            onClick={() => window.open(`https://www.google.com/maps?layer=c&cbll=${card.coordinates.lat},${card.coordinates.lng}`, '_blank')}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '4px' }}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: ICONS['street-view'] }} />
+                        </button>
+                    )}
+                    {/* Zoom to Card Button */}
                     <button
-                        title="Open in Street View"
-                        onClick={() => window.open(`https://www.google.com/maps?layer=c&cbll=${card.coordinates.lat},${card.coordinates.lng}`, '_blank')}
+                        title="Zoom to Card"
+                        onClick={() => onZoom && onZoom(card)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '4px' }}
                     >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" dangerouslySetInnerHTML={{ __html: ICONS['street-view'] }} />
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="22" y1="12" x2="18" y2="12" />
+                            <line x1="6" y1="12" x2="2" y2="12" />
+                            <line x1="12" y1="6" x2="12" y2="2" />
+                            <line x1="12" y1="22" x2="12" y2="18" />
+                        </svg>
                     </button>
-                )}
+                </div>
 
                 {/* Move Action */}
                 {onMove && lists.length > 0 && (
@@ -410,42 +439,13 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
     const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
 
-    // --- FIT MAP CONTROL ---
+    // Initialize shared InfoWindow
     useEffect(() => {
-        if (!mapLoaded || !googleMapRef.current) return;
-        const map = googleMapRef.current;
-
-        // Ensure only one control
-        if (map.controls[window.google.maps.ControlPosition.TOP_CENTER].getLength() > 0) return;
-
-        const controlDiv = document.createElement('div');
-        controlDiv.style.margin = '10px';
-        controlDiv.style.cursor = 'pointer';
-
-        const controlUI = document.createElement('div');
-        controlUI.style.backgroundColor = '#fff';
-        controlUI.style.border = '2px solid #fff';
-        controlUI.style.borderRadius = '3px';
-        controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
-        controlUI.style.padding = '5px 10px';
-        controlUI.textContent = 'Fit Map';
-        controlUI.title = 'Click to fit map to markers';
-        controlUI.style.fontSize = '14px';
-        controlUI.style.fontFamily = 'Roboto,Arial,sans-serif';
-        controlDiv.appendChild(controlUI);
-
-        controlUI.addEventListener('click', () => {
-            fitMapBounds();
-        });
-
-        map.controls[window.google.maps.ControlPosition.TOP_CENTER].push(controlDiv);
-
-        // Init shared info window
+        if (!mapLoaded) return;
         infoWindowRef.current = new window.google.maps.InfoWindow();
         infoWindowRef.current.addListener('closeclick', () => {
             currentOpenCardId.current = null;
         });
-
     }, [mapLoaded]);
 
     const fitMapBounds = () => {
@@ -462,17 +462,24 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             bounds.extend(homeMarkerRef.current.getPosition());
             count++;
         }
-        if (count > 0) {
-            googleMapRef.current.fitBounds(bounds);
+
+        if (count === 1) {
+            // Single marker (Home or Card) -> Zoom to it specifically
+            googleMapRef.current.setCenter(bounds.getCenter());
+            googleMapRef.current.setZoom(14);
+        } else if (count > 1) {
+            // Multiple markers -> Fit bounds with padding
+            googleMapRef.current.fitBounds(bounds, { top: 80, bottom: 80, left: 50, right: 50 });
         } else {
-            // Fallback: No cards visible
+            // Fallback: No markers visible
             if (homeLocation && homeLocation.coords) {
+                // Zoom to Home Address even if not shown
                 googleMapRef.current.setCenter({ lat: homeLocation.coords.lat, lng: homeLocation.coords.lon });
-                googleMapRef.current.setZoom(12);
+                googleMapRef.current.setZoom(14);
             } else {
-                // Fallback: Victoria, Australia
-                googleMapRef.current.setCenter({ lat: -36.5, lng: 145.0 }); // Approx Center of VIC
-                googleMapRef.current.setZoom(6);
+                // Fallback: Australia
+                googleMapRef.current.setCenter({ lat: -25.2744, lng: 133.7751 }); // Center of Australia
+                googleMapRef.current.setZoom(4);
             }
         }
     };
@@ -895,6 +902,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             lists={enableCardMove ? lists : []}
                             onMove={handleMoveCard}
                             enableStreetView={enableStreetView}
+                            onZoom={(c) => {
+                                if (googleMapRef.current && c.coordinates) {
+                                    googleMapRef.current.setCenter({ lat: c.coordinates.lat, lng: c.coordinates.lng });
+                                    googleMapRef.current.setZoom(16); // Close in zoom
+                                }
+                            }}
                         />
                     );
 
@@ -993,6 +1006,35 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                     {errors.map(err => <GeocodingErrorToast key={err.cardId} error={err} onDismiss={handleDismissError} onApply={handleApplyResult} />)}
                 </div>
+            </div>
+
+            {/* Fit Map Button (Custom Overlay) */}
+            <div
+                style={{
+                    position: 'absolute',
+                    top: '130px',
+                    right: '25px',
+                    zIndex: 800,
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    padding: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#333'
+                }}
+                onClick={fitMapBounds}
+                title="Fit Map to Markers"
+            >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="22" y1="12" x2="18" y2="12" />
+                    <line x1="6" y1="12" x2="2" y2="12" />
+                    <line x1="12" y1="6" x2="12" y2="2" />
+                    <line x1="12" y1="22" x2="12" y2="18" />
+                </svg>
             </div>
 
             <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
