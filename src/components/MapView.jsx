@@ -977,8 +977,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             <div
                 style={{
                     position: 'absolute',
-                    top: '120px',
-                    right: '20px',
+                    top: '130px',
+                    right: '25px',
                     zIndex: 800,
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     borderRadius: '8px',
