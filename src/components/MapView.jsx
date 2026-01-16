@@ -434,7 +434,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             count++;
         }
         if (count > 0) {
-            googleMapRef.current.fitBounds(bounds);
+            // Add padding for Header (70px), Footer (60px), and Controls
+            googleMapRef.current.fitBounds(bounds, { top: 80, bottom: 80, left: 50, right: 50 });
         } else {
             // Fallback: No cards visible
             if (homeLocation && homeLocation.coords) {
@@ -970,7 +971,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             <div
                 style={{
                     position: 'absolute',
-                    top: '20px',
+                    top: '80px',
                     right: '20px',
                     zIndex: 800,
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
