@@ -1014,8 +1014,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div
                     style={{
                         position: 'absolute',
-                        top: '10px',
-                        right: '25px',
+                        top: '5px',
+                        right: '20px',
                         zIndex: 800,
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         borderRadius: '8px',
@@ -1030,7 +1030,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     onClick={fitMapBounds}
                     title="Fit Map to Markers"
                 >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="60" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <line x1="22" y1="12" x2="18" y2="12" />
                         <line x1="6" y1="12" x2="2" y2="12" />
