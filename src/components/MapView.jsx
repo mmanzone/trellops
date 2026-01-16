@@ -4,7 +4,7 @@ import { trelloFetch } from '/src/api/trello';
 import { getPersistentLayout } from '/src/utils/persistence';
 import { useDarkMode } from '/src/context/DarkModeContext';
 import { STORAGE_KEYS } from '/src/utils/constants';
-import { convertIntervalToSeconds, getLabelTextColor } from '/src/utils/helpers';
+import { convertIntervalToSeconds, getLabelTextColor, formatDynamicCountdown } from '/src/utils/helpers';
 import DigitalClock from './common/DigitalClock';
 import { ICONS } from './common/IconPicker';
 import MapFilters from './MapFilters';
@@ -198,12 +198,8 @@ const parseAddressFromDescription = (desc) => {
 };
 
 // --- HELPER FUNCTIONS ---
-const formatCountdown = (seconds) => {
-    if (seconds === null || seconds === undefined) return '';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-};
+// --- HELPER FUNCTIONS ---
+/* formatCountdown removed - using formatDynamicCountdown from helpers */
 
 // --- ERROR TOAST ---
 const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
@@ -1059,11 +1055,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 </div>
                 <div className="map-footer-right">
                     <span style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
-                        {status || (countdown !== null ? `Refreshing in ${formatCountdown(countdown)}` : 'Ready')}
-                        {geocodingQueue.length > 0 && <span> (Geocoding {geocodingQueue.length}...)</span>}
+                        {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}
                     </span>
 
-                    <button className="button-secondary" onClick={() => loadData(true)}>Refresh Map</button>
+                    <button className="button-secondary" onClick={() => { setCountdown(refreshIntervalSeconds); loadData(true); }}>
+                        Refresh {formatDynamicCountdown(countdown)}
+                    </button>
 
                     <div style={{ position: 'relative' }}>
                         <div style={{ display: 'flex' }}>

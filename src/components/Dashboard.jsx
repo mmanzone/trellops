@@ -5,13 +5,14 @@ import {
     getPersistentColors, getPersistentLayout, setPersistentLayout
 } from '../utils/persistence';
 import {
-    convertIntervalToSeconds, getOrGenerateRandomColor
+    convertIntervalToSeconds, getOrGenerateRandomColor, formatDynamicCountdown
 } from '../utils/helpers';
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
-import { formatCountdown } from '../utils/timeUtils';
+import LabelFilter from './common/LabelFilter';
+// import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import '../styles/map.css';
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap }) => {
@@ -280,7 +281,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             <div className="container">
                 <div className="header">
                     <h1>Trellops Dashboard</h1>
-                    <button className="logout-button" onClick={onLogout}>Log Out</button>
+                    <button className="logout-button" onClick={onLogout}>Logout</button>
                 </div>
                 <p style={{ textAlign: 'center', marginTop: '50px' }}>
                     No Trello Board configured. Please go to settings to set up your first dashboard.
@@ -416,11 +417,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 </div>
 
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
-                        Next refresh in {formatCountdown(countdown)}
-                    </span>
-
-                    <button className="button-secondary" onClick={() => fetchData(true)}>Refresh Tiles</button>
+                    <button className="button-secondary" onClick={() => { setCountdown(effectiveSeconds); fetchData(true); }}>
+                        Refresh {formatDynamicCountdown(countdown)}
+                    </button>
 
                     {enableMapView && (
                         <div style={{ position: 'relative' }}>
