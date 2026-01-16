@@ -3,9 +3,9 @@ import { fetchAllTasksData } from '../api/trello';
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import '../styles/index.css';
-import '../styles/index.css';
 import '../styles/map.css';
-import { formatCountdown } from '../utils/timeUtils';
+// import { formatCountdown } from '../utils/timeUtils'; // Removed
+import { formatDynamicCountdown } from '../utils/helpers';
 import LabelFilter from './common/LabelFilter'; // Reusing for generic multi-select? No, implies "Labels". 
 // We should create a generic MultiSelectDropdown or copy logic.
 // Let's create a generic "MultiSelectFilter" inside TaskView or common.
@@ -519,11 +519,14 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             <div className="map-footer">
                 <div className="map-footer-left"></div>
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <span className="countdown" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '10px' }}>
-                        Next refresh in {formatCountdown(refreshCountdown)}
-                    </span>
-
-                    <button className="button-secondary" onClick={() => loadData(true)}>Refresh</button>
+                    <button className="button-secondary" onClick={() => {
+                        const minutes = refreshIntervalSetting.unit === 'hours' ? refreshIntervalSetting.value * 60 : refreshIntervalSetting.value;
+                        const totalSeconds = Math.max(60, minutes * 60);
+                        setRefreshCountdown(totalSeconds);
+                        loadData(true);
+                    }}>
+                        Refresh {formatDynamicCountdown(refreshCountdown)}
+                    </button>
 
                     {/* DASHBOARD BUTTON WITH DROPDOWN */}
                     <div style={{ position: 'relative' }}>
@@ -549,7 +552,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                         Settings
                     </button>
                     <button className="button-secondary" onClick={onLogout}>
-                        Log Out
+                        Logout
                     </button>
                 </div>
             </div>

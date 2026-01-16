@@ -70,3 +70,10 @@ export const getLabelTextColor = (theme) => {
             : theme;
     return resolvedTheme === 'dark' ? '#ffffff' : '#222222';
 };
+
+export const formatDynamicCountdown = (seconds) => {
+    if (seconds === null || seconds === undefined) return '';
+    if (seconds <= 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.ceil(seconds / 60)}m`;
+    return `${Math.round(seconds / 3600)}h`;
+};
