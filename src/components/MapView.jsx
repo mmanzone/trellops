@@ -433,18 +433,24 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             bounds.extend(homeMarkerRef.current.getPosition());
             count++;
         }
-        if (count > 0) {
-            // Add padding for Header (70px), Footer (60px), and Controls
+
+        if (count === 1) {
+            // Single marker (Home or Card) -> Zoom to it specifically
+            googleMapRef.current.setCenter(bounds.getCenter());
+            googleMapRef.current.setZoom(14);
+        } else if (count > 1) {
+            // Multiple markers -> Fit bounds with padding
             googleMapRef.current.fitBounds(bounds, { top: 80, bottom: 80, left: 50, right: 50 });
         } else {
-            // Fallback: No cards visible
+            // Fallback: No markers visible
             if (homeLocation && homeLocation.coords) {
+                // Zoom to Home Address even if not shown
                 googleMapRef.current.setCenter({ lat: homeLocation.coords.lat, lng: homeLocation.coords.lon });
-                googleMapRef.current.setZoom(12);
+                googleMapRef.current.setZoom(14);
             } else {
-                // Fallback: Victoria, Australia
-                googleMapRef.current.setCenter({ lat: -36.5, lng: 145.0 }); // Approx Center of VIC
-                googleMapRef.current.setZoom(6);
+                // Fallback: Australia
+                googleMapRef.current.setCenter({ lat: -25.2744, lng: 133.7751 }); // Center of Australia
+                googleMapRef.current.setZoom(4);
             }
         }
     };
@@ -971,7 +977,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             <div
                 style={{
                     position: 'absolute',
-                    top: '80px',
+                    top: '120px',
                     right: '20px',
                     zIndex: 800,
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
