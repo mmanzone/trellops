@@ -14,7 +14,7 @@ import LabelFilter from './common/LabelFilter';
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import '../styles/map.css';
 
-const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap }) => {
+const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats }) => {
     // DATA STATE
     const [allCards, setAllCards] = useState([]);
     const [allListsMap, setAllListsMap] = useState(new Map());
@@ -319,6 +319,12 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         ))}
                     </select>
 
+                    {settings?.statistics?.enabled && (
+                        <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
+                            Stats
+                        </button>
+                    )}
+
                     <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
                         {theme === 'dark' ? '☀️' : '🌙'}
                     </button>
@@ -455,6 +461,8 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                             )}
                         </div>
                     )}
+
+
 
                     <button className="button-secondary" onClick={onShowSettings}>Settings</button>
                     <button className="button-secondary" onClick={onLogout}>Log Out</button>

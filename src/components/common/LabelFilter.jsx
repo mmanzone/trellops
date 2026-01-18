@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDarkMode } from '../../context/DarkModeContext';
 
-const LabelFilter = ({ labels, selectedLabelIds, onChange }) => {
+const LabelFilter = ({ labels, selectedLabelIds, onChange, labelLogic, onLabelLogicChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const { theme } = useDarkMode();
@@ -125,6 +125,34 @@ const LabelFilter = ({ labels, selectedLabelIds, onChange }) => {
                         </div>
                     </div>
 
+                    {/* Logic Toggle */}
+                    <div style={{ padding: '8px 10px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="labelLogic"
+                                    value="OR"
+                                    checked={labelLogic === 'OR'}
+                                    onChange={() => onLabelLogicChange('OR')}
+                                    style={{ marginRight: '5px' }}
+                                />
+                                Match any
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="labelLogic"
+                                    value="AND"
+                                    checked={labelLogic === 'AND'}
+                                    onChange={() => onLabelLogicChange('AND')}
+                                    style={{ marginRight: '5px' }}
+                                />
+                                Match all
+                            </label>
+                        </div>
+                    </div>
+
                     <div style={{ overflowY: 'auto', padding: '10px', flex: 1 }}>
                         {labels.map(label => {
                             // If isAll, check everything.
@@ -159,8 +187,9 @@ const LabelFilter = ({ labels, selectedLabelIds, onChange }) => {
                         })}
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 
