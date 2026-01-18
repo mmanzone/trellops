@@ -3,12 +3,13 @@ import { trelloFetch } from '../api/trello';
 import { TIME_FILTERS } from '../utils/constants';
 import LabelFilter from './common/LabelFilter';
 import { useDarkMode } from '../context/DarkModeContext';
+import { Sun, Moon } from 'lucide-react';
 
 const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
     const [cards, setCards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const { theme } = useDarkMode();
+    const { theme, toggleTheme } = useDarkMode();
 
     // Filters
     const [createdFilter, setCreatedFilter] = useState('this_week');
@@ -267,6 +268,19 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             return bucketMap.get(a).sortDate - bucketMap.get(b).sortDate;
         });
 
+        // Calculate Totals for Title
+        const totalCreated = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.created, 0);
+        const totalCompleted = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.completed, 0);
+
+        // Filter Label Text
+        let filterLabelText = "";
+        if (createdFilter === 'custom') {
+            filterLabelText = `${new Date(customRange.start).toLocaleDateString()} - ${customRange.end ? new Date(customRange.end).toLocaleDateString() : 'Now'}`;
+        } else {
+            const f = TIME_FILTERS[createdFilter];
+            filterLabelText = f ? f.label : createdFilter;
+        }
+
         const ctxLine = lineChartRef.current.getContext('2d');
         lineChartInstance.current = new window.Chart(ctxLine, {
             type: 'line',
@@ -274,14 +288,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                 labels: sortedKeys,
                 datasets: [
                     {
-                        label: 'Created',
+                        label: `Created (${totalCreated})`,
                         data: sortedKeys.map(k => bucketMap.get(k).created),
                         borderColor: '#0079bf',
                         backgroundColor: '#0079bf',
                         tension: 0.1
                     },
                     {
-                        label: 'Completed',
+                        label: `Completed (${totalCompleted})`,
                         data: sortedKeys.map(k => bucketMap.get(k).completed),
                         borderColor: '#61bd4f',
                         backgroundColor: '#61bd4f',
@@ -295,6 +309,11 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { position: 'top' },
+                    title: {
+                        display: true,
+                        text: `${totalCreated} cards created / ${totalCompleted} Completed - ${filterLabelText}`,
+                        font: { size: 16 }
+                    },
                     datalabels: { display: false }
                 },
                 scales: {
@@ -353,7 +372,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { padding: 30 },
+                layout: { padding: 50 }, // Increased padding from 30 to 50
                 plugins: {
                     legend: { display: false },
                     datalabels: {
