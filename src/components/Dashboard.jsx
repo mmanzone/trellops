@@ -14,7 +14,7 @@ import LabelFilter from './common/LabelFilter';
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import '../styles/map.css';
 
-const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap }) => {
+const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats }) => {
     // DATA STATE
     const [allCards, setAllCards] = useState([]);
     const [allListsMap, setAllListsMap] = useState(new Map());
