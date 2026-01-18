@@ -54,6 +54,21 @@ const calcCalendarFilter = (key) => {
         end.setHours(23, 59, 59, 999);
         return { start, end, label: `Last week (Mon-Sun)`, titleSuffix: `Last Week` };
     }
+} else if (key === 'last_3m') {
+    start = new Date(now);
+    start.setMonth(now.getMonth() - 3);
+    start.setHours(0, 0, 0, 0);
+    end = now;
+    return { start, end, label: 'Last 3 Months', titleSuffix: 'Last 3 Months' };
+} else if (key === 'ytd') {
+    start = new Date(now.getFullYear(), 0, 1);
+    end = now;
+    return { start, end, label: 'Year to Date', titleSuffix: 'YTD' };
+} else if (key === 'last_year') {
+    start = new Date(now.getFullYear() - 1, 0, 1);
+    end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+    return { start, end, label: 'Last Year', titleSuffix: 'Last Year' };
+}
 };
 
 export const TIME_FILTERS = {
@@ -69,4 +84,7 @@ export const TIME_FILTERS = {
     'last_30d': { label: 'Last 30 days', minutes: 60 * 24 * 30, titleSuffix: 'Last 30 Days', type: 'relative' },
     'this_month': { ...calcCalendarFilter('this_month'), type: 'calendar' },
     'last_month': { ...calcCalendarFilter('last_month'), type: 'calendar' },
+    'last_3m': { ...calcCalendarFilter('last_3m'), type: 'calendar' },
+    'ytd': { ...calcCalendarFilter('ytd'), type: 'calendar' },
+    'last_year': { ...calcCalendarFilter('last_year'), type: 'calendar' },
 };

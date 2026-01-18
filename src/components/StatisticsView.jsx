@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { trelloFetch } from '../api/trello';
 import { TIME_FILTERS } from '../utils/constants';
-import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import LabelFilter from './common/LabelFilter';
 import { useDarkMode } from '../context/DarkModeContext';
 
@@ -13,15 +12,19 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
     // Filters
     const [createdFilter, setCreatedFilter] = useState('this_week');
+    const [customRange, setCustomRange] = useState({ start: null, end: null });
+    const [showCustomRange, setShowCustomRange] = useState(false);
+
     const [selectedLabelIds, setSelectedLabelIds] = useState(null); // null = All
-    const [granularity, setGranularity] = useState('day'); // 'day', 'hour', 'month'
+    const [labelLogic, setLabelLogic] = useState('OR'); // 'AND' or 'OR'
+
+    const [granularity, setGranularity] = useState('day'); // 'day', 'hour', 'month', 'cumulative_hour'
 
     // Data for charts
     const [allLabels, setAllLabels] = useState([]);
 
     // Map Config
     const enableMapView = settings?.enableMapView;
-    // Map Logic variables removed (geoStats, setGeoStats)
 
     const boardId = settings?.boardId;
     const boardName = settings?.boardName;
@@ -44,10 +47,9 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                 setAllLabels(labelsData);
 
                 // 2. Fetch Cards
-                // Fetch coordinates directly if available (standard field 'coordinates' or 'location' via specific param? 
                 const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,labels,idList,due,dueComplete,dateLastActivity,desc,pos,coordinates&pluginData=true`, user.token);
 
-                // Decorate cards with coords
+                // Process coords (omitted for brevity as map logs are gone, but we keep structure)
                 const processedCards = cardsData.map(c => {
                     let coords = null;
                     if (c.coordinates) {
@@ -57,9 +59,9 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     return { ...c, coordinates: coords };
                 });
 
-                // Filter based on Settings (Archived / Lists)
+                // Filter based on Settings
                 const statsSettings = settings?.statistics || {};
-                const includedLists = statsSettings.includedLists || []; // Array of list IDs
+                const includedLists = statsSettings.includedLists || [];
                 const includedSet = new Set(includedLists);
 
                 let finalCards = processedCards;
@@ -85,6 +87,11 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
     const isDateInFilter = (date, filterKey) => {
         if (filterKey === 'all') return true;
+        if (filterKey === 'custom') {
+            if (!customRange.start) return true;
+            return date >= new Date(customRange.start) && (!customRange.end || date <= new Date(customRange.end));
+        }
+
         const f = TIME_FILTERS[filterKey];
         if (!f) return true;
 
@@ -99,17 +106,61 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         return true;
     };
 
+    const getFilterRange = (filterKey) => {
+        if (filterKey === 'custom' && customRange.start) {
+            return { start: new Date(customRange.start), end: customRange.end ? new Date(customRange.end) : new Date() };
+        }
+
+        if (filterKey === 'all') return null; // Unbounded
+
+        const f = TIME_FILTERS[filterKey];
+        if (!f) return null;
+
+        if (f.type === 'relative') {
+            const start = new Date();
+            start.setMinutes(start.getMinutes() - f.minutes);
+            return { start, end: new Date() };
+        }
+        if (f.type === 'calendar') {
+            return { start: f.start, end: f.end || new Date() };
+        }
+        return null;
+    };
+
     const formatDateBucket = (date, gran) => {
         const d = new Date(date);
         if (gran === 'hour') {
-            // "X-axis should change the labels to hours, instead of date"
-            return d.toLocaleString('default', { hour: 'numeric', hour12: true }); // "10 AM"
+            return d.toLocaleString('default', { month: 'short', day: 'numeric', hour: 'numeric', hour12: true }); // "Jan 1, 10 AM"
+        }
+        if (gran === 'cumulative_hour') {
+            return d.toLocaleString('default', { hour: 'numeric', hour12: true }); // "10 AM" (buckets all days together)
         }
         if (gran === 'month') {
             return d.toLocaleString('default', { month: 'short', year: 'numeric' }); // Jan 2026
         }
         // day
         return d.toLocaleDateString();
+    };
+
+    const matchesLabelFilter = (card) => {
+        if (!selectedLabelIds || selectedLabelIds.size === 0) return true;
+        if (!card.labels || card.labels.length === 0) return false; // If filtering by labels, card must have them
+
+        const cardLabelIds = new Set(card.labels.map(l => l.id));
+
+        if (labelLogic === 'AND') {
+            // Card must have ALL selected labels
+            for (let id of selectedLabelIds) {
+                if (!cardLabelIds.has(id)) return false;
+            }
+            return true;
+        } else {
+            // OR: Card must have AT LEAST ONE selected label
+            for (let id of selectedLabelIds) {
+                if (cardLabelIds.has(id)) return true;
+            }
+            return false;
+        }
     };
 
 
@@ -123,44 +174,97 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
         if (!window.Chart) return;
 
-        // Register Plugin if available
         if (window.ChartDataLabels) {
-            try {
-                window.Chart.register(window.ChartDataLabels);
-            } catch (e) { }
+            try { window.Chart.register(window.ChartDataLabels); } catch (e) { }
         }
 
-        // 1. Line Chart Data
+        // ==========================
+        // 1. LINE CHART DATA
+        // ==========================
+        // Requirements: 
+        // - X-Axis: Time (buckets). 
+        // - Filter 1: Date Filter (Created Date Range).
+        // - Filter 2: Labels (apply selections to the line chart too).
+        // - Granularity: Day, Hour, Month, Cumulative Hour.
+
+        // A. Filter Dataset first (Cross-filtering: Apply Label Filter to Line Chart)
+        const lineChartCards = cards.filter(matchesLabelFilter);
+
+        // B. Determine Range for Zero-Filling
+        // If "hour" or "day", we want to show 0s.
+        const range = getFilterRange(createdFilter);
+
         const bucketMap = new Map(); // key -> { created: 0, completed: 0, sortDate: ts }
 
-        // Process Created
-        const filteredCreated = cards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
-        filteredCreated.forEach(c => {
+        // Initialize Buckets for Zero-Filling if range exists
+        if (range && (granularity === 'hour' || granularity === 'day' || granularity === 'cumulative_hour')) {
+            let current = new Date(range.start);
+            const end = new Date(range.end);
+
+            // Safety: Don't infinite loop if range is bad
+            if (current < end) {
+                while (current <= end) {
+                    const key = formatDateBucket(current, granularity);
+                    // For cumulative, key is just "10 AM".
+                    // We need a sort index. For cumulative, 0-23.
+                    // For others, timestamp.
+                    let sortDate = current.getTime();
+                    if (granularity === 'cumulative_hour') {
+                        sortDate = current.getHours();
+                    }
+
+                    if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
+
+                    // Increment
+                    if (granularity === 'hour' || granularity === 'cumulative_hour') current.setHours(current.getHours() + 1);
+                    else current.setDate(current.getDate() + 1);
+                }
+            }
+            // For cumulative hour, strictly ensure 0-23 buckets exist?
+            if (granularity === 'cumulative_hour') {
+                for (let h = 0; h < 24; h++) {
+                    const dateSim = new Date(); dateSim.setHours(h, 0, 0, 0);
+                    const key = formatDateBucket(dateSim, 'cumulative_hour');
+                    if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate: h });
+                }
+            }
+        }
+
+        // C. Process Created (using filtered cards)
+        // Only count if Created Date in filter
+        const validCreatedCards = lineChartCards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
+        validCreatedCards.forEach(c => {
             const date = getCreationDate(c.id);
             const key = formatDateBucket(date, granularity);
-            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate: date.getTime() }); // rough sort date
+
+            let sortDate = date.getTime();
+            if (granularity === 'cumulative_hour') sortDate = date.getHours();
+
+            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
             bucketMap.get(key).created++;
         });
 
-        // Process Completed
-        // Filter: Must be completed, AND Completion Date must be in 'createdFilter' range.
-        const filteredCompleted = cards.filter(c => {
+        // D. Process Completed
+        // Only count if Completed Date in filter (same filter)
+        const validCompletedCards = lineChartCards.filter(c => {
             if (!c.dueComplete || !c.due) return false;
-            return isDateInFilter(new Date(c.due), createdFilter); // Use 'createdFilter' for range
+            return isDateInFilter(new Date(c.due), createdFilter);
         });
 
-        filteredCompleted.forEach(c => {
+        validCompletedCards.forEach(c => {
             const date = new Date(c.due);
             const key = formatDateBucket(date, granularity);
-            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate: date.getTime() });
+
+            let sortDate = date.getTime();
+            if (granularity === 'cumulative_hour') sortDate = date.getHours();
+
+            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
             bucketMap.get(key).completed++;
         });
 
-        // Sort Keys
+        // Sort
         const sortedKeys = Array.from(bucketMap.keys()).sort((a, b) => {
-            const itemA = bucketMap.get(a);
-            const itemB = bucketMap.get(b);
-            return itemA.sortDate - itemB.sortDate;
+            return bucketMap.get(a).sortDate - bucketMap.get(b).sortDate;
         });
 
         const ctxLine = lineChartRef.current.getContext('2d');
@@ -191,28 +295,40 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { position: 'top' },
-                    datalabels: { display: false } // Disable datalabels for Line Chart
+                    datalabels: { display: false }
                 },
                 scales: {
-                    x: { title: { display: true, text: granularity === 'hour' ? 'Hour' : 'Date' } },
+                    x: { title: { display: true, text: granularity.includes('hour') ? 'Hour' : 'Date' } },
                     y: { title: { display: true, text: 'Count' }, beginAtZero: true }
                 }
             }
         });
 
 
-        // 2. Pie Chart (Labels)
+        // ==========================
+        // 2. PIE CHART (LABELS)
+        // ==========================
+        // Requirements:
+        // - Filter 1: Label Filters (Standard).
+        // - Filter 2: Date Filter (Bucketing). apply Date Filter to Pie Chart too?
+        // Req: "the ceated date filter should also apply to the Labels breakdown chart."
+
+        // A. Filter by Date first
+        const pieCardsDateFiltered = cards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
+
+        // B. Apply Label Filter logic (AND/OR) for visualization
+        // Wait, normally Pie Chart shows distribution OF labels.
+        // If I filter by "Label A", do I show only "Label A" slice?
+        // Reuse matchesLabelFilter?
+        // If I select "Label A" and "Label B" (OR), I expect to see distribution of cards having A or B.
+        // The slices will represent label combinations or individual labels?
+        // Previous logic: Slices = Unique Combinations of labels on cards.
+
+        const validPieCards = pieCardsDateFiltered.filter(matchesLabelFilter);
+
         const labelCombinations = {};
 
-        let pieCards = cards;
-        if (selectedLabelIds && selectedLabelIds.size > 0) {
-            pieCards = cards.filter(c => {
-                if (!c.labels) return false;
-                return c.labels.some(l => selectedLabelIds.has(l.id));
-            });
-        }
-
-        pieCards.forEach(c => {
+        validPieCards.forEach(c => {
             if (!c.labels || c.labels.length === 0) {
                 const key = "No Label";
                 labelCombinations[key] = (labelCombinations[key] || 0) + 1;
@@ -250,7 +366,8 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                         padding: 4,
                         formatter: (value, ctx) => {
                             const label = ctx.chart.data.labels[ctx.dataIndex];
-                            return `${label}\\n(${value})`;
+                            // Return array for newline support
+                            return [label, `(${value})`];
                         },
                         font: { weight: 'bold', size: 11 }
                     }
@@ -258,19 +375,12 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             }
         });
 
-    }, [cards, createdFilter, granularity, selectedLabelIds]);
+    }, [cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
 
-
-    // --- EXPORT ---
+    // --- HANDLERS ---
     const handleExport = (elementId, name) => {
-        // use html2canvas
-        if (!window.html2canvas) {
-            alert("Export library not loaded.");
-            return;
-        }
-
-        const el = elementId ? document.getElementById(elementId) : document.querySelector('.dashboard-grid'); // Export whole grid if no ID
-
+        if (!window.html2canvas) { alert("Export library not loaded."); return; }
+        const el = elementId ? document.getElementById(elementId) : document.querySelector('.dashboard-grid');
         window.html2canvas(el).then(canvas => {
             const link = document.createElement('a');
             link.download = `${boardName}-stats-${name || 'all'}.png`;
@@ -281,25 +391,39 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
     return (
         <div className="container" style={{ paddingBottom: '80px' }}>
-            {/* HERADER */}
             <div className="header">
                 <div className="header-title-area">
                     <h1>{boardName} - Statistics</h1>
                 </div>
                 <div className="header-actions">
-                    {/* Filters */}
                     <LabelFilter
                         labels={allLabels}
                         selectedLabelIds={selectedLabelIds}
                         onChange={setSelectedLabelIds}
+                        labelLogic={labelLogic}
+                        onLabelLogicChange={setLabelLogic}
                     />
 
-                    <select className="time-filter-select" value={createdFilter} onChange={e => setCreatedFilter(e.target.value)} style={{ marginLeft: '10px' }}>
-                        <option value="this_week">Created: This Week (Default)</option>
+                    <select className="time-filter-select" value={createdFilter} onChange={e => {
+                        const val = e.target.value;
+                        setCreatedFilter(val);
+                        if (val === 'custom') setShowCustomRange(true);
+                        else setShowCustomRange(false);
+                    }} style={{ marginLeft: '10px' }}>
+                        <option value="this_week">Created: This Week</option>
                         {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
                             <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
                         ))}
+                        <option value="custom">Custom Range</option>
                     </select>
+
+                    {createdFilter === 'custom' && (
+                        <div style={{ display: 'inline-flex', gap: '5px', marginLeft: '10px', alignItems: 'center' }}>
+                            <input type="date" value={customRange.start || ''} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} />
+                            <span>to</span>
+                            <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} />
+                        </div>
+                    )}
 
                 </div>
             </div>
@@ -311,7 +435,6 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             ) : (
                 <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
 
-                    {/* ROW 1 */}
                     <div className="form-card" id="card-line-chart" style={{ width: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                             <h3>Cards Created / Completed</h3>
@@ -319,6 +442,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                 <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
                                     <option value="day">By Day</option>
                                     <option value="hour">By Hour</option>
+                                    <option value="cumulative_hour">Per Hour (Cumulative)</option>
                                     <option value="month">By Month</option>
                                 </select>
                                 <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
