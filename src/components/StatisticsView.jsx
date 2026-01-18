@@ -400,53 +400,52 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     Generating stats...
                 </div>
             ) : (
-            ): (
-                    <div id = "stats-export-area" className = "dashboard-grid" style = {{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
+                <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
 
-            {/* ROW 1 */}
-            <div className="form-card" id="card-line-chart" style={{ width: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <h3>Cards Created / Completed</h3>
-                    <div style={{ display: 'flex', gap: '5px' }}>
-                        <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
-                            <option value="day">By Day</option>
-                            <option value="hour">By Hour</option>
-                            <option value="month">By Month</option>
-                        </select>
-                        <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                    {/* ROW 1 */}
+                    <div className="form-card" id="card-line-chart" style={{ width: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                            <h3>Cards Created / Completed</h3>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                                <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
+                                    <option value="day">By Day</option>
+                                    <option value="hour">By Hour</option>
+                                    <option value="month">By Month</option>
+                                </select>
+                                <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                            </div>
+                        </div>
+                        <div style={{ flex: 1, position: 'relative' }}>
+                            <canvas ref={lineChartRef}></canvas>
+                        </div>
                     </div>
+
+                    <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                            <h3>Labels Breakdown</h3>
+                            <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                        </div>
+                        <div style={{ flex: 1, position: 'relative' }}>
+                            <canvas ref={pieChartRef}></canvas>
+                        </div>
+                    </div>
+
+                    {/* GEO STATS REMOVED PER REQUEST */}
+
                 </div>
-                <div style={{ flex: 1, position: 'relative' }}>
-                    <canvas ref={lineChartRef}></canvas>
+            )
+            }
+
+            <div className="footer-action-bar">
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="button-secondary" onClick={onGoToDashboard}>Dashboard View</button>
+                    <button className="button-secondary" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map View</button>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="button-secondary" onClick={onShowSettings}>Settings</button>
+                    <button className="button-secondary" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
-
-            <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <h3>Labels Breakdown</h3>
-                    <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
-                </div>
-                <div style={{ flex: 1, position: 'relative' }}>
-                    <canvas ref={pieChartRef}></canvas>
-                </div>
-            </div>
-
-            {/* GEO STATS REMOVED PER REQUEST */}
-
-        </div>
-    )
-}
-
-<div className="footer-action-bar">
-    <div style={{ display: 'flex', gap: '10px' }}>
-        <button className="button-secondary" onClick={onGoToDashboard}>Dashboard View</button>
-        <button className="button-secondary" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map View</button>
-    </div>
-    <div style={{ display: 'flex', gap: '10px' }}>
-        <button className="button-secondary" onClick={onShowSettings}>Settings</button>
-        <button className="button-secondary" onClick={onLogout}>Log Out</button>
-    </div>
-</div>
         </div >
     );
 };
