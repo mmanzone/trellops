@@ -165,6 +165,23 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     };
 
 
+    // --- DERIVED STATE ---
+    let filterLabelText = "";
+    if (createdFilter === 'custom') {
+        filterLabelText = `${new Date(customRange.start).toLocaleDateString()} - ${customRange.end ? new Date(customRange.end).toLocaleDateString() : 'Now'}`;
+    } else {
+        const f = TIME_FILTERS[createdFilter];
+        filterLabelText = f ? f.label : createdFilter;
+    }
+
+    // Add Label Info
+    let labelInfo = "";
+    if (selectedLabelIds && selectedLabelIds.size > 0) {
+        const labelNames = allLabels.filter(l => selectedLabelIds.has(l.id)).map(l => l.name || l.color);
+        labelInfo = ` - Labels: ${labelNames.join(', ')}`;
+        if (labelInfo.length > 50) labelInfo = ` - Labels: ${selectedLabelIds.size} selected`;
+    }
+
     // --- CHART RENDERING ---
     useEffect(() => {
         if (loading || cards.length === 0) return;
@@ -272,23 +289,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         const totalCreated = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.created, 0);
         const totalCompleted = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.completed, 0);
 
-        // Filter Label Text
-        let filterLabelText = "";
-        if (createdFilter === 'custom') {
-            filterLabelText = `${new Date(customRange.start).toLocaleDateString()} - ${customRange.end ? new Date(customRange.end).toLocaleDateString() : 'Now'}`;
-        } else {
-            const f = TIME_FILTERS[createdFilter];
-            filterLabelText = f ? f.label : createdFilter;
-        }
 
-        // Add Label Info to Line Chart Title
-        let labelInfo = "";
-        if (selectedLabelIds && selectedLabelIds.size > 0) {
-            const labelNames = allLabels.filter(l => selectedLabelIds.has(l.id)).map(l => l.name || l.color);
-            labelInfo = ` - Labels: ${labelNames.join(', ')}`;
-            // Truncate if too long
-            if (labelInfo.length > 50) labelInfo = ` - Labels: ${selectedLabelIds.size} selected`;
-        }
 
 
 
