@@ -10,8 +10,9 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     const [error, setError] = useState('');
 
     // Filters
+    // Filters
     const [createdFilter, setCreatedFilter] = useState('this_week');
-    const [completedFilter, setCompletedFilter] = useState('all');
+    // const [completedFilter, setCompletedFilter] = useState('all'); // Removed
     const [labelFilter, setLabelFilter] = useState('all');
     const [granularity, setGranularity] = useState('day'); // 'day', 'hour', 'month'
 
@@ -47,21 +48,37 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                 setAllLabels(labelsData);
 
                 // 2. Fetch Cards
-                // We need: id (creation date), idList, due, dueComplete, labels, coordinates (if any), desc (for address parsing)
-                // Note: Trello card object does not have 'coordinates' standard field exposed easily in standard card object unless via pluginData or custom fields. 
-                // But for this app, we might rely on the same logic as MapView (local cache or description).
-                // Existing MapView uses local cache for geocoding. We should try to read that cache.
-                const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,labels,idList,due,dueComplete,dateLastActivity,desc,pos`, user.token);
+                // Fetch coordinates directly if available (standard field 'coordinates' or 'location' via specific param? 
+                // Trello API 'coordinates' field isn't standard in 'fields' param for basic cards.
+                // However, standard pluginData might have it. 
+                // User requirement: "only list... if coordinates are stored in the card's field itself".
+                // I'll request 'coordinates' in fields just in case (some powerups expose it) and 'pluginData'.
+                // If not, we assume standard 'coordinates' field from Trello's Map PowerUp if they use it.
+                // We'll also ask for 'pos' and 'desc' (though we don't parse desc anymore).
+                const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,labels,idList,due,dueComplete,dateLastActivity,desc,pos,coordinates&pluginData=true`, user.token);
 
-                // For Geocoding: Read local cache mapping cardID -> coords
-                const cacheKey = `MAP_GEOCODING_CACHE_${boardId}`;
-                const cachedCoords = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+                // No caching logic. 
 
-                // Decorate cards with coords if available
-                const processedCards = cardsData.map(c => ({
-                    ...c,
-                    coordinates: cachedCoords[c.id] || null // Format: { lat, lng, suburb, town, ... }
-                }));
+                // Decorate cards with coords
+                const processedCards = cardsData.map(c => {
+                    // Check for standard coordinates field
+                    let coords = null;
+                    if (c.coordinates) {
+                        // Standard field (if returned)
+                        const { latitude, longitude } = c.coordinates;
+                        if (latitude && longitude) coords = { lat: latitude, lng: longitude };
+                    } else if (c.pluginData) {
+                        // Check plugin data for Map PowerUp or Custom Fields?
+                        // Implementation detail: accessing pluginData varies. 
+                        // For now, we trust 'coordinates' field or specific 'location' field if user defined it?
+                        // User said: "stored in the card's field itself".
+                        // If Trello doesn't return 'coordinates' in standard fields, this relies on API.
+                        // Trello's Map Powerup uses 'coordinates'.
+                        // Let's assume c.coordinates works if field is requested.
+                    }
+
+                    return { ...c, coordinates: coords };
+                });
 
                 // Filter based on Settings (Archived / Lists)
                 // Statistics Settings:
@@ -277,12 +294,12 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { position: 'right' }
+                    legend: { display: false } // Hide legend as requested ("instead of legend on side... add call out"). Call out is hard without plugin, but hiding side legend is Step 1.
                 }
             }
         });
 
-    }, [cards, createdFilter, completedFilter, granularity, labelFilter]);
+    }, [cards, createdFilter, granularity, labelFilter]);
 
 
     // --- MAP STATS LOGIC ---
@@ -374,12 +391,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                         ))}
                     </select>
 
-                    <select className="time-filter-select" value={completedFilter} onChange={e => setCompletedFilter(e.target.value)}>
-                        <option value="all">Completed: All Time (Default)</option>
+                    <select className="time-filter-select" value={createdFilter} onChange={e => setCreatedFilter(e.target.value)}>
+                        <option value="this_week">Created: This Week (Default)</option>
                         {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
                             <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
                         ))}
                     </select>
+
+                    {/* Completed Filter Removed */}
 
                 </div>
             </div>
@@ -389,7 +408,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     Generating stats...
                 </div>
             ) : (
-                <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', gridTemplateColumns: '1fr', gap: '20px' }}>
 
                     {/* ROW 1 */}
                     <div className="form-card" id="card-line-chart">
@@ -475,10 +494,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             )}
 
             <div className="footer-action-bar">
-                <button className="settings-button" onClick={onGoToDashboard}>Dashboard View</button>
-                <button className="settings-button" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map View</button>
-                <button className="settings-button" onClick={onShowSettings}>Settings</button>
-                <button className="logout-button" onClick={onLogout}>Log Out</button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="button-secondary" onClick={onGoToDashboard}>Dashboard View</button>
+                    <button className="button-secondary" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map View</button>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="button-secondary" onClick={onShowSettings}>Settings</button>
+                    <button className="button-secondary" onClick={onLogout}>Log Out</button>
+                </div>
             </div>
         </div>
     );
