@@ -3,7 +3,7 @@ import { trelloFetch } from '../api/trello';
 import { TIME_FILTERS } from '../utils/constants';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import LabelFilter from './common/LabelFilter';
-import { useDarkMode } from '../context/DarkModeContext'; // Check context path. It is '../context/' based on previous views.
+import { useDarkMode } from '../context/DarkModeContext';
 
 const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
     const [cards, setCards] = useState([]);
@@ -13,7 +13,6 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
     // Filters
     const [createdFilter, setCreatedFilter] = useState('this_week');
-    // const [completedFilter, setCompletedFilter] = useState('all'); // Removed
     const [selectedLabelIds, setSelectedLabelIds] = useState(null); // null = All
     const [granularity, setGranularity] = useState('day'); // 'day', 'hour', 'month'
 
@@ -22,7 +21,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
     // Map Config
     const enableMapView = settings?.enableMapView;
-    const [geoStats, setGeoStats] = useState([]); // Array of {name, count, percent, lat, lng}
+    // Map Logic variables removed (geoStats, setGeoStats)
 
     const boardId = settings?.boardId;
     const boardName = settings?.boardName;
@@ -32,10 +31,6 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     const pieChartRef = useRef(null);
     const lineChartInstance = useRef(null);
     const pieChartInstance = useRef(null);
-
-    // Map Ref
-    const mapRef = useRef(null);
-    const googleMapInstance = useRef(null);
 
     // --- FETCH DATA ---
     useEffect(() => {
@@ -50,50 +45,20 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
                 // 2. Fetch Cards
                 // Fetch coordinates directly if available (standard field 'coordinates' or 'location' via specific param? 
-                // Trello API 'coordinates' field isn't standard in 'fields' param for basic cards.
-                // However, standard pluginData might have it. 
-                // User requirement: "only list... if coordinates are stored in the card's field itself".
-                // I'll request 'coordinates' in fields just in case (some powerups expose it) and 'pluginData'.
-                // If not, we assume standard 'coordinates' field from Trello's Map PowerUp if they use it.
-                // We'll also ask for 'pos' and 'desc' (though we don't parse desc anymore).
                 const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,labels,idList,due,dueComplete,dateLastActivity,desc,pos,coordinates&pluginData=true`, user.token);
-
-                // No caching logic. 
 
                 // Decorate cards with coords
                 const processedCards = cardsData.map(c => {
-                    // Check for standard coordinates field
                     let coords = null;
                     if (c.coordinates) {
-                        // Standard field (if returned)
                         const { latitude, longitude } = c.coordinates;
                         if (latitude && longitude) coords = { lat: latitude, lng: longitude };
-                    } else if (c.pluginData) {
-                        // Check plugin data for Map PowerUp or Custom Fields?
-                        // Implementation detail: accessing pluginData varies. 
-                        // For now, we trust 'coordinates' field or specific 'location' field if user defined it?
-                        // User said: "stored in the card's field itself".
-                        // If Trello doesn't return 'coordinates' in standard fields, this relies on API.
-                        // Trello's Map Powerup uses 'coordinates'.
-                        // Let's assume c.coordinates works if field is requested.
                     }
-
                     return { ...c, coordinates: coords };
                 });
 
                 // Filter based on Settings (Archived / Lists)
-                // Statistics Settings:
                 const statsSettings = settings?.statistics || {};
-                const showArchived = statsSettings.showArchived || false; // Maps to 'closed' property? API call above defaults to open cards. 
-                // If we need archived cards, we must fetch with filter=all or filter=closed.
-                // The current fetch `/cards` returns open cards by default.
-                // If showArchived is true, we should fetch all.
-
-                // Let's refetch if we need all
-                // Optimization: We can just fetch 'all' always and filter in memory? 
-                // Or respect the setting. for now, assuming standard fetch is okay, or we add filter=all.
-
-                // Filter by List (if selected)
                 const includedLists = statsSettings.includedLists || []; // Array of list IDs
                 const includedSet = new Set(includedLists);
 
@@ -112,20 +77,15 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         };
 
         fetchData();
-    }, [boardId, user.token, settings?.statistics]); // Re-fetch if list settings change? Or handle client side? Better refetch if 'showArchived' changes logic.
+    }, [boardId, user.token, settings?.statistics]);
 
 
     // --- HELPERS ---
     const getCreationDate = (id) => new Date(1000 * parseInt(id.substring(0, 8), 16));
 
-    const isDateInFilter = (date, filterKey, customStart, customEnd) => {
-        // Handle 'all'
+    const isDateInFilter = (date, filterKey) => {
         if (filterKey === 'all') return true;
-
         const f = TIME_FILTERS[filterKey];
-        // If custom... (not implemented in TIME_FILTERS yet, but requirement mentions custom)
-        // For MVP, we stick to TIME_FILTERS. Default 'this_week'.
-
         if (!f) return true;
 
         if (f.type === 'relative') {
@@ -163,6 +123,13 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
         if (!window.Chart) return;
 
+        // Register Plugin if available
+        if (window.ChartDataLabels) {
+            try {
+                window.Chart.register(window.ChartDataLabels);
+            } catch (e) { }
+        }
+
         // 1. Line Chart Data
         const bucketMap = new Map(); // key -> { created: 0, completed: 0, sortDate: ts }
 
@@ -176,31 +143,10 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         });
 
         // Process Completed
-        // "Total number of cards completed during the same filtered period" -> means using 'createdFilter'?
-        // Req: "date filter using the same filters as the dashboard view... default all time" (This applies to the 'Completed date' filter)
-        // Wait, requirements say: "Cards created and completed over time... filtered period"
-        // It's ambiguous if there is ONE period for the graph, or two.
-        // "graph with total number of cards created during the filtered period (1)"
-        // "on the same graph, add a line with total cards completed during the same filtered period (1)"
-        // This implies ONE X-Axis time range.
-        // BUT Header has "Created date" filter AND "Completed date" filter.
-        // If I select "Created: This Week", X axis matches this week.
-        // If I select "Completed: Last Year", X axis matches last year??
-        // Usually "Over Time" graphs share one X-Axis.
-        // Interpretation: The X-Axis range is determined by... usually the UNION of both, or strict constraints.
-        // "default: this week" for Created. "default: all time" for Completed.
-        // If I show "Created This Week" vs "Completed All Time" on the SAME time axis... "All Time" is huge.
-        // Likely the user wants: "Show Created cards (filtered by Created Date Filter) AND Completed cards (filtered by Completed Date Filter) on their respective dates."
-        // And the X-Axis should span the min/max of the visible data? 
-        // OR, the X-Axis is defined by "The Filtered Period". Which one?
-        // "Cards created and completed over time" -> usually implies a specific timeline view.
-        // Let's assume the X-Axis is determined by the WIDER of the selected ranges, OR we just plot them.
-        // Simpler approach: Use 'createdFilter' to define the X-Axis range? No, that hides completed data outside that range.
-        // Let's determine the X-Axis range by the UNION of the time ranges selected.
-
+        // Filter: Must be completed, AND Completion Date must be in 'createdFilter' range.
         const filteredCompleted = cards.filter(c => {
             if (!c.dueComplete || !c.due) return false;
-            return isDateInFilter(new Date(c.due), createdFilter);
+            return isDateInFilter(new Date(c.due), createdFilter); // Use 'createdFilter' for range
         });
 
         filteredCompleted.forEach(c => {
@@ -212,10 +158,9 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
         // Sort Keys
         const sortedKeys = Array.from(bucketMap.keys()).sort((a, b) => {
-            // Try to parse back or use metadata. 
-            // Using the first 'sortDate' found might be inconsistent if bucket spans time.
-            // Simpler: new Date(a) - new Date(b) Works for standard date strings.
-            return new Date(a) - new Date(b);
+            const itemA = bucketMap.get(a);
+            const itemB = bucketMap.get(b);
+            return itemA.sortDate - itemB.sortDate;
         });
 
         const ctxLine = lineChartRef.current.getContext('2d');
@@ -242,9 +187,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    datalabels: { display: false } // Disable datalabels for Line Chart
+                },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
+                    x: { title: { display: true, text: granularity === 'hour' ? 'Hour' : 'Date' } },
                     y: { title: { display: true, text: 'Count' }, beginAtZero: true }
                 }
             }
@@ -252,21 +202,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
 
         // 2. Pie Chart (Labels)
-        // "following the filter in the header" (Label Filter)
-        // If labelFilter is 'all', show detailed breakdown.
-        // If labelFilter is specific label... "show all cards that have this label applied... as well as cards that have label1 + any other label"
-        // This requirement implies: "Show distribution of Label Combinations involving the selected label".
-        // Or if 'all', show distribution of "All Labels" (count of usage) or "Label Combinations"?
-        // "each segment... represent a label, and combination of labels."
-        // "if labelFilter is label1... show cards with label1, label1+label2..."
-        // This sounds like we visualize "Unique Label Sets" found on cards.
-
         const labelCombinations = {};
 
         let pieCards = cards;
-        if (labelFilter !== 'all') {
-            // Filter: Must include this label
-            pieCards = cards.filter(c => c.labels && c.labels.some(l => l.id === labelFilter || l.color === labelFilter || l.name === labelFilter));
+        if (selectedLabelIds && selectedLabelIds.size > 0) {
+            pieCards = cards.filter(c => {
+                if (!c.labels) return false;
+                return c.labels.some(l => selectedLabelIds.has(l.id));
+            });
         }
 
         pieCards.forEach(c => {
@@ -274,8 +217,6 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                 const key = "No Label";
                 labelCombinations[key] = (labelCombinations[key] || 0) + 1;
             } else {
-                // generate key: "Label A + Label B"
-                // Sort labels by name/color to ensure consistency
                 const names = c.labels.map(l => l.name || l.color).sort().join(' + ');
                 labelCombinations[names] = (labelCombinations[names] || 0) + 1;
             }
@@ -295,61 +236,29 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: 30 },
                 plugins: {
-                    legend: { display: false } // Hide legend as requested ("instead of legend on side... add call out"). Call out is hard without plugin, but hiding side legend is Step 1.
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#000',
+                        anchor: 'end',
+                        align: 'end',
+                        offset: 10,
+                        backgroundColor: 'rgba(255,255,255,0.8)',
+                        borderRadius: 4,
+                        padding: 4,
+                        formatter: (value, ctx) => {
+                            const label = ctx.chart.data.labels[ctx.dataIndex];
+                            return `${label}\\n(${value})`;
+                        },
+                        font: { weight: 'bold', size: 11 }
+                    }
                 }
             }
         });
 
-    }, [cards, createdFilter, granularity, labelFilter]);
-
-
-    // --- MAP STATS LOGIC ---
-    useEffect(() => {
-        if (!enableMapView || !window.google) return;
-
-        // Process Geo Stats (Town/Suburb)
-        // Use 'coordinates' field (from cache or card).
-        // Group by 'suburb' then 'town'.
-        // We assume 'coordinates' object has structured address. 
-        // Existing cache structure: { lat, lng, display_name, address: { suburb, town, city, ... } }
-
-        const suburbCounts = {};
-        let unknownCount = 0;
-
-        cards.forEach(c => {
-            const coords = c.coordinates;
-            // Check cache or card custom field? (Code above mapped cache to c.coordinates)
-
-            if (coords && coords.address) {
-                const locName = coords.address.suburb || coords.address.town || coords.address.city || coords.address.village || coords.address.municipality;
-                if (locName) {
-                    suburbCounts[locName] = (suburbCounts[locName] || 0) + 1;
-                } else {
-                    unknownCount++;
-                }
-            } else {
-                unknownCount++;
-            }
-        });
-
-        // Sort
-        const sortedStats = Object.keys(suburbCounts)
-            .map(k => ({ name: k, count: suburbCounts[k] }))
-            .sort((a, b) => b.count - a.count);
-
-        if (unknownCount > 0) sortedStats.push({ name: 'Unknown / No Location', count: unknownCount });
-
-        // Calculate Percentages
-        const total = cards.length;
-        const finalStats = sortedStats.map(s => ({
-            ...s,
-            percent: total > 0 ? ((s.count / total) * 100).toFixed(1) + '%' : '0%'
-        }));
-
-        setGeoStats(finalStats);
-
-    }, [cards, enableMapView]);
+    }, [cards, createdFilter, granularity, selectedLabelIds]);
 
 
     // --- EXPORT ---
@@ -430,11 +339,8 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                         </div>
                     </div>
 
-                    {/* GEO STATS REMOVED PER REQUEST */}
-
                 </div>
-            )
-            }
+            )}
 
             <div className="footer-action-bar">
                 <div style={{ display: 'flex', gap: '10px' }}>
