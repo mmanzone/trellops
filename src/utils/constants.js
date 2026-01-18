@@ -53,22 +53,21 @@ const calcCalendarFilter = (key) => {
         end.setDate(start.getDate() + 6);
         end.setHours(23, 59, 59, 999);
         return { start, end, label: `Last week (Mon-Sun)`, titleSuffix: `Last Week` };
+    } else if (key === 'last_3m') {
+        start = new Date(now);
+        start.setMonth(now.getMonth() - 3);
+        start.setHours(0, 0, 0, 0);
+        end = now;
+        return { start, end, label: 'Last 3 Months', titleSuffix: 'Last 3 Months' };
+    } else if (key === 'ytd') {
+        start = new Date(now.getFullYear(), 0, 1);
+        end = now;
+        return { start, end, label: 'Year to Date', titleSuffix: 'YTD' };
+    } else if (key === 'last_year') {
+        start = new Date(now.getFullYear() - 1, 0, 1);
+        end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+        return { start, end, label: 'Last Year', titleSuffix: 'Last Year' };
     }
-} else if (key === 'last_3m') {
-    start = new Date(now);
-    start.setMonth(now.getMonth() - 3);
-    start.setHours(0, 0, 0, 0);
-    end = now;
-    return { start, end, label: 'Last 3 Months', titleSuffix: 'Last 3 Months' };
-} else if (key === 'ytd') {
-    start = new Date(now.getFullYear(), 0, 1);
-    end = now;
-    return { start, end, label: 'Year to Date', titleSuffix: 'YTD' };
-} else if (key === 'last_year') {
-    start = new Date(now.getFullYear() - 1, 0, 1);
-    end = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
-    return { start, end, label: 'Last Year', titleSuffix: 'Last Year' };
-}
 };
 
 export const TIME_FILTERS = {
