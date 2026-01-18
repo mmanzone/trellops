@@ -1556,7 +1556,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-5px' }}>Uncheck to exclude specific lists (e.g. "Done" or "Backlog") from statistics.</p>
                                             <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', background: 'white' }}>
                                                 {(() => {
-                                                    const layout = getPersistentLayout(user.id, settings.boardId) || DEFAULT_LAYOUT;
+                                                    const layout = getPersistentLayout(user.id, selectedBoardId) || DEFAULT_LAYOUT;
                                                     // Group lists by Block
                                                     const grouped = {};
                                                     const processedListIds = new Set();
