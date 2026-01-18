@@ -456,6 +456,12 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         </div>
                     )}
 
+                    {settings?.statistics?.enabled && (
+                        <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))}>
+                            Statistics
+                        </button>
+                    )}
+
                     <button className="button-secondary" onClick={onShowSettings}>Settings</button>
                     <button className="button-secondary" onClick={onLogout}>Log Out</button>
                 </div>

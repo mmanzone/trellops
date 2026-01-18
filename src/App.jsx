@@ -8,6 +8,7 @@ import Dashboard from './components/Dashboard';
 import SettingsScreen from './components/SettingsScreen';
 import MapView from './components/MapView';
 import TaskView from './components/TaskView';
+import StatisticsView from './components/StatisticsView';
 
 const App = () => {
     const [user, setUser] = useState(null);
@@ -42,6 +43,7 @@ const App = () => {
         if (path === '/map') setView('map');
         else if (path === '/tasks') setView('tasks');
         else if (path === '/tasks/settings') setView('tasks-settings');
+        else if (path === '/stats') setView('stats');
         else if (path === '/settings') setView('settings');
         // else default to landing (or dashboard if logged in logic below decides)
 
@@ -289,6 +291,19 @@ const App = () => {
                     window.history.pushState({}, '', '/map');
                 }}
                 onLogout={handleLogout}
+                onGoToStats={() => { setPreviousView('settings'); setView('stats'); }}
+            />
+        );
+    }
+
+    if (view === 'stats' && user) {
+        return (
+            <StatisticsView
+                user={user}
+                settings={settings}
+                onShowSettings={() => { setPreviousView('stats'); setView('settings'); setSettingsTab('statistics'); }}
+                onGoToDashboard={() => setView('dashboard')}
+                onLogout={handleLogout}
             />
         );
     }
@@ -352,6 +367,11 @@ const App = () => {
                 onManageTasks={() => {
                     setView('tasks-settings');
                     window.history.pushState({}, '', '/tasks/settings');
+                }}
+                onGoToStats={() => {
+                    setPreviousView('settings');
+                    setView('stats');
+                    window.history.pushState({}, '', '/stats');
                 }}
             />
         );

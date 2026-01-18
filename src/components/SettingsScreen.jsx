@@ -58,7 +58,7 @@ const ShareConfigModal = ({ config, onClose, boardName }) => {
     );
 };
 
-const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { }, viewMode = 'default', onManageTasks }) => {
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { }, viewMode = 'default', onManageTasks, onGoToStats }) => {
     // viewMode: 'default' (Board Settings) | 'tasks' (Task Settings Only)
 
     // --- State ---
@@ -140,6 +140,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     }, [user, importedConfig]);
 
     const [enableStreetView, setEnableStreetView] = useState(false);
+
+    // Statistics Settings
+    const [enableStats, setEnableStats] = useState(false);
+    const [statsShowArchived, setStatsShowArchived] = useState(false);
+    const [statsIncludedLists, setStatsIncludedLists] = useState([]);
 
     // Fetch Orgs for Tasks Dashboard if needed
     useEffect(() => {
@@ -410,6 +415,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             const savedEnableStreetView = localStorage.getItem('enableStreetView_' + boardId);
             setEnableStreetView(savedEnableStreetView === 'true');
 
+            // 6. Load Statistics Config
+            const statsSettings = userSettings?.statistics || {};
+            setEnableStats(!!statsSettings.enabled);
+            setStatsShowArchived(!!statsSettings.showArchived);
+            setStatsIncludedLists(statsSettings.includedLists || []);
+
+
         } catch (e) {
             console.warn("Error loading board settings", e);
             setError("Failed to load settings for this board.");
@@ -655,7 +667,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 enableStreetView,
                 enableTaskView,
                 taskViewWorkspaces,
-                taskViewRefreshInterval
+                taskViewRefreshInterval,
+                statistics: {
+                    enabled: enableStats,
+                    showArchived: statsShowArchived,
+                    includedLists: statsIncludedLists
+                }
+
+
 
             };
 
@@ -957,6 +976,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             onClick={() => setActiveTab('other')}
                         >
                             Other Board settings
+                        </button>
+                        <button
+                            className={`tab-button ${activeTab === 'statistics' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('statistics')}
+                        >
+                            Statistics Settings
                         </button>
                     </div>
                 </>
@@ -1505,7 +1530,97 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 )
                 }
 
-                {/* TAB CONTENT: OTHER */}
+                {/* TAB CONTENT: STATISTICS */}
+                {activeTab === 'statistics' && (
+                    <div className="tab-content">
+                        {selectedBoard ? (
+                            <div className="admin-section" id="section-stats">
+                                <h3>Statistics View Settings for {selectedBoard.name}</h3>
+                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                    Configure the historical data analysis view.
+                                </p>
+
+                                <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableStats(!enableStats)}>
+                                    <ToggleSwitch checked={enableStats} onChange={e => setEnableStats(e.target.checked)} />
+                                    <span>Enable Statistics View</span>
+                                </div>
+
+                                {enableStats && (
+                                    <div style={{ marginTop: '15px', marginLeft: '20px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '15px' }} onClick={() => setStatsShowArchived(!statsShowArchived)}>
+                                            <ToggleSwitch checked={statsShowArchived} onChange={e => setStatsShowArchived(e.target.checked)} />
+                                            <span>Show output for Archived cards</span>
+                                        </div>
+
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Lists to include in reports:</label>
+                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-5px' }}>Uncheck to exclude specific lists (e.g. "Done" or "Backlog") from statistics.</p>
+                                            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', background: 'white' }}>
+                                                {allLists.length === 0 && <div style={{ fontStyle: 'italic', color: '#888' }}>No lists found.</div>}
+                                                {allLists.map(list => (
+                                                    <div key={list.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`stat-list-${list.id}`}
+                                                            checked={statsIncludedLists.length === 0 || statsIncludedLists.includes(list.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    // Add
+                                                                    setStatsIncludedLists([...statsIncludedLists, list.id]);
+                                                                } else {
+                                                                    // Remove
+                                                                    // If empty, previously implied ALL. If we uncheck one, we must populate with all OTHERS.
+                                                                    let newSet;
+                                                                    if (statsIncludedLists.length === 0) {
+                                                                        // Was All.
+                                                                        newSet = allLists.map(l => l.id).filter(id => id !== list.id);
+                                                                    } else {
+                                                                        newSet = statsIncludedLists.filter(id => id !== list.id);
+                                                                    }
+                                                                    setStatsIncludedLists(newSet);
+                                                                }
+                                                            }}
+                                                            style={{ marginRight: '8px' }}
+                                                        />
+                                                        <label htmlFor={`stat-list-${list.id}`} style={{ cursor: 'pointer' }}>{list.name}</label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button
+                                                className="button-link"
+                                                style={{ fontSize: '0.8em', padding: '5px 0', background: 'none', border: 'none', color: '#0079bf', cursor: 'pointer', textDecoration: 'underline' }}
+                                                onClick={() => setStatsIncludedLists([])}
+                                            >
+                                                Select All (Clear Filter)
+                                            </button>
+                                        </div>
+
+                                        <div style={{ marginTop: '20px' }}>
+                                            <button
+                                                onClick={() => {
+                                                    // Save then Redirect
+                                                    handleSave();
+                                                    // We rely on parent to handle redirect if onGoToStats is provided, or we can just call it
+                                                    if (onGoToStats) {
+                                                        setTimeout(onGoToStats, 500); // Small delay to allow save prop to propagate
+                                                    }
+                                                }}
+                                                className="button-primary"
+                                                style={{ background: '#0079bf', color: 'white', padding: '8px 16px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
+                                            >
+                                                Save & View Statistics
+                                            </button>
+                                        </div>
+
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
+                        )}
+                    </div>
+                )}
+
                 {
                     activeTab === 'other' && (
                         <div className="tab-content">
