@@ -423,7 +423,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
     return (
         <div className="container" style={{ paddingBottom: '80px' }}>
-            <div className="header">
+            <div className="map-header">
                 <div className="header-title-area" style={{ display: 'flex', alignItems: 'center' }}>
                     <DigitalClock boardId={boardId} />
                     <h1 style={{ marginLeft: '20px' }}>{boardName} - Statistics</h1>

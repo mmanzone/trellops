@@ -144,10 +144,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     // Statistics Settings
     const [enableStats, setEnableStats] = useState(false);
-    const [statsShowArchived, setStatsShowArchived] = useState(() => {
-        if (settings?.statistics?.includeArchived !== undefined) return settings.statistics.includeArchived;
-        return true; // Default to true
-    });
+    const [statsShowArchived, setStatsShowArchived] = useState(true);
     useEffect(() => {
         if (expandedSection === 'tasks' && boards.length > 0) {
             if (userOrgs.length === 0 && user && user.token) {
@@ -419,7 +416,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             // 6. Load Statistics Config
             const statsSettings = userSettings?.statistics || {};
             setEnableStats(!!statsSettings.enabled);
-            setStatsShowArchived(!!statsSettings.showArchived);
+            setStatsShowArchived(statsSettings.includeArchived !== undefined ? statsSettings.includeArchived : true);
             setStatsIncludedLists(statsSettings.includedLists || []);
 
 
