@@ -135,7 +135,17 @@ const App = () => {
                 if (savedSettings) setSettings(savedSettings);
                 setView('settings');
             }
-            // 4. Default / Dashboard
+            // 4. Stats Route
+            else if (path === '/stats') {
+                if (isBoardConfigured) {
+                    if (savedSettings) setSettings(savedSettings);
+                    setView('stats');
+                } else {
+                    setView('settings'); // Redirect if no board
+                    window.history.replaceState({}, '', '/settings');
+                }
+            }
+            // 5. Default / Dashboard
             else {
                 if (isBoardConfigured) {
                     setSettings(savedSettings);

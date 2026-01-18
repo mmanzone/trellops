@@ -198,7 +198,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
         const filteredCompleted = cards.filter(c => {
             if (!c.dueComplete || !c.due) return false;
-            return isDateInFilter(new Date(c.due), completedFilter);
+            return isDateInFilter(new Date(c.due), createdFilter);
         });
 
         filteredCompleted.forEach(c => {
