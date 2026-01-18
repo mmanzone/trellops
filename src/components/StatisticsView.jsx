@@ -4,6 +4,7 @@ import { TIME_FILTERS } from '../utils/constants';
 import LabelFilter from './common/LabelFilter';
 import { useDarkMode } from '../context/DarkModeContext';
 import { Sun, Moon } from 'lucide-react';
+import DigitalClock from './common/DigitalClock';
 
 const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
     const [cards, setCards] = useState([]);
@@ -423,10 +424,11 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     return (
         <div className="container" style={{ paddingBottom: '80px' }}>
             <div className="header">
-                <div className="header-title-area">
-                    <h1>{boardName} - Statistics</h1>
+                <div className="header-title-area" style={{ display: 'flex', alignItems: 'center' }}>
+                    <DigitalClock boardId={boardId} />
+                    <h1 style={{ marginLeft: '20px' }}>{boardName} - Statistics</h1>
                 </div>
-                <div className="header-actions">
+                <div className="header-actions" style={{ display: 'flex', alignItems: 'center' }}>
                     <LabelFilter
                         labels={allLabels}
                         selectedLabelIds={selectedLabelIds}
@@ -455,6 +457,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                             <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} />
                         </div>
                     )}
+
+                    <button
+                        className="theme-toggle-button"
+                        onClick={() => toggleTheme()}
+                        style={{ marginLeft: '15px', padding: '6px', fontSize: '1.2em', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
+                    </button>
 
                 </div>
             </div>

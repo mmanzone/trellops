@@ -4,7 +4,8 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
 import IconPicker from './common/IconPicker';
 import ColorPicker from './common/ColorPicker';
-import { STORAGE_KEYS } from '../utils/constants';
+import { getPersistentLayout } from '../utils/persistence';
+import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import '../styles/settings.css';
 
@@ -143,10 +144,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     // Statistics Settings
     const [enableStats, setEnableStats] = useState(false);
-    const [statsShowArchived, setStatsShowArchived] = useState(false);
-    const [statsIncludedLists, setStatsIncludedLists] = useState([]);
-
-    // Fetch Orgs for Tasks Dashboard if needed
+    const [statsShowArchived, setStatsShowArchived] = useState(() => {
+        if (settings?.statistics?.includeArchived !== undefined) return settings.statistics.includeArchived;
+        return true; // Default to true
+    });
     useEffect(() => {
         if (expandedSection === 'tasks' && boards.length > 0) {
             if (userOrgs.length === 0 && user && user.token) {
@@ -1555,36 +1556,62 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         <div style={{ marginBottom: '15px' }}>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Lists to include in reports:</label>
                                             <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-5px' }}>Uncheck to exclude specific lists (e.g. "Done" or "Backlog") from statistics.</p>
-                                            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', background: 'white' }}>
-                                                {allLists.length === 0 && <div style={{ fontStyle: 'italic', color: '#888' }}>No lists found.</div>}
-                                                {allLists.map(list => (
-                                                    <div key={list.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`stat-list-${list.id}`}
-                                                            checked={statsIncludedLists.length === 0 || statsIncludedLists.includes(list.id)}
-                                                            onChange={(e) => {
-                                                                if (e.target.checked) {
-                                                                    // Add
-                                                                    setStatsIncludedLists([...statsIncludedLists, list.id]);
-                                                                } else {
-                                                                    // Remove
-                                                                    // If empty, previously implied ALL. If we uncheck one, we must populate with all OTHERS.
-                                                                    let newSet;
-                                                                    if (statsIncludedLists.length === 0) {
-                                                                        // Was All.
-                                                                        newSet = allLists.map(l => l.id).filter(id => id !== list.id);
-                                                                    } else {
-                                                                        newSet = statsIncludedLists.filter(id => id !== list.id);
-                                                                    }
-                                                                    setStatsIncludedLists(newSet);
-                                                                }
-                                                            }}
-                                                            style={{ marginRight: '8px' }}
-                                                        />
-                                                        <label htmlFor={`stat-list-${list.id}`} style={{ cursor: 'pointer' }}>{list.name}</label>
-                                                    </div>
-                                                ))}
+                                            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', background: 'white' }}>
+                                                {(() => {
+                                                    const layout = getPersistentLayout(user.id, settings.boardId) || DEFAULT_LAYOUT;
+                                                    // Group lists by Block
+                                                    const grouped = {};
+                                                    const processedListIds = new Set();
+
+                                                    layout.forEach(block => {
+                                                        const relevantLists = allLists.filter(l => block.listIds.includes(l.id));
+                                                        if (relevantLists.length > 0) {
+                                                            grouped[block.name] = relevantLists;
+                                                            relevantLists.forEach(l => processedListIds.add(l.id));
+                                                        }
+                                                    });
+
+                                                    // Others
+                                                    const otherLists = allLists.filter(l => !processedListIds.has(l.id));
+                                                    if (otherLists.length > 0) {
+                                                        grouped['Other Lists'] = otherLists;
+                                                    }
+
+                                                    if (Object.keys(grouped).length === 0) return <div style={{ fontStyle: 'italic', color: '#888' }}>No lists found.</div>;
+
+                                                    return Object.entries(grouped).map(([blockName, lists]) => (
+                                                        <div key={blockName} style={{ marginBottom: '10px' }}>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#444', marginBottom: '5px', borderBottom: '1px solid #eee' }}>{blockName}</div>
+                                                            {lists.map(list => (
+                                                                <div key={list.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', marginLeft: '10px' }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        id={`stat-list-${list.id}`}
+                                                                        checked={statsIncludedLists.length === 0 || statsIncludedLists.includes(list.id)}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                // Add
+                                                                                setStatsIncludedLists(prev => [...prev, list.id]);
+                                                                            } else {
+                                                                                // Remove
+                                                                                // If empty, previously implied ALL. If we uncheck one, we must populate with all OTHERS.
+                                                                                if (statsIncludedLists.length === 0) {
+                                                                                    // Was All.
+                                                                                    const newSet = allLists.map(l => l.id).filter(id => id !== list.id);
+                                                                                    setStatsIncludedLists(newSet);
+                                                                                } else {
+                                                                                    setStatsIncludedLists(prev => prev.filter(id => id !== list.id));
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        style={{ marginRight: '8px' }}
+                                                                    />
+                                                                    <label htmlFor={`stat-list-${list.id}`} style={{ cursor: 'pointer' }}>{list.name}</label>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ));
+                                                })()}
                                             </div>
                                             <button
                                                 className="button-link"
