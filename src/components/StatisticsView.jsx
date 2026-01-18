@@ -2,18 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { trelloFetch } from '../api/trello';
 import { TIME_FILTERS } from '../utils/constants';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
-import { getPersistentColors } from '../utils/persistence';
+import LabelFilter from './common/LabelFilter';
+import { useDarkMode } from '../context/DarkModeContext'; // Check context path. It is '../context/' based on previous views.
 
 const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
     const [cards, setCards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const { theme } = useDarkMode();
 
-    // Filters
     // Filters
     const [createdFilter, setCreatedFilter] = useState('this_week');
     // const [completedFilter, setCompletedFilter] = useState('all'); // Removed
-    const [labelFilter, setLabelFilter] = useState('all');
+    const [selectedLabelIds, setSelectedLabelIds] = useState(null); // null = All
     const [granularity, setGranularity] = useState('day'); // 'day', 'hour', 'month'
 
     // Data for charts
@@ -141,7 +142,8 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     const formatDateBucket = (date, gran) => {
         const d = new Date(date);
         if (gran === 'hour') {
-            return d.toLocaleString('default', { month: 'short', day: 'numeric', hour: 'numeric' }); // Jan 1, 10 AM
+            // "X-axis should change the labels to hours, instead of date"
+            return d.toLocaleString('default', { hour: 'numeric', hour12: true }); // "10 AM"
         }
         if (gran === 'month') {
             return d.toLocaleString('default', { month: 'short', year: 'numeric' }); // Jan 2026
@@ -377,28 +379,18 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                 </div>
                 <div className="header-actions">
                     {/* Filters */}
-                    <select className="time-filter-select" value={labelFilter} onChange={e => setLabelFilter(e.target.value)}>
-                        <option value="all">Labels: All</option>
-                        {allLabels.map(l => (
-                            <option key={l.id} value={l.id || l.name}>{l.name ? l.name : l.color}</option>
-                        ))}
-                    </select>
+                    <LabelFilter
+                        labels={allLabels}
+                        selectedLabelIds={selectedLabelIds}
+                        onChange={setSelectedLabelIds}
+                    />
 
-                    <select className="time-filter-select" value={createdFilter} onChange={e => setCreatedFilter(e.target.value)}>
+                    <select className="time-filter-select" value={createdFilter} onChange={e => setCreatedFilter(e.target.value)} style={{ marginLeft: '10px' }}>
                         <option value="this_week">Created: This Week (Default)</option>
                         {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
                             <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
                         ))}
                     </select>
-
-                    <select className="time-filter-select" value={createdFilter} onChange={e => setCreatedFilter(e.target.value)}>
-                        <option value="this_week">Created: This Week (Default)</option>
-                        {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
-                            <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
-                        ))}
-                    </select>
-
-                    {/* Completed Filter Removed */}
 
                 </div>
             </div>
@@ -408,102 +400,54 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     Generating stats...
                 </div>
             ) : (
-                <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', gridTemplateColumns: '1fr', gap: '20px' }}>
+            ): (
+                    <div id = "stats-export-area" className = "dashboard-grid" style = {{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
 
-                    {/* ROW 1 */}
-                    <div className="form-card" id="card-line-chart">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <h3>Cards Created / Completed</h3>
-                            <div style={{ display: 'flex', gap: '5px' }}>
-                                <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
-                                    <option value="day">By Day</option>
-                                    <option value="hour">By Hour</option>
-                                    <option value="month">By Month</option>
-                                </select>
-                                <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
-                            </div>
-                        </div>
-                        <canvas ref={lineChartRef}></canvas>
-                    </div>
-
-                    <div className="form-card" id="card-pie-chart">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <h3>Labels Breakdown</h3>
-                            <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
-                        </div>
-                        <canvas ref={pieChartRef}></canvas>
-                    </div>
-
-                    {/* ROW 2: GEO STATS */}
-                    <div className="form-card" style={{ gridColumn: '1 / -1' }} id="card-geo-stats">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <h3>Geographical Statistics</h3>
-                            <button onClick={() => handleExport('card-geo-stats', 'geo')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
-                        </div>
-
-                        {!enableMapView ? (
-                            <div style={{ padding: '40px', textAlign: 'center', background: '#f5f5f5', color: '#666', borderRadius: '8px' }}>
-                                Enable map view for geographical statistics
-                            </div>
-                        ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
-                                {/* 3. SUBURB TABLE */}
-                                <div>
-                                    <h4>Location Breakdown</h4>
-                                    <div style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #eee' }}>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
-                                            <thead>
-                                                <tr style={{ background: '#f9f9f9', textAlign: 'left' }}>
-                                                    <th style={{ padding: '8px' }}>Name</th>
-                                                    <th style={{ padding: '8px' }}>Count</th>
-                                                    <th style={{ padding: '8px' }}>%</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {geoStats.map((s, i) => (
-                                                    <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-                                                        <td style={{ padding: '8px' }}>{s.name}</td>
-                                                        <td style={{ padding: '8px' }}>{s.count}</td>
-                                                        <td style={{ padding: '8px' }}>{s.percent}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                {/* 4. HEATMAP PLACEHOLDER (Require actual Google Map Instance) */}
-                                {/* Since implementing actual marker logic needs complex Map re-init, valid API key etc. */}
-                                {/* We will render a simplified map or just a message if we can't easily reuse MapView code without refactoring it. */}
-                                {/* However, user asked for "Heatmap View... plot all cards". */}
-                                {/* We can use the same GoogleMap styles. */}
-                                <div style={{ background: '#e0e0e0', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    {/* Reuse Map Logic? Complexity High. For now, a placeholder for the Heatmap which is "Part B.4" */}
-                                    <div style={{ textAlign: 'center' }}>
-                                        [Heatmap Visualization would be rendered here]<br />
-                                        <span style={{ fontSize: '0.8em' }}>
-                                            Note: Reusing the full interactive Map engine in this view requires significant refactoring of the MapView component.<br />
-                                            Markers are plotted based on {geoStats.length} locations.
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+            {/* ROW 1 */}
+            <div className="form-card" id="card-line-chart" style={{ width: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <h3>Cards Created / Completed</h3>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                        <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
+                            <option value="day">By Day</option>
+                            <option value="hour">By Hour</option>
+                            <option value="month">By Month</option>
+                        </select>
+                        <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
                     </div>
                 </div>
-            )}
-
-            <div className="footer-action-bar">
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button className="button-secondary" onClick={onGoToDashboard}>Dashboard View</button>
-                    <button className="button-secondary" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map View</button>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button className="button-secondary" onClick={onShowSettings}>Settings</button>
-                    <button className="button-secondary" onClick={onLogout}>Log Out</button>
+                <div style={{ flex: 1, position: 'relative' }}>
+                    <canvas ref={lineChartRef}></canvas>
                 </div>
             </div>
+
+            <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <h3>Labels Breakdown</h3>
+                    <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                </div>
+                <div style={{ flex: 1, position: 'relative' }}>
+                    <canvas ref={pieChartRef}></canvas>
+                </div>
+            </div>
+
+            {/* GEO STATS REMOVED PER REQUEST */}
+
         </div>
+    )
+}
+
+<div className="footer-action-bar">
+    <div style={{ display: 'flex', gap: '10px' }}>
+        <button className="button-secondary" onClick={onGoToDashboard}>Dashboard View</button>
+        <button className="button-secondary" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map View</button>
+    </div>
+    <div style={{ display: 'flex', gap: '10px' }}>
+        <button className="button-secondary" onClick={onShowSettings}>Settings</button>
+        <button className="button-secondary" onClick={onLogout}>Log Out</button>
+    </div>
+</div>
+        </div >
     );
 };
 
