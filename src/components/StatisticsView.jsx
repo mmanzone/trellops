@@ -281,6 +281,19 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             filterLabelText = f ? f.label : createdFilter;
         }
 
+        // Calculate Totals for Title
+        const totalCreated = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.created, 0);
+        const totalCompleted = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.completed, 0);
+
+        // Filter Label Text
+        let filterLabelText = "";
+        if (createdFilter === 'custom') {
+            filterLabelText = `${new Date(customRange.start).toLocaleDateString()} - ${customRange.end ? new Date(customRange.end).toLocaleDateString() : 'Now'}`;
+        } else {
+            const f = TIME_FILTERS[createdFilter];
+            filterLabelText = f ? f.label : createdFilter;
+        }
+
         const ctxLine = lineChartRef.current.getContext('2d');
         lineChartInstance.current = new window.Chart(ctxLine, {
             type: 'line',
@@ -372,27 +385,31 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: { padding: 50 }, // Increased padding from 30 to 50
-                plugins: {
-                    legend: { display: false },
-                    datalabels: {
-                        color: '#000',
-                        anchor: 'end',
-                        align: 'end',
-                        offset: 10,
-                        backgroundColor: 'rgba(255,255,255,0.8)',
-                        borderRadius: 4,
-                        padding: 4,
-                        formatter: (value, ctx) => {
-                            const label = ctx.chart.data.labels[ctx.dataIndex];
-                            // Return array for newline support
-                            return [label, `(${value})`];
-                        },
-                        font: { weight: 'bold', size: 11 }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: 50 }, // Increased padding from 30 to 50
+                    plugins: {
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: {
+                                color: '#000',
+                                anchor: 'end',
+                                align: 'end',
+                                offset: 10,
+                                backgroundColor: 'rgba(255,255,255,0.8)',
+                                borderRadius: 4,
+                                padding: 4,
+                                formatter: (value, ctx) => {
+                                    const label = ctx.chart.data.labels[ctx.dataIndex];
+                                    // Return array for newline support
+                                    return [label, `(${value})`];
+                                },
+                                font: { weight: 'bold', size: 11 }
+                            }
+                        }
                     }
-                }
-            }
-        });
+                });
 
     }, [cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
 
