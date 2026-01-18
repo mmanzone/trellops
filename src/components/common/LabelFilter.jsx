@@ -127,36 +127,29 @@ const LabelFilter = ({ labels, selectedLabelIds, onChange, labelLogic, onLabelLo
 
                     {/* Logic Toggle */}
                     <div style={{ padding: '8px 10px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', fontSize: '0.85em', color: 'var(--text-secondary)' }}>
-                        <span style={{ marginRight: '10px' }}>Match:</span>
-                        <div style={{ display: 'flex', gap: '5px', background: 'var(--bg-primary)', padding: '2px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            <button
-                                onClick={() => onLabelLogicChange('OR')}
-                                style={{
-                                    border: 'none',
-                                    background: labelLogic === 'OR' ? 'var(--accent-color)' : 'transparent',
-                                    color: labelLogic === 'OR' ? '#fff' : 'var(--text-primary)',
-                                    borderRadius: '3px',
-                                    padding: '2px 8px',
-                                    cursor: 'pointer',
-                                    fontSize: '1em'
-                                }}
-                            >
-                                Any (OR)
-                            </button>
-                            <button
-                                onClick={() => onLabelLogicChange('AND')}
-                                style={{
-                                    border: 'none',
-                                    background: labelLogic === 'AND' ? 'var(--accent-color)' : 'transparent',
-                                    color: labelLogic === 'AND' ? '#fff' : 'var(--text-primary)',
-                                    borderRadius: '3px',
-                                    padding: '2px 8px',
-                                    cursor: 'pointer',
-                                    fontSize: '1em'
-                                }}
-                            >
-                                All (AND)
-                            </button>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="labelLogic"
+                                    value="OR"
+                                    checked={labelLogic === 'OR'}
+                                    onChange={() => onLabelLogicChange('OR')}
+                                    style={{ marginRight: '5px' }}
+                                />
+                                Match any
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                                <input
+                                    type="radio"
+                                    name="labelLogic"
+                                    value="AND"
+                                    checked={labelLogic === 'AND'}
+                                    onChange={() => onLabelLogicChange('AND')}
+                                    style={{ marginRight: '5px' }}
+                                />
+                                Match all
+                            </label>
                         </div>
                     </div>
 

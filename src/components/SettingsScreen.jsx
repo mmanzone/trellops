@@ -1595,22 +1595,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             </button>
                                         </div>
 
-                                        <div style={{ marginTop: '20px' }}>
-                                            <button
-                                                onClick={() => {
-                                                    // Save then Redirect
-                                                    handleSave();
-                                                    // We rely on parent to handle redirect if onGoToStats is provided, or we can just call it
-                                                    if (onGoToStats) {
-                                                        setTimeout(onGoToStats, 500); // Small delay to allow save prop to propagate
-                                                    }
-                                                }}
-                                                className="button-primary"
-                                                style={{ background: '#0079bf', color: 'white', padding: '8px 16px', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
-                                            >
-                                                Save & View Statistics
-                                            </button>
-                                        </div>
+
 
                                     </div>
                                 )}

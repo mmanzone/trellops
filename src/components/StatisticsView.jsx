@@ -281,6 +281,15 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             filterLabelText = f ? f.label : createdFilter;
         }
 
+        // Add Label Info to Line Chart Title
+        let labelInfo = "";
+        if (selectedLabelIds && selectedLabelIds.size > 0) {
+            const labelNames = allLabels.filter(l => selectedLabelIds.has(l.id)).map(l => l.name || l.color);
+            labelInfo = ` - Labels: ${labelNames.join(', ')}`;
+            // Truncate if too long
+            if (labelInfo.length > 50) labelInfo = ` - Labels: ${selectedLabelIds.size} selected`;
+        }
+
 
 
         const ctxLine = lineChartRef.current.getContext('2d');
@@ -313,7 +322,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     legend: { position: 'top' },
                     title: {
                         display: true,
-                        text: `${totalCreated} cards created / ${totalCompleted} Completed - ${filterLabelText}`,
+                        text: `${totalCreated} cards created / ${totalCompleted} Completed - ${filterLabelText}${labelInfo}`,
                         font: { size: 16 }
                     },
                     datalabels: { display: false }
@@ -476,7 +485,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
                     <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <h3>Labels Breakdown</h3>
+                            <h3>Labels Breakdown - {filterLabelText}</h3>
                             <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
                         </div>
                         <div style={{ flex: 1, position: 'relative' }}>
