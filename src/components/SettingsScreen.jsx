@@ -145,6 +145,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     // Statistics Settings
     const [enableStats, setEnableStats] = useState(false);
     const [statsShowArchived, setStatsShowArchived] = useState(true);
+    const [statsIncludedLists, setStatsIncludedLists] = useState([]);
     useEffect(() => {
         if (expandedSection === 'tasks' && boards.length > 0) {
             if (userOrgs.length === 0 && user && user.token) {
