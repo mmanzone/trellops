@@ -146,6 +146,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [enableStats, setEnableStats] = useState(false);
     const [statsShowArchived, setStatsShowArchived] = useState(true);
     const [statsIncludedLists, setStatsIncludedLists] = useState([]);
+
+    // Slideshow Settings
+    const [slideshowInterval, setSlideshowInterval] = useState(10);
     useEffect(() => {
         if (expandedSection === 'tasks' && boards.length > 0) {
             if (userOrgs.length === 0 && user && user.token) {
@@ -420,6 +423,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setStatsShowArchived(statsSettings.includeArchived !== undefined ? statsSettings.includeArchived : true);
             setStatsIncludedLists(statsSettings.includedLists || []);
 
+            // Slideshow
+            if (userSettings?.slideshowInterval) setSlideshowInterval(userSettings.slideshowInterval);
+            else setSlideshowInterval(10);
+
 
         } catch (e) {
             console.warn("Error loading board settings", e);
@@ -667,6 +674,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 enableTaskView,
                 taskViewWorkspaces,
                 taskViewRefreshInterval,
+                slideshowInterval: parseInt(slideshowInterval) || 10,
                 statistics: {
                     enabled: enableStats,
                     showArchived: statsShowArchived,
@@ -1651,6 +1659,17 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <option value="hours">Hours</option>
                                                 </select>
                                             </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Slideshow Interval (Seconds)</label>
+                                            <input
+                                                type="number"
+                                                min="5"
+                                                value={slideshowInterval}
+                                                onChange={e => setSlideshowInterval(e.target.value)}
+                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            />
+                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>Time to display each view during slideshow.</p>
                                         </div>
                                         <div>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
