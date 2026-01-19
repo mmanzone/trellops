@@ -4,6 +4,7 @@ import { TIME_FILTERS } from '../utils/constants';
 import LabelFilter from './common/LabelFilter';
 import { useDarkMode } from '../context/DarkModeContext';
 import { Sun, Moon } from 'lucide-react';
+import DigitalClock from './common/DigitalClock';
 
 const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
     const [cards, setCards] = useState([]);
@@ -421,12 +422,13 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     };
 
     return (
-        <div className="container" style={{ paddingBottom: '80px' }}>
-            <div className="header">
-                <div className="header-title-area">
-                    <h1>{boardName} - Statistics</h1>
+        <div className="statistics-view" style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-primary)' }}>
+            <div className="map-header">
+                <div className="header-title-area" style={{ display: 'flex', alignItems: 'center' }}>
+                    <DigitalClock boardId={boardId} />
+                    <h1 style={{ marginLeft: '20px' }}>{boardName} - Statistics</h1>
                 </div>
-                <div className="header-actions">
+                <div className="header-actions" style={{ display: 'flex', alignItems: 'center' }}>
                     <LabelFilter
                         labels={allLabels}
                         selectedLabelIds={selectedLabelIds}
@@ -456,47 +458,57 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                         </div>
                     )}
 
+                    <button
+                        className="theme-toggle-button"
+                        onClick={() => toggleTheme()}
+                        style={{ marginLeft: '15px', padding: '6px', fontSize: '1.2em', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
+                    </button>
+
                 </div>
             </div>
+            <div className="container" style={{ flex: 1, paddingBottom: '80px' }}>
 
-            {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', fontSize: '1.2em', color: '#666' }}>
-                    Generating stats...
-                </div>
-            ) : (
-                <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
+                {loading ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', fontSize: '1.2em', color: '#666' }}>
+                        Generating stats...
+                    </div>
+                ) : (
+                    <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
 
-                    <div className="form-card" id="card-line-chart" style={{ width: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <h3>Cards Created / Completed</h3>
-                            <div style={{ display: 'flex', gap: '5px' }}>
-                                <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
-                                    <option value="day">By Day</option>
-                                    <option value="hour">By Hour</option>
-                                    <option value="cumulative_hour">Per Hour (Cumulative)</option>
-                                    <option value="month">By Month</option>
-                                </select>
-                                <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                        <div className="form-card" id="card-line-chart" style={{ width: '100%', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <h3>Cards Created / Completed</h3>
+                                <div style={{ display: 'flex', gap: '5px' }}>
+                                    <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
+                                        <option value="day">By Day</option>
+                                        <option value="hour">By Hour</option>
+                                        <option value="cumulative_hour">Per Hour (Cumulative)</option>
+                                        <option value="month">By Month</option>
+                                    </select>
+                                    <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                                </div>
+                            </div>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                                <canvas ref={lineChartRef}></canvas>
                             </div>
                         </div>
-                        <div style={{ flex: 1, position: 'relative' }}>
-                            <canvas ref={lineChartRef}></canvas>
+
+                        <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <h3>Labels Breakdown - {filterLabelText}</h3>
+                                <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                            </div>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                                <canvas ref={pieChartRef}></canvas>
+                            </div>
                         </div>
+
                     </div>
+                )}
 
-                    <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <h3>Labels Breakdown - {filterLabelText}</h3>
-                            <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
-                        </div>
-                        <div style={{ flex: 1, position: 'relative' }}>
-                            <canvas ref={pieChartRef}></canvas>
-                        </div>
-                    </div>
-
-                </div>
-            )}
-
+            </div>
             <div className="footer-action-bar">
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button className="button-secondary" onClick={onGoToDashboard}>Dashboard View</button>

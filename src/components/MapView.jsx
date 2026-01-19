@@ -545,12 +545,29 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 styles: defaultStyles
             };
             const map = new maps.Map(mapRef.current, mapOptions);
+            map.addListener("click", () => {
+                if (infoWindowRef.current) infoWindowRef.current.close();
+                currentOpenCardId.current = null;
+            });
+
             googleMapRef.current = map;
             geocoderRef.current = new maps.Geocoder();
             setMapLoaded(true);
             const styledMapType = new maps.StyledMapType(DARK_MODE_STYLE, { name: "Dark" });
             map.mapTypes.set("dark_mode", styledMapType);
         }).catch(console.error);
+    }, []);
+
+    // Global Escape Key Listener
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (infoWindowRef.current) infoWindowRef.current.close();
+                currentOpenCardId.current = null;
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
 
@@ -901,7 +918,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             onZoom={(c) => {
                                 if (googleMapRef.current && c.coordinates) {
                                     googleMapRef.current.setCenter({ lat: c.coordinates.lat, lng: c.coordinates.lng });
-                                    googleMapRef.current.setZoom(16); // Close in zoom
+                                    const currentZoom = googleMapRef.current.getZoom();
+                                    googleMapRef.current.setZoom(Math.min(currentZoom + 2, 21)); // Zoom 2 levels deeper, max 21
                                 }
                             }}
                         />
