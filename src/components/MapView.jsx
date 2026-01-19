@@ -1034,7 +1034,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             <div className="map-header">
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                     {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ margin: 0, fontSize: '1.5em', marginLeft: showClock ? '20px' : '0' }}>{boardName} Map</h1>
+                    <h1 style={{ margin: 0, fontSize: '1.5em', marginLeft: showClock ? '20px' : '0' }}>{boardName}</h1>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
@@ -1171,9 +1171,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                 </div>
                                 {showDashboardDropdown && (
                                     <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '10px', minWidth: '250px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-                                        <div className="menu-item" style={{ marginBottom: '8px', padding: '8px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
+                                        <div className="menu-item" style={{ marginBottom: '8px', padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
                                         {onStartSlideshow && !onStopSlideshow && (
-                                            <div className="menu-item" style={{ padding: '8px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { onStartSlideshow(); setShowDashboardDropdown(false); }}>Start Dashboard and Map Slideshow ({settings?.slideshowInterval || 10}s)</div>
+                                            <div className="menu-item" style={{ padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { onStartSlideshow(); setShowDashboardDropdown(false); }}>Start Slideshow ({settings?.slideshowInterval || 10}s)</div>
                                         )}
                                     </div>
                                 )}
