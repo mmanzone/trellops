@@ -247,7 +247,7 @@ button:disabled,
 
 /* --- Tile Styles --- */
 .dashboard-tile {
-    min-height: 100px;
+    min-height: 110px;
     border-radius: 12px;
     text-align: center;
     display: flex;
@@ -267,7 +267,7 @@ button:disabled,
 }
 
 .card-count {
-    font-size: 3em;
+    font-size: 4em;
     font-weight: 700;
     line-height: 1;
 }
