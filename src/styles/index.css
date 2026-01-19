@@ -209,7 +209,7 @@ button:disabled,
 
 /* --- Dashboard Grid Layout --- */
 .dashboard-block {
-    padding: 20px;
+    padding: 10px;
     background-color: transparent;
 }
 
@@ -217,11 +217,11 @@ button:disabled,
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .block-header {
-    font-size: 1.8em;
+    font-size: 1.4em;
     font-weight: 700;
 }
 
@@ -241,13 +241,13 @@ button:disabled,
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
 }
 
 /* --- Tile Styles --- */
 .dashboard-tile {
-    min-height: 160px;
+    min-height: 110px;
     border-radius: 12px;
     text-align: center;
     display: flex;
@@ -267,15 +267,15 @@ button:disabled,
 }
 
 .card-count {
-    font-size: 5em;
+    font-size: 4em;
     font-weight: 700;
     line-height: 1;
 }
 
 .list-name {
-    font-size: 1.2em;
+    font-size: 1em;
     font-weight: 500;
-    margin-top: 10px;
+    margin-top: 5px;
 }
 
 .card-description {
