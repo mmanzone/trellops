@@ -315,7 +315,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
     }
 
     return (
-        <div className="map-container">
+        <div className="map-view-container">
             {/* HEADER - Updated to match MapView style EXACTLY */}
             <div className="map-header">
                 <div className="map-header-title-area">
@@ -327,24 +327,28 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                 <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
 
-                    {/* Label Filter - Moved BEFORE Time Filter */}
-                    <LabelFilter
-                        labels={boardLabels}
-                        selectedLabelIds={selectedLabelIds}
-                        onChange={setSelectedLabelIds}
-                    />
+                    {!onStopSlideshow && (
+                        <>
+                            {/* Label Filter - Moved BEFORE Time Filter */}
+                            <LabelFilter
+                                labels={boardLabels}
+                                selectedLabelIds={selectedLabelIds}
+                                onChange={setSelectedLabelIds}
+                            />
 
-                    {/* Time Filter */}
-                    <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
-                        {Object.keys(TIME_FILTERS).map(key => (
-                            <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
-                        ))}
-                    </select>
+                            {/* Time Filter */}
+                            <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
+                                {Object.keys(TIME_FILTERS).map(key => (
+                                    <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                ))}
+                            </select>
 
-                    {settings?.statistics?.enabled && (
-                        <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
-                            Stats
-                        </button>
+                            {settings?.statistics?.enabled && (
+                                <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
+                                    Stats
+                                </button>
+                            )}
+                        </>
                     )}
 
                     <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
@@ -476,49 +480,51 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         Refresh {formatDynamicCountdown(countdown)}
                     </button>
 
-                    {enableMapView && (
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex' }}>
-                                <button className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
-                                    Map View
-                                </button>
-                                <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
-                                    ▼
-                                </button>
-                            </div>
-                            {showMapDropdown && (
-                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '200px' }}>
-                                    <div className="menu-item" onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
-                                    {onStartSlideshow && !onStopSlideshow && (
-                                        <div className="menu-item" onClick={() => { onStartSlideshow(); setShowMapDropdown(false); }}>Slideshow views ({settings?.slideshowInterval || 10}s)</div>
+                    {!onStopSlideshow && (
+                        <>
+                            {enableMapView && (
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex' }}>
+                                        <button className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
+                                            Map View
+                                        </button>
+                                        <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
+                                            ▼
+                                        </button>
+                                    </div>
+                                    {showMapDropdown && (
+                                        <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '200px' }}>
+                                            <div className="menu-item" onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
+                                            {onStartSlideshow && !onStopSlideshow && (
+                                                <div className="menu-item" onClick={() => { onStartSlideshow(); setShowMapDropdown(false); }}>Slideshow views ({settings?.slideshowInterval || 10}s)</div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             )}
-                        </div>
-                    )}
 
-                    {settings?.enableTaskView && (
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex' }}>
-                                <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
-                                    Tasks View
-                                </button>
-                                <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                    ▼
-                                </button>
-                            </div>
-                            {showTaskDropdown && (
-                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                    <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                            {settings?.enableTaskView && (
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex' }}>
+                                        <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
+                                            Tasks View
+                                        </button>
+                                        <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                            ▼
+                                        </button>
+                                    </div>
+                                    {showTaskDropdown && (
+                                        <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                            <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </div>
+
+                            <button className="button-secondary" onClick={onShowSettings}>Settings</button>
+                            <button className="button-secondary" onClick={onLogout}>Log Out</button>
+                        </>
                     )}
-
-
-
-                    <button className="button-secondary" onClick={onShowSettings}>Settings</button>
-                    <button className="button-secondary" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
 

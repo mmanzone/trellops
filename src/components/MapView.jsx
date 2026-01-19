@@ -1038,24 +1038,29 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
-                    {/* Card Count */}
-                    <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                        {visibleMarkersCount} cards
-                    </span>
 
-                    {/* Base Layer */}
-                    <select
-                        value={baseMap}
-                        onChange={e => setBaseMap(e.target.value)}
-                        className="time-filter-select" // Reuse dashboard class
-                    >
-                        <option value="roadmap">Roadmap</option>
-                        <option value="traffic">Traffic</option>
-                        <option value="satellite">Satellite</option>
-                        <option value="hybrid">Hybrid</option>
-                        <option value="terrain">Terrain</option>
-                        <option value="dark">Dark Mode</option>
-                    </select>
+                    {!onStopSlideshow && (
+                        <>
+                            {/* Card Count */}
+                            <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                                {visibleMarkersCount} cards
+                            </span>
+
+                            {/* Base Layer */}
+                            <select
+                                value={baseMap}
+                                onChange={e => setBaseMap(e.target.value)}
+                                className="time-filter-select" // Reuse dashboard class
+                            >
+                                <option value="roadmap">Roadmap</option>
+                                <option value="traffic">Traffic</option>
+                                <option value="satellite">Satellite</option>
+                                <option value="hybrid">Hybrid</option>
+                                <option value="terrain">Terrain</option>
+                                <option value="dark">Dark Mode</option>
+                            </select>
+                        </>
+                    )}
 
                     <button
                         className="theme-toggle-button"
@@ -1143,51 +1148,57 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     </div>
                 )}
                 <div className="map-footer-right">
-                    <span style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
-                        {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}
-                    </span>
+                    {!onStopSlideshow && (
+                        <span style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
+                            {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}
+                        </span>
+                    )}
 
                     <button className="button-secondary" onClick={() => { setCountdown(refreshIntervalSeconds); loadData(true); }}>
                         Refresh {formatDynamicCountdown(countdown)}
                     </button>
 
-                    <div style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex' }}>
-                            <button className="button-secondary" onClick={() => onClose()}>
-                                Dashboard View
-                            </button>
-                            <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
-                                ▼
-                            </button>
-                        </div>
-                        {showDashboardDropdown && (
-                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                <div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
-                                {onStartSlideshow && !onStopSlideshow && (
-                                    <div className="menu-item" onClick={() => { onStartSlideshow(); setShowDashboardDropdown(false); }}>Slideshow views ({settings?.slideshowInterval || 10}s)</div>
+                    {!onStopSlideshow && (
+                        <>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ display: 'flex' }}>
+                                    <button className="button-secondary" onClick={() => onClose()}>
+                                        Dashboard View
+                                    </button>
+                                    <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
+                                        ▼
+                                    </button>
+                                </div>
+                                {showDashboardDropdown && (
+                                    <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                        <div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
+                                        {onStartSlideshow && !onStopSlideshow && (
+                                            <div className="menu-item" onClick={() => { onStartSlideshow(); setShowDashboardDropdown(false); }}>Slideshow views ({settings?.slideshowInterval || 10}s)</div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
-                        )}
-                    </div>
 
-                    <div style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex' }}>
-                            <button className="button-secondary" onClick={() => onShowTasks()}>
-                                Tasks View
-                            </button>
-                            <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                ▼
-                            </button>
-                        </div>
-                        {showTaskDropdown && (
-                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ display: 'flex' }}>
+                                    <button className="button-secondary" onClick={() => onShowTasks()}>
+                                        Tasks View
+                                    </button>
+                                    <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                        ▼
+                                    </button>
+                                </div>
+                                {showTaskDropdown && (
+                                    <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                        <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
 
-                    <button className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
-                    <button className="button-secondary" onClick={onLogout}>Logout</button>
+                            <button className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
+                            <button className="button-secondary" onClick={onLogout}>Logout</button>
+                        </>
+                    )}
                 </div>
             </div>
             {/* Click Outside to Close Dropdowns */}
