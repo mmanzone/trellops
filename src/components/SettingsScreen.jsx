@@ -1659,17 +1659,25 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <option value="hours">Hours</option>
                                                 </select>
                                             </div>
+                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>How often the data is retrieved from Trello.</p>
                                         </div>
                                         <div>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Slideshow Interval (Seconds)</label>
                                             <input
                                                 type="number"
-                                                min="5"
+                                                min="10"
                                                 value={slideshowInterval}
-                                                onChange={e => setSlideshowInterval(e.target.value)}
+                                                onChange={e => {
+                                                    setSlideshowInterval(e.target.value);
+                                                }}
                                                 style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
                                             />
-                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>Time to display each view during slideshow.</p>
+                                            {slideshowInterval < 10 && (
+                                                <span style={{ color: 'red', marginLeft: '10px', fontSize: '0.9em' }}>Minimum 10 seconds required</span>
+                                            )}
+                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
+                                                Slideshow mode will cycle between the Dashboard and Map view at regular intervals, minimum 10 seconds. Start the slideshow using the arrows next to the Dashboard or Map button in the footer.
+                                            </p>
                                         </div>
                                         <div>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
