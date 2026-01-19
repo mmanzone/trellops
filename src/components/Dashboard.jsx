@@ -180,6 +180,8 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         const uniqueListIds = new Set(sectionsLayout.flatMap(s => s.listIds));
 
         uniqueListIds.forEach(listId => {
+            if (!allListsMap.has(listId)) return; // Skip phantom lists (deleted from Trello)
+
             const listCards = (cardsByList.get(listId) || []).sort((a, b) => a.pos - b.pos);
             const block = sectionsLayout.find(s => s.listIds.includes(listId));
             const isIgnored = block?.ignoreFirstCard;
