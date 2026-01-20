@@ -1032,9 +1032,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         <div className="map-view-container">
             {/* Header */}
             <div className="map-header">
-                <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div className="map-header-title-area">
                     {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ margin: 0, fontSize: '1.5em', marginLeft: showClock ? '20px' : '0' }}>{boardName}</h1>
+                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>
+                        {boardName}
+                    </h1>
                 </div>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}

@@ -111,6 +111,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [expandedSection, setExpandedSection] = useState(viewMode === 'tasks' ? 'tasks' : 'board');
 
     // Force expanded section based on viewMode
+
+
     useEffect(() => {
         if (viewMode === 'tasks') {
             setExpandedSection('tasks');
@@ -118,6 +120,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setExpandedSection('board');
         }
     }, [viewMode]);
+
 
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingImport, setPendingImport] = useState(null);
@@ -603,6 +606,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
 
     const handleSave = () => {
+        // VALIDATION: Slideshow Interval
+        if (slideshowInterval < 10) {
+            alert("Slideshow interval must be at least 10 seconds.");
+            return;
+        }
+
         // VALIDATION: Refresh Interval 
         if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
             setError("Refresh interval must be at least 15 seconds.");
@@ -1676,7 +1685,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 <span style={{ color: 'red', marginLeft: '10px', fontSize: '0.9em' }}>Minimum 10 seconds required</span>
                                             )}
                                             <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
-                                                Slideshow mode will cycle between the Dashboard and Map view at regular intervals, minimum 10 seconds. Start the slideshow using the arrows next to the Dashboard or Map button in the footer.
+                                                Slideshow mode will cycle between the Dashboard and Map views at regular intervals, minimum 10 seconds. Start the slideshow using the arrows next to the Dashboard or Map button in the footer.
                                             </p>
                                         </div>
                                         <div>
