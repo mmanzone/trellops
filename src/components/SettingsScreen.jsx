@@ -988,16 +988,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             Map View Settings
                         </button>
                         <button
-                            className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('other')}
-                        >
-                            Other Board settings
-                        </button>
-                        <button
                             className={`tab-button ${activeTab === 'statistics' ? 'active' : ''}`}
                             onClick={() => setActiveTab('statistics')}
                         >
                             Statistics Settings
+                        </button>
+                        <button
+                            className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('other')}
+                        >
+                            Other Board settings
                         </button>
                     </div>
                 </>
