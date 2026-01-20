@@ -11,10 +11,11 @@ import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
+import MapView from './MapView'; // For Slideshow
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import '../styles/map.css';
 
-const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats }) => {
+const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow }) => {
     // DATA STATE
     const [allCards, setAllCards] = useState([]);
     const [allListsMap, setAllListsMap] = useState(new Map());
@@ -294,8 +295,27 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         );
     }
 
+    // 1. EMBEDDED MODE
+    if (isEmbedded) {
+        return (
+            <DashboardContent
+                sectionsLayout={sectionsLayout}
+                blocksMap={blocksMap}
+                counts={counts}
+                allListsMap={allListsMap}
+                handleTileClick={handleTileClick}
+                handleToggleCollapse={handleToggleCollapse}
+                handleCloseModal={handleCloseModal}
+                user={user}
+                ignoreTemplateCards={ignoreTemplateCards}
+                ignoreNoDescCards={ignoreNoDescCards}
+                modalList={modalList}
+            />
+        );
+    }
+
     return (
-        <div className="map-container">
+        <div className="map-view-container">
             {/* HEADER - Updated to match MapView style EXACTLY */}
             <div className="map-header">
                 <div className="map-header-title-area">
@@ -307,24 +327,28 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                 <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
 
-                    {/* Label Filter - Moved BEFORE Time Filter */}
-                    <LabelFilter
-                        labels={boardLabels}
-                        selectedLabelIds={selectedLabelIds}
-                        onChange={setSelectedLabelIds}
-                    />
+                    {!onStopSlideshow && (
+                        <>
+                            {/* Label Filter - Moved BEFORE Time Filter */}
+                            <LabelFilter
+                                labels={boardLabels}
+                                selectedLabelIds={selectedLabelIds}
+                                onChange={setSelectedLabelIds}
+                            />
 
-                    {/* Time Filter */}
-                    <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
-                        {Object.keys(TIME_FILTERS).map(key => (
-                            <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
-                        ))}
-                    </select>
+                            {/* Time Filter */}
+                            <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
+                                {Object.keys(TIME_FILTERS).map(key => (
+                                    <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                ))}
+                            </select>
 
-                    {settings?.statistics?.enabled && (
-                        <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
-                            Stats
-                        </button>
+                            {settings?.statistics?.enabled && (
+                                <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
+                                    Stats
+                                </button>
+                            )}
+                        </>
                     )}
 
                     <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
@@ -333,76 +357,97 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 </div>
             </div>
 
-            {/* RENDER BLOCKS */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', position: 'relative', zIndex: 1 }}>
-                {sectionsLayout.map(block => {
-                    const blockTiles = block.listIds
-                        .map(listId => {
-                            const tileData = counts.get(listId);
-                            // If list is not found in counts (e.g. no cards or fetch error), we should still show it if possible?
-                            // Logic mimics old behavior: if !tileData, check allListsMap
-                            if (!tileData) {
-                                const list = allListsMap.get(listId);
-                                if (list) {
-                                    const persistentColorsCopy = getPersistentColors(user.id);
-                                    const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
-                                    let color = persistentColors[boardId]?.[listId] || list.color;
-                                    if (!color || color === '#cccccc') {
-                                        color = getOrGenerateRandomColor(listId, usedColors);
+            {/* RENDER BLOCKS OR SLIDESHOW CONTENT */}
+            {slideshowContent === 'map' ? (
+                <div style={{ flex: 1, position: 'relative', width: '100%', overflow: 'hidden' }}>
+                    <MapView isEmbedded={true} user={user} settings={settings} />
+                </div>
+            ) : (
+                <DashboardContent
+                    sectionsLayout={sectionsLayout}
+                    blocksMap={blocksMap}
+                    counts={counts}
+                    allListsMap={allListsMap}
+                    handleTileClick={handleTileClick}
+                    handleToggleCollapse={handleToggleCollapse}
+                    handleCloseModal={handleCloseModal}
+                    user={user}
+                    ignoreTemplateCards={ignoreTemplateCards}
+                    ignoreNoDescCards={ignoreNoDescCards}
+                    modalList={modalList}
+                />
+            )}
+            {/* OLD CONTENT DISABLED */}{false && (
+                <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', position: 'relative', zIndex: 1 }}>
+                    {sectionsLayout.map(block => {
+                        const blockTiles = block.listIds
+                            .map(listId => {
+                                const tileData = counts.get(listId);
+                                // If list is not found in counts (e.g. no cards or fetch error), we should still show it if possible?
+                                // Logic mimics old behavior: if !tileData, check allListsMap
+                                if (!tileData) {
+                                    const list = allListsMap.get(listId);
+                                    if (list) {
+                                        const persistentColorsCopy = getPersistentColors(user.id);
+                                        const usedColors = new Set(Object.values(persistentColorsCopy).flatMap(b => Object.values(b)));
+                                        let color = persistentColors[boardId]?.[listId] || list.color;
+                                        if (!color || color === '#cccccc') {
+                                            color = getOrGenerateRandomColor(listId, usedColors);
+                                        }
+                                        // Count is 0 if not calculated yet or empty? "..." implies loading? 
+                                        // If loading=false but tileData missing, it implies 0 cards?
+                                        // counts map initialization handles empty lists?
+                                        // No, the loop only iterates uniqueListIds defined in layout.
+                                        // But data.cards might be empty.
+                                        // In useMemo, we iterate all uniqueListIds. So titleData SHOULD exist unless listsFromSettings changed.
+                                        // We'll trust tileData usually exists.
+                                        return { listId: list.id, name: list.name, count: '...', displayColor: color, firstCardName: '' };
                                     }
-                                    // Count is 0 if not calculated yet or empty? "..." implies loading? 
-                                    // If loading=false but tileData missing, it implies 0 cards?
-                                    // counts map initialization handles empty lists?
-                                    // No, the loop only iterates uniqueListIds defined in layout.
-                                    // But data.cards might be empty.
-                                    // In useMemo, we iterate all uniqueListIds. So titleData SHOULD exist unless listsFromSettings changed.
-                                    // We'll trust tileData usually exists.
-                                    return { listId: list.id, name: list.name, count: '...', displayColor: color, firstCardName: '' };
+                                    return undefined;
                                 }
-                                return undefined;
-                            }
-                            return tileData;
-                        })
-                        .filter(item => item !== undefined);
+                                return tileData;
+                            })
+                            .filter(item => item !== undefined);
 
-                    const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
+                        const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
 
-                    // If filters reduce count to 0, do we hide?
-                    // "Only show the count ...".
-                    // Existing logic: "if (blockTiles.length === 0) return null".
-                    // blockTiles length refers to LISTS in the block, not cards.
-                    // So tile remains visible even if count is 0. This is desired.
-                    if (blockTiles.length === 0 && !isCollapsed) return null;
+                        // If filters reduce count to 0, do we hide?
+                        // "Only show the count ...".
+                        // Existing logic: "if (blockTiles.length === 0) return null".
+                        // blockTiles length refers to LISTS in the block, not cards.
+                        // So tile remains visible even if count is 0. This is desired.
+                        if (blockTiles.length === 0 && !isCollapsed) return null;
 
-                    return (
-                        <div key={block.id} className="dashboard-block">
-                            <div className="block-header-row">
-                                <div className="block-header">{block.name}</div>
-                                <button className="collapse-toggle" onClick={() => handleToggleCollapse(block.id)} title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}>
-                                    {isCollapsed ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path><path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                                    ) : (
-                                        <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                    )}
-                                </button>
-                            </div>
-                            {!isCollapsed && (
-                                <div className="dashboard-grid">
-                                    {blockTiles.map((item) => (
-                                        <div key={item.listId} className="dashboard-tile" style={{ backgroundColor: item.displayColor, color: 'white' }} onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}>
-                                            <div className="card-count">{item.count}</div>
-                                            <div className="list-name">{item.name}</div>
-                                            {item.firstCardName && (
-                                                <div className="card-description" title={item.firstCardName}>{item.firstCardName}</div>
-                                            )}
-                                        </div>
-                                    ))}
+                        return (
+                            <div key={block.id} className="dashboard-block">
+                                <div className="block-header-row">
+                                    <div className="block-header">{block.name}</div>
+                                    <button className="collapse-toggle" onClick={() => handleToggleCollapse(block.id)} title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}>
+                                        {isCollapsed ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path><path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                        ) : (
+                                            <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                        )}
+                                    </button>
                                 </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
+                                {!isCollapsed && (
+                                    <div className="dashboard-grid">
+                                        {blockTiles.map((item) => (
+                                            <div key={item.listId} className="dashboard-tile" style={{ backgroundColor: item.displayColor, color: 'white' }} onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}>
+                                                <div className="card-count">{item.count}</div>
+                                                <div className="list-name">{item.name}</div>
+                                                {item.firstCardName && (
+                                                    <div className="card-description" title={item.firstCardName}>{item.firstCardName}</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             {modalList && (
                 <CardDetailsModal
@@ -420,7 +465,14 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* Footer Action Bar - Using MapView strict classes */}
             <div className="map-footer">
                 <div className="map-footer-left">
-                    {/* Empty Left Side */}
+                    {onStopSlideshow && (
+                        <button
+                            onClick={onStopSlideshow}
+                            style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                            Stop Slideshow
+                        </button>
+                    )}
                 </div>
 
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
@@ -428,52 +480,128 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         Refresh {formatDynamicCountdown(countdown)}
                     </button>
 
-                    {enableMapView && (
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex' }}>
-                                <button className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
-                                    Map View
-                                </button>
-                                <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
-                                    ▼
-                                </button>
-                            </div>
-                            {showMapDropdown && (
-                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                    <div className="menu-item" onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
+                    {!onStopSlideshow && (
+                        <>
+                            {enableMapView && (
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex' }}>
+                                        <button className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
+                                            Map View
+                                        </button>
+                                        <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
+                                            ▼
+                                        </button>
+                                    </div>
+                                    {showMapDropdown && (
+                                        <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '10px', minWidth: '250px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+                                            <div className="menu-item" style={{ marginBottom: '8px', padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
+                                            {onStartSlideshow && !onStopSlideshow && (
+                                                <div className="menu-item" style={{ padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { onStartSlideshow(); setShowMapDropdown(false); }}>Start Slideshow ({settings?.slideshowInterval || 10}s)</div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </div>
-                    )}
 
-                    {settings?.enableTaskView && (
-                        <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex' }}>
-                                <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
-                                    Tasks View
-                                </button>
-                                <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                    ▼
-                                </button>
-                            </div>
-                            {showTaskDropdown && (
-                                <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                    <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                            {settings?.enableTaskView && (
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ display: 'flex' }}>
+                                        <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
+                                            Tasks View
+                                        </button>
+                                        <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                            ▼
+                                        </button>
+                                    </div>
+                                    {showTaskDropdown && (
+                                        <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                            <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </div>
+
+                            <button className="button-secondary" onClick={onShowSettings}>Settings</button>
+                            <button className="button-secondary" onClick={onLogout}>Log Out</button>
+                        </>
                     )}
-
-
-
-                    <button className="button-secondary" onClick={onShowSettings}>Settings</button>
-                    <button className="button-secondary" onClick={onLogout}>Log Out</button>
                 </div>
             </div>
 
             {/* Click Outside to Close Dropdowns */}
             {(showTaskDropdown || showMapDropdown) && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => { setShowTaskDropdown(false); setShowMapDropdown(false); }} />
+            )}
+        </div>
+    );
+};
+
+// WRAPPER for separation
+const DashboardContent = ({
+    sectionsLayout, blocksMap, counts, allListsMap,
+    handleTileClick, handleToggleCollapse, handleCloseModal,
+    user, ignoreTemplateCards, ignoreNoDescCards, modalList
+}) => {
+    return (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px', paddingBottom: '80px', position: 'relative', zIndex: 1 }}>
+            {sectionsLayout.map(block => {
+                const blockTiles = block.listIds
+                    .map(listId => {
+                        const tileData = counts.get(listId);
+                        if (!tileData) {
+                            const list = allListsMap.get(listId);
+                            if (list) {
+                                // Fallback logic
+                                return { listId: list.id, name: list.name, count: '...', displayColor: '#ccc', firstCardName: '' };
+                            }
+                            return undefined;
+                        }
+                        return tileData;
+                    })
+                    .filter(item => item !== undefined);
+
+                const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
+                if (blockTiles.length === 0 && !isCollapsed) return null;
+
+                return (
+                    <div key={block.id} className="dashboard-block">
+                        <div className="block-header-row">
+                            <div className="block-header">{block.name}</div>
+                            <button className="collapse-toggle" onClick={() => handleToggleCollapse(block.id)} title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}>
+                                {isCollapsed ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path><path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                ) : (
+                                    <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8-11-8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                )}
+                            </button>
+                        </div>
+                        {!isCollapsed && (
+                            <div className="dashboard-grid">
+                                {blockTiles.map((item) => (
+                                    <div key={item.listId} className="dashboard-tile" style={{ backgroundColor: item.displayColor, color: 'white' }} onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}>
+                                        <div className="card-count">{item.count}</div>
+                                        <div className="list-name">{item.name}</div>
+                                        {item.firstCardName && (
+                                            <div className="card-description" title={item.firstCardName}>{item.firstCardName}</div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+            {modalList && (
+                <CardDetailsModal
+                    listId={modalList.listId}
+                    listName={modalList.listName}
+                    color={modalList.color}
+                    token={user.token}
+                    onClose={handleCloseModal}
+                    sectionsLayout={sectionsLayout}
+                    ignoreTemplateCards={ignoreTemplateCards}
+                    ignoreNoDescCards={ignoreNoDescCards}
+                />
             )}
         </div>
     );

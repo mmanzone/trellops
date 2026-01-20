@@ -10,6 +10,7 @@ import { ICONS } from './common/IconPicker';
 import MapFilters from './MapFilters';
 import { loadGoogleMaps } from '/src/utils/googleMapsLoader';
 import { marked } from 'marked';
+import Dashboard from './Dashboard'; // For Slideshow
 import '/src/styles/map.css';
 
 // --- CUSTOM MAP STYLES ---
@@ -380,7 +381,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
 };
 
 
-const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks }) => {
+const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
     const [boardLabels, setBoardLabels] = useState([]);
@@ -977,54 +978,21 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists, refreshVersion]);
 
-    return (
-        <div className="map-view-container">
-            {/* Header */}
-            <div className="map-header">
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                    {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ margin: 0, fontSize: '1.5em', marginLeft: showClock ? '20px' : '0' }}>{boardName} Map</h1>
+    // EMBEDDED MODE
+    if (isEmbedded) {
+        return (
+            <div style={{ flex: 1, position: 'relative', height: '100%', overflow: 'hidden' }}>
+                {/* Internal Floating Filters for Embedded Map */}
+                <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 5 }}>
+                    <MapFilters
+                        lists={lists} cards={cards} allLabels={boardLabels}
+                        visibleListIds={visibleListIds} onToggleList={handleToggleList}
+                        blocks={blocks} onToggleBlock={handleToggleBlock} onToggleAllBlocks={handleToggleAllBlocks}
+                        markerRules={markerRules} visibleRuleIds={visibleRuleIds} onToggleRule={handleToggleRule} onToggleAllRules={handleToggleAllRules}
+                        homeLocation={homeLocation} showHomeLocation={showHomeLocation} onToggleHome={() => setShowHomeLocation(!showHomeLocation)}
+                    />
                 </div>
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    {!mapLoaded && <span className="spinner"></span>}
-                    {/* Card Count */}
-                    <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                        {visibleMarkersCount} cards
-                    </span>
-
-                    {/* Base Layer */}
-                    <select
-                        value={baseMap}
-                        onChange={e => setBaseMap(e.target.value)}
-                        className="time-filter-select" // Reuse dashboard class
-                    >
-                        <option value="roadmap">Roadmap</option>
-                        <option value="traffic">Traffic</option>
-                        <option value="satellite">Satellite</option>
-                        <option value="hybrid">Hybrid</option>
-                        <option value="terrain">Terrain</option>
-                        <option value="dark">Dark Mode</option>
-                    </select>
-
-                    <button
-                        className="theme-toggle-button"
-                        onClick={() => toggleTheme()}
-                        style={{ marginLeft: '10px' }}
-                    >
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
-                </div>
-            </div>
-
-            <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999, pointerEvents: 'none' }}>
-                <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                    {errors.map(err => <GeocodingErrorToast key={err.cardId} error={err} onDismiss={handleDismissError} onApply={handleApplyResult} />)}
-                </div>
-            </div>
-
-            {/* Fit Map Button (Custom Overlay) */}
-            <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
-                {/* Fit Map Button (Custom Overlay - Absolute to this relative container) */}
+                {/* Fit Map Button (Custom Overlay) */}
                 <div
                     style={{
                         position: 'absolute',
@@ -1044,7 +1012,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     onClick={fitMapBounds}
                     title="Fit Map to Markers"
                 >
-                    <svg width="60" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <line x1="22" y1="12" x2="18" y2="12" />
                         <line x1="6" y1="12" x2="2" y2="12" />
@@ -1052,68 +1020,187 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         <line x1="12" y1="22" x2="12" y2="18" />
                     </svg>
                 </div>
-                <div className="map-sidebar">
-                    <MapFilters
-                        lists={lists} cards={cards} allLabels={boardLabels}
-                        visibleListIds={visibleListIds} onToggleList={handleToggleList}
-                        blocks={blocks} onToggleBlock={handleToggleBlock} onToggleAllBlocks={handleToggleAllBlocks}
-                        markerRules={markerRules} visibleRuleIds={visibleRuleIds} onToggleRule={handleToggleRule} onToggleAllRules={handleToggleAllRules}
-                        homeLocation={homeLocation} showHomeLocation={showHomeLocation} onToggleHome={() => setShowHomeLocation(!showHomeLocation)}
-                    />
-                </div>
-                <div style={{ flexGrow: 1, position: 'relative', background: '#e0e0e0' }}>
+                <div style={{ flexGrow: 1, position: 'relative', background: '#e0e0e0', height: '100%' }}>
                     <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
                     {!mapLoaded && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>Loading Google Maps...</div>}
                 </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="map-view-container">
+            {/* Header */}
+            <div className="map-header">
+                <div className="map-header-title-area">
+                    {showClock && <DigitalClock boardId={boardId} />}
+                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>
+                        {boardName}
+                    </h1>
+                </div>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    {!mapLoaded && <span className="spinner"></span>}
+
+                    {!onStopSlideshow && (
+                        <>
+                            {/* Card Count */}
+                            <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                                {visibleMarkersCount} cards
+                            </span>
+
+                            {/* Base Layer */}
+                            <select
+                                value={baseMap}
+                                onChange={e => setBaseMap(e.target.value)}
+                                className="time-filter-select" // Reuse dashboard class
+                            >
+                                <option value="roadmap">Roadmap</option>
+                                <option value="traffic">Traffic</option>
+                                <option value="satellite">Satellite</option>
+                                <option value="hybrid">Hybrid</option>
+                                <option value="terrain">Terrain</option>
+                                <option value="dark">Dark Mode</option>
+                            </select>
+                        </>
+                    )}
+
+                    <button
+                        className="theme-toggle-button"
+                        onClick={() => toggleTheme()}
+                        style={{ marginLeft: '10px' }}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
+                    </button>
+                </div>
+            </div>
+
+            <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999, pointerEvents: 'none' }}>
+                <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    {errors.map(err => <GeocodingErrorToast key={err.cardId} error={err} onDismiss={handleDismissError} onApply={handleApplyResult} />)}
+                </div>
+            </div>
+
+            {/* MAIN CONTENT: Map or Dashboard Slideshow */}
+            <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
+                {slideshowContent === 'dashboard' ? (
+                    <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                        <Dashboard isEmbedded={true} user={user} settings={settings} />
+                    </div>
+                ) : (
+                    <>
+                        {/* Fit Map Button (Custom Overlay - Absolute to this relative container) */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                top: '5px',
+                                right: '20px',
+                                zIndex: 800,
+                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                                padding: '8px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#333'
+                            }}
+                            onClick={fitMapBounds}
+                            title="Fit Map to Markers"
+                        >
+                            <svg width="60" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="22" y1="12" x2="18" y2="12" />
+                                <line x1="6" y1="12" x2="2" y2="12" />
+                                <line x1="12" y1="6" x2="12" y2="2" />
+                                <line x1="12" y1="22" x2="12" y2="18" />
+                            </svg>
+                        </div>
+                        <div className="map-sidebar">
+                            <MapFilters
+                                lists={lists} cards={cards} allLabels={boardLabels}
+                                visibleListIds={visibleListIds} onToggleList={handleToggleList}
+                                blocks={blocks} onToggleBlock={handleToggleBlock} onToggleAllBlocks={handleToggleAllBlocks}
+                                markerRules={markerRules} visibleRuleIds={visibleRuleIds} onToggleRule={handleToggleRule} onToggleAllRules={handleToggleAllRules}
+                                homeLocation={homeLocation} showHomeLocation={showHomeLocation} onToggleHome={() => setShowHomeLocation(!showHomeLocation)}
+                            />
+                        </div>
+                        <div style={{ flexGrow: 1, position: 'relative', background: '#e0e0e0' }}>
+                            <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+                            {!mapLoaded && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>Loading Google Maps...</div>}
+                        </div>
+                    </>
+                )}
             </div>
 
             <div className="map-footer">
                 <div className="map-footer-left">
                     <div style={{ fontSize: '0.8em', color: '#888' }}>Powered by Google Maps & Trello</div>
                 </div>
+
+                {/* CENTER: Stop Slideshow */}
+                {onStopSlideshow && (
+                    <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+                        <button
+                            onClick={onStopSlideshow}
+                            style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                            Stop Slideshow
+                        </button>
+                    </div>
+                )}
                 <div className="map-footer-right">
-                    <span style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
-                        {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}
-                    </span>
+                    {!onStopSlideshow && (
+                        <span style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
+                            {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}
+                        </span>
+                    )}
 
                     <button className="button-secondary" onClick={() => { setCountdown(refreshIntervalSeconds); loadData(true); }}>
                         Refresh {formatDynamicCountdown(countdown)}
                     </button>
 
-                    <div style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex' }}>
-                            <button className="button-secondary" onClick={() => onClose()}>
-                                Dashboard View
-                            </button>
-                            <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
-                                ▼
-                            </button>
-                        </div>
-                        {showDashboardDropdown && (
-                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                <div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
+                    {!onStopSlideshow && (
+                        <>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ display: 'flex' }}>
+                                    <button className="button-secondary" onClick={() => onClose()}>
+                                        Dashboard View
+                                    </button>
+                                    <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
+                                        ▼
+                                    </button>
+                                </div>
+                                {showDashboardDropdown && (
+                                    <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '10px', minWidth: '250px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+                                        <div className="menu-item" style={{ marginBottom: '8px', padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
+                                        {onStartSlideshow && !onStopSlideshow && (
+                                            <div className="menu-item" style={{ padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { onStartSlideshow(); setShowDashboardDropdown(false); }}>Start Slideshow ({settings?.slideshowInterval || 10}s)</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
 
-                    <div style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex' }}>
-                            <button className="button-secondary" onClick={() => onShowTasks()}>
-                                Tasks View
-                            </button>
-                            <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                ▼
-                            </button>
-                        </div>
-                        {showTaskDropdown && (
-                            <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
-                                <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ display: 'flex' }}>
+                                    <button className="button-secondary" onClick={() => onShowTasks()}>
+                                        Tasks View
+                                    </button>
+                                    <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
+                                        ▼
+                                    </button>
+                                </div>
+                                {showTaskDropdown && (
+                                    <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                        <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
 
-                    <button className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
-                    <button className="button-secondary" onClick={onLogout}>Logout</button>
+                            <button className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
+                            <button className="button-secondary" onClick={onLogout}>Logout</button>
+                        </>
+                    )}
                 </div>
             </div>
             {/* Click Outside to Close Dropdowns */}

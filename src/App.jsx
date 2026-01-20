@@ -20,6 +20,8 @@ const App = () => {
     const [importConfig, setImportConfig] = useState(null); // NEW: Config to be imported
 
     const [previousView, setPreviousView] = useState(null);
+    const [slideshowActive, setSlideshowActive] = useState(false);
+    const [slideshowView, setSlideshowView] = useState(null); // 'dashboard' or 'map'
 
     // Check for token in URL or existing session
     useEffect(() => {
@@ -81,6 +83,29 @@ const App = () => {
             setView('settings');
         }
     }, [view]);
+
+    // Slideshow Effect
+    useEffect(() => {
+        let interval;
+        if (slideshowActive) {
+            const time = (settings?.slideshowInterval || 10) * 1000;
+            interval = setInterval(() => {
+                setSlideshowView(prev => prev === 'dashboard' ? 'map' : 'dashboard');
+            }, time);
+        }
+        return () => clearInterval(interval);
+    }, [slideshowActive, settings]);
+
+    const handleStartSlideshow = () => {
+        setSlideshowActive(true);
+        // Start with the current view if applicable, else dashboard
+        setSlideshowView(view === 'map' ? 'map' : 'dashboard');
+    };
+
+    const handleStopSlideshow = () => {
+        setSlideshowActive(false);
+        setSlideshowView(null);
+    };
 
     const handleLoginSuccess = async (token) => {
         setLoading(true);
@@ -272,6 +297,13 @@ const App = () => {
                     setView('tasks');
                     window.history.pushState({}, '', '/tasks');
                 }}
+                onShowDashboard={() => {
+                    setView('dashboard');
+                    window.history.pushState({}, '', '/dashboard');
+                }}
+                slideshowContent={slideshowActive ? slideshowView : null}
+                onStartSlideshow={handleStartSlideshow}
+                onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
             />
         );
     }
@@ -344,6 +376,9 @@ const App = () => {
                     setView('map');
                     window.history.pushState({}, '', '/map');
                 }}
+                slideshowContent={slideshowActive ? slideshowView : null}
+                onStartSlideshow={handleStartSlideshow}
+                onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
             />
         );
     }

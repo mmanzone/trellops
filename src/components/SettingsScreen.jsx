@@ -111,6 +111,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [expandedSection, setExpandedSection] = useState(viewMode === 'tasks' ? 'tasks' : 'board');
 
     // Force expanded section based on viewMode
+
+
     useEffect(() => {
         if (viewMode === 'tasks') {
             setExpandedSection('tasks');
@@ -118,6 +120,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setExpandedSection('board');
         }
     }, [viewMode]);
+
 
     const [showShareModal, setShowShareModal] = useState(false);
     const [pendingImport, setPendingImport] = useState(null);
@@ -146,6 +149,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [enableStats, setEnableStats] = useState(false);
     const [statsShowArchived, setStatsShowArchived] = useState(true);
     const [statsIncludedLists, setStatsIncludedLists] = useState([]);
+
+    // Slideshow Settings
+    const [slideshowInterval, setSlideshowInterval] = useState(10);
     useEffect(() => {
         if (expandedSection === 'tasks' && boards.length > 0) {
             if (userOrgs.length === 0 && user && user.token) {
@@ -420,6 +426,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             setStatsShowArchived(statsSettings.includeArchived !== undefined ? statsSettings.includeArchived : true);
             setStatsIncludedLists(statsSettings.includedLists || []);
 
+            // Slideshow
+            if (userSettings?.slideshowInterval) setSlideshowInterval(userSettings.slideshowInterval);
+            else setSlideshowInterval(10);
+
 
         } catch (e) {
             console.warn("Error loading board settings", e);
@@ -596,6 +606,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
 
     const handleSave = () => {
+        // VALIDATION: Slideshow Interval
+        if (slideshowInterval < 10) {
+            alert("Slideshow interval must be at least 10 seconds.");
+            return;
+        }
+
         // VALIDATION: Refresh Interval 
         if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
             setError("Refresh interval must be at least 15 seconds.");
@@ -667,6 +683,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 enableTaskView,
                 taskViewWorkspaces,
                 taskViewRefreshInterval,
+                slideshowInterval: parseInt(slideshowInterval) || 10,
                 statistics: {
                     enabled: enableStats,
                     showArchived: statsShowArchived,
@@ -971,16 +988,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             Map View Settings
                         </button>
                         <button
-                            className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('other')}
-                        >
-                            Other Board settings
-                        </button>
-                        <button
                             className={`tab-button ${activeTab === 'statistics' ? 'active' : ''}`}
                             onClick={() => setActiveTab('statistics')}
                         >
                             Statistics Settings
+                        </button>
+                        <button
+                            className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('other')}
+                        >
+                            Other Board settings
                         </button>
                     </div>
                 </>
@@ -1651,6 +1668,25 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <option value="hours">Hours</option>
                                                 </select>
                                             </div>
+                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>How often the data is retrieved from Trello.</p>
+                                        </div>
+                                        <div>
+                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Slideshow Interval (Seconds)</label>
+                                            <input
+                                                type="number"
+                                                min="10"
+                                                value={slideshowInterval}
+                                                onChange={e => {
+                                                    setSlideshowInterval(e.target.value);
+                                                }}
+                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                            />
+                                            {slideshowInterval < 10 && (
+                                                <span style={{ color: 'red', marginLeft: '10px', fontSize: '0.9em' }}>Minimum 10 seconds required</span>
+                                            )}
+                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
+                                                Slideshow mode will cycle between the Dashboard and Map views at regular intervals, minimum 10 seconds. Start the slideshow using the arrows next to the Dashboard or Map button in the footer.
+                                            </p>
                                         </div>
                                         <div>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
