@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
     REFRESH_INTERVAL: 'dashboardRefreshInterval_',
     IGNORE_TEMPLATE_CARDS: 'dashboardIgnoreTemplateCards_',
     IGNORE_COMPLETED_CARDS: 'dashboardIgnoreCompletedCards_',
+    IGNORE_NO_DESC_CARDS: 'IGNORE_NO_DESC_CARDS_', // Matches legacy/SettingsScreen value
     RANDOM_COLORS_CACHE: 'dashboardRandomColors'
 };
 

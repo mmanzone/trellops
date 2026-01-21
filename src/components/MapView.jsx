@@ -426,6 +426,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const boardName = (settings && settings.boardName) ? settings.boardName : (storedSettings.boardName || 'Trello Board');
     const mapGeocodeMode = (settings && settings.mapGeocodeMode) || storedSettings?.mapGeocodeMode || 'store';
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+    const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+    const ignoreNoDescCards = localStorage.getItem(STORAGE_KEYS.IGNORE_NO_DESC_CARDS + boardId) === 'true';
+
     const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
     const enableCardMove = localStorage.getItem('enableCardMove_' + boardId) === 'true';
     const enableStreetView = localStorage.getItem('enableStreetView_' + boardId) === 'true';
@@ -870,6 +873,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         const validCards = cards.filter(c => c.coordinates && c.coordinates.lat);
 
         const visibleCards = validCards.filter(c => {
+            // Global Settings Filters
+            if (ignoreTemplateCards && c.isTemplate) return false;
+            if (ignoreCompletedCards && c.dueComplete) return false;
+            if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) return false;
+
             if (!visibleListIds.has(c.idList)) return false;
             const block = blocks.find(b => b.listIds.includes(c.idList));
             if (!block) return true;

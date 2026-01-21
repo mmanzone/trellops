@@ -640,7 +640,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 localStorage.setItem(STORAGE_KEYS.CLOCK_SETTING + selectedBoardId, showClock ? 'true' : 'false');
                 localStorage.setItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + selectedBoardId, ignoreTemplateCards ? 'true' : 'false');
                 localStorage.setItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + selectedBoardId, ignoreCompletedCards ? 'true' : 'false');
-                localStorage.setItem('IGNORE_NO_DESC_CARDS_' + selectedBoardId, ignoreNoDescCards ? 'true' : 'false');
+                localStorage.setItem(STORAGE_KEYS.IGNORE_NO_DESC_CARDS + selectedBoardId, ignoreNoDescCards ? 'true' : 'false');
 
                 // 4. Save Map Config
                 localStorage.setItem(`TRELLO_MARKER_RULES_${selectedBoardId}`, JSON.stringify(markerRules.filter(r => r.labelId))); // Clean empty rules
