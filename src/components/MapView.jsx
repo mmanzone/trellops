@@ -1200,9 +1200,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                     <option value="terrain">Terrain</option>
                                     <option value="dark">Dark Mode</option>
                                 </select>
-                                <button className="settings-button" onClick={() => toggleTheme()}>
-                                    Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
-                                </button>
                             </div>
 
                             {/* Section 2: Actions */}
