@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchAllTasksData } from '../api/trello';
 import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
+import LabelFilter from './common/LabelFilter';
 import '../styles/index.css';
 import '../styles/map.css';
 import { formatDynamicCountdown } from '../utils/helpers';
