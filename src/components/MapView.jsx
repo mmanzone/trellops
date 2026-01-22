@@ -933,6 +933,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         let droppedByGlobal = 0;
         let droppedByList = 0;
         let droppedByRule = 0;
+        let droppedByFirstCard = 0;
+
+        // Calculate Min Pos (First Card) for filter consistency with Queue
+        const minPosByListRender = {};
+        cards.forEach(c => {
+            if (minPosByListRender[c.idList] === undefined || c.pos < minPosByListRender[c.idList]) {
+                minPosByListRender[c.idList] = c.pos;
+            }
+        });
 
         const allPotentialCards = cards.filter(c => {
             // Global Settings Filters
@@ -947,6 +956,13 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             }
             const block = blocks.find(b => b.listIds.includes(c.idList));
             if (!block) return true; // Unassigned lists
+
+            // Ignore First Card Check
+            if (block.ignoreFirstCard && c.pos === minPosByListRender[c.idList]) {
+                droppedByFirstCard++;
+                return false;
+            }
+
             // Rules check? (Technically rules are for markers, but filtering usually applies if rules are unchecked?)
             // If I uncheck "Red", cards that would be Red are hidden.
             const { activeRuleIds } = getMarkerConfig(c, block, markerRules);
