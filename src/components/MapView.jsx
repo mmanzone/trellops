@@ -635,6 +635,14 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
             const ignoreNoDescCards = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true';
 
+            // Calculate Absolute First Card (Min Pos) Per List - BEFORE filtering
+            const absoluteMinPosByList = {};
+            cardsData.forEach(c => {
+                if (absoluteMinPosByList[c.idList] === undefined || c.pos < absoluteMinPosByList[c.idList]) {
+                    absoluteMinPosByList[c.idList] = c.pos;
+                }
+            });
+
             const processedCards = cardsData.filter(c => {
                 if (ignoreTemplateCards && c.isTemplate) return false;
                 if (ignoreCompletedCards && c.dueComplete) return false;
@@ -653,7 +661,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     }
                 }
                 if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
-                return { ...c, coordinates: coords };
+                const isFirstInList = c.pos === absoluteMinPosByList[c.idList];
+                return { ...c, coordinates: coords, isFirstInList };
             });
             setCards(processedCards);
         } catch (e) {
@@ -673,14 +682,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     useEffect(() => {
         if (!cards.length) return;
 
-        // Identify first cards in each list (min pos)
-        const minPosByList = {};
-        cards.forEach(c => {
-            if (minPosByList[c.idList] === undefined || c.pos < minPosByList[c.idList]) {
-                minPosByList[c.idList] = c.pos;
-            }
-        });
-
         const missingAddressCards = [];
 
         const newQueue = cards.filter(c => {
@@ -689,7 +690,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             if (!block || block.includeOnMap === false) return false;
 
             // 2. Ignore first card logic
-            if (block.ignoreFirstCard && c.pos === minPosByList[c.idList]) return false;
+            if (block.ignoreFirstCard && c.isFirstInList) return false;
 
             // 3. Ignore if description is empty (Explicitly for Geocoding)
             // If empty desc, we can't parse address. Should we flag error?
@@ -935,13 +936,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         let droppedByRule = 0;
         let droppedByFirstCard = 0;
 
-        // Calculate Min Pos (First Card) for filter consistency with Queue
-        const minPosByListRender = {};
-        cards.forEach(c => {
-            if (minPosByListRender[c.idList] === undefined || c.pos < minPosByListRender[c.idList]) {
-                minPosByListRender[c.idList] = c.pos;
-            }
-        });
+
 
         const allPotentialCards = cards.filter(c => {
             // Global Settings Filters
@@ -958,7 +953,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             if (!block) return true; // Unassigned lists
 
             // Ignore First Card Check
-            if (block.ignoreFirstCard && c.pos === minPosByListRender[c.idList]) {
+            if (block.ignoreFirstCard && c.isFirstInList) {
                 droppedByFirstCard++;
                 return false;
             }
