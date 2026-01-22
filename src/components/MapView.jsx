@@ -910,6 +910,16 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         // 2. GET MAPPED CARDS (Must have coords)
         const validCards = allPotentialCards.filter(c => c.coordinates && c.coordinates.lat);
 
+        // DEBUG: Log Missing Cards
+        const missingCards = allPotentialCards.filter(c => !c.coordinates || !c.coordinates.lat);
+        if (missingCards.length > 0) {
+            console.log(`[MapView Debug] Missing Coordinates for ${missingCards.length} cards:`);
+            missingCards.forEach(c => {
+                const parsed = parseAddressFromDescription(c.desc);
+                console.log(` - "${c.name}" (ID: ${c.id}) | Desc len: ${c.desc ? c.desc.length : 0} | Parsed Addr: "${parsed}" | Queue Status: ${geocodingQueue.some(q => q.id === c.id) ? 'In Queue' : 'Not in Queue'} | Error Status: ${errors.some(e => e.cardId === c.id) ? 'Has Error' : 'No Error'}`);
+            });
+        }
+
         setVisibleMarkersCount(validCards.length);
 
         const visibleCards = validCards; // Logic already applied above
