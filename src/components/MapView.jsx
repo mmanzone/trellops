@@ -1229,6 +1229,17 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                     </>
                                 )}
                             </div>
+                            {/* Theme Toggle at Bottom */}
+                            <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                <button
+                                    className="theme-toggle-button"
+                                    onClick={() => toggleTheme()}
+                                    title="Toggle Theme"
+                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
+                                >
+                                    {theme === 'dark' ? '☀️' : '🌙'}
+                                </button>
+                            </div>
                         </HamburgerMenu>
                     </div>
                 </div>

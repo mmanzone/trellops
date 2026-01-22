@@ -349,9 +349,31 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                     {/* MOBILE HAMBURGER MENU */}
                     <div className="mobile-only" style={{ marginLeft: '5px' }}>
                         <HamburgerMenu>
+                            {/* Section 1: Filters (Moved before Actions) */}
+                            <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+                                <strong>Filters</strong>
+                                <LabelFilter /* Reusing helper or manual checkboxes */
+                                /* If LabelFilter is not available here, use manual list if intended, but the component has specific filters: Assigned/Member/Completed */
+                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', padding: '0 10px', width: '100%', boxSizing: 'border-box' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em', width: '100%' }}>
+                                        <input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.2)' }} />
+                                        Assigned to Me
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em', width: '100%' }}>
+                                        <input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.2)' }} />
+                                        Member
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em', width: '100%' }}>
+                                        <input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.2)' }} />
+                                        Show Completed
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Section 2: Actions */}
                             <div className="hamburger-section">
                                 <strong>Actions</strong>
-
                                 <button className="menu-link" onClick={() => onMainView ? onMainView() : onClose()}>
                                     Dashboard View
                                 </button>
@@ -363,13 +385,18 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                 <button className="menu-link" onClick={onLogout}>
                                     Logout
                                 </button>
+                            </div>
 
-                                <div style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
-                                    <strong>Filters</strong>
-                                    <label style={{ display: 'flex', padding: '5px 0' }}><input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '8px' }} /> Assigned to Me</label>
-                                    <label style={{ display: 'flex', padding: '5px 0' }}><input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '8px' }} /> Member</label>
-                                    <label style={{ display: 'flex', padding: '5px 0' }}><input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '8px' }} /> Show Completed</label>
-                                </div>
+                            {/* Theme Toggle at Bottom */}
+                            <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                <button
+                                    className="theme-toggle-button"
+                                    onClick={() => toggleTheme()}
+                                    title="Toggle Theme"
+                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
+                                >
+                                    {theme === 'dark' ? '☀️' : '🌙'}
+                                </button>
                             </div>
                         </HamburgerMenu>
                     </div>

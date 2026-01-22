@@ -368,24 +368,35 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     {/* MOBILE HAMBURGER MENU */}
                     <div className="mobile-only">
                         <HamburgerMenu>
-                            {/* Section 1: Filters */}
+                            {/* FILTERS */}
                             {!onStopSlideshow && (
-                                <div className="hamburger-section">
+                                <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
                                     <strong>Filters</strong>
-                                    <LabelFilter /* Helper: Might need styling for mobile or simplified view */
-                                        labels={boardLabels}
-                                        selectedLabelIds={selectedLabelIds}
-                                        onChange={setSelectedLabelIds}
-                                    />
-                                    <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ width: '100%', margin: 0 }}>
-                                        {Object.keys(TIME_FILTERS).map(key => (
-                                            <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
-                                        ))}
-                                    </select>
+                                    {/* Label Filter: Left Aligned & Reduced Width */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', alignItems: 'center' }}>
+                                        <div style={{ width: '85%', textAlign: 'left' }}>
+                                            <LabelFilter
+                                                labels={boardLabels}
+                                                selectedLabelIds={selectedLabelIds}
+                                                onChange={setSelectedLabelIds}
+                                            />
+                                        </div>
+
+                                        <select
+                                            value={timeFilter}
+                                            onChange={(e) => setTimeFilter(e.target.value)}
+                                            className="time-filter-select"
+                                            style={{ width: '85%', margin: 0 }}
+                                        >
+                                            {Object.keys(TIME_FILTERS).map(key => (
+                                                <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             )}
 
-                            {/* Section 2: Actions */}
+                            {/* ACTIONS */}
                             <div className="hamburger-section">
                                 <strong>Actions</strong>
 
@@ -401,11 +412,10 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                     </button>
                                 )}
 
-                                {settings?.enableTaskView && (
-                                    <button className="menu-link" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
-                                        Tasks View
-                                    </button>
-                                )}
+                                {/* Always show Task View Link */}
+                                <button className="menu-link" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
+                                    Tasks View
+                                </button>
 
                                 <button className="menu-link" onClick={onShowSettings}>
                                     Settings
@@ -413,6 +423,18 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                                 <button className="menu-link" onClick={onLogout}>
                                     Logout
+                                </button>
+                            </div>
+
+                            {/* Theme Toggle at Bottom */}
+                            <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                <button
+                                    className="theme-toggle-button"
+                                    onClick={() => toggleTheme()}
+                                    title="Toggle Theme"
+                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
+                                >
+                                    {theme === 'dark' ? '☀️' : '🌙'}
                                 </button>
                             </div>
                         </HamburgerMenu>
@@ -655,7 +677,7 @@ const DashboardContent = ({
                                         <div className="card-count">{item.count}</div>
                                         <div className="list-name">{item.name}</div>
                                         {item.firstCardName && (
-                                            <div className="card-description" title={item.firstCardName}>{item.firstCardName}</div>
+                                            <div className="card-description" title={item.firstCardName} style={{ fontSize: '0.5em', lineHeight: '1.2' }}>{item.firstCardName}</div>
                                         )}
                                     </div>
                                 ))}
