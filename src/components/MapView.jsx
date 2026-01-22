@@ -1309,9 +1309,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         </button>
                     </div>
                 )}
-                <div className="map-footer-right desktop-only">
+                <div className="map-footer-right">
                     {!onStopSlideshow && (
-                        <span style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
+                        <span className="desktop-only" style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
                             {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}
                         </span>
                     )}
@@ -1321,7 +1321,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     </button>
 
                     {!onStopSlideshow && (
-                        <>
+                        <div className="desktop-only" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                             <div style={{ position: 'relative' }}>
                                 <div style={{ display: 'flex' }}>
                                     <button className="button-secondary" onClick={() => onClose()}>
@@ -1359,7 +1359,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
                             <button className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
                             <button className="button-secondary" onClick={onLogout}>Logout</button>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>

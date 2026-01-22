@@ -385,42 +385,33 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                 </div>
                             )}
 
-                            {/* Section 2: Actions (Footer Items + Stats + Theme) */}
+                            {/* Section 2: Actions */}
                             <div className="hamburger-section">
                                 <strong>Actions</strong>
-                                <button className="settings-button" onClick={() => toggleTheme()}>
-                                    Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
-                                </button>
 
                                 {settings?.statistics?.enabled && (
-                                    <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))}>
+                                    <button className="menu-link" onClick={onGoToStats || (() => window.open('/stats', '_self'))}>
                                         Statistics View
                                     </button>
                                 )}
 
-                                <button className="refresh-button" onClick={handleRefresh}>
-                                    Refresh Now {countdown > 0 ? `(${formatDynamicCountdown(countdown)})` : ''}
-                                </button>
-
-                                {/* Map Link */}
                                 {enableMapView && (
-                                    <button className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
+                                    <button className="menu-link" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
                                         Map View
                                     </button>
                                 )}
 
-                                {/* Tasks Link */}
                                 {settings?.enableTaskView && (
-                                    <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
+                                    <button className="menu-link" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
                                         Tasks View
                                     </button>
                                 )}
 
-                                <button className="settings-button" onClick={onShowSettings}>
+                                <button className="menu-link" onClick={onShowSettings}>
                                     Settings
                                 </button>
 
-                                <button className="logout-button" onClick={onLogout}>
+                                <button className="menu-link" onClick={onLogout}>
                                     Logout
                                 </button>
                             </div>
@@ -553,7 +544,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     </button>
 
                     {!onStopSlideshow && (
-                        <>
+                        <div className="desktop-only" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                             {enableMapView && (
                                 <div style={{ position: 'relative' }}>
                                     <div style={{ display: 'flex' }}>
@@ -595,7 +586,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                             <button className="button-secondary" onClick={onShowSettings}>Settings</button>
                             <button className="button-secondary" onClick={onLogout}>Log Out</button>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>

@@ -818,31 +818,34 @@ input:checked+.slider:before {
 
     .dashboard-grid {
         /* Mobile Portrait: 2 Columns */
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
-}
-
-@media (min-width: 481px) and (max-width: 1024px) and (orientation: landscape) {
-    .dashboard-grid {
-        /* Tablet/Mobile Landscape: 4 Columns */
+        /* User Requirement: 4 columns on mobile too */
         grid-template-columns: repeat(4, 1fr);
-        gap: 15px;
+        gap: 5px;
+        /* Tight gap */
     }
-}
 
+    /* Single Tile Expansion */
+    .dashboard-grid>.dashboard-tile:only-child {
+        grid-column: 1 / -1;
+        /* Span all columns */
+    }
 
-@media (max-width: 768px) {
     .dashboard-tile {
-        min-height: 140px;
+        min-height: 80px;
+        /* Small tiles */
+        padding: 5px;
     }
 
     .card-count {
-        font-size: 3.5em;
+        font-size: 1.8em;
+        /* Small font */
     }
 
     .list-name {
-        font-size: 1em;
+        font-size: 0.75em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* Form and settings responsive */
@@ -897,6 +900,79 @@ input:checked+.slider:before {
 
     h3 {
         font-size: 1.2em;
+    }
+}
+
+/* Header Filters Compact Mode */
+.time-filter-select {
+    padding: 6px 10px;
+    font-size: 0.9em;
+    max-width: 120px;
+    text-overflow: ellipsis;
+}
+
+/* Common Menu Link Style (Hamburger) */
+.menu-link {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 10px 0;
+    font-size: 1.05em;
+    color: var(--text-color);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    text-decoration: none;
+}
+
+.menu-link:last-child {
+    border-bottom: none;
+}
+
+.menu-link:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    /* Subtle hover */
+    /* text-decoration: underline; Optional */
+}
+
+/* Hamburger Section Vertical Stack */
+.hamburger-section {
+    display: flex;
+    flex-direction: column;
+    /* gap: 5px; handled by padding in link */
+}
+
+/* Desktop Only / Mobile Only Strict Visibility */
+.mobile-only {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block !important;
+    }
+
+    .desktop-only {
+        display: none !important;
+    }
+
+    /* Force Header Filters to fit */
+    .time-filter-select {
+        max-width: 80px;
+        /* Force shrinking */
+        padding: 4px;
+        font-size: 0.8em;
+    }
+}
+
+@media (max-width: 600px) {
+    .time-filter-select {
+        max-width: 70px;
+    }
+
+    .map-header h1 {
+        font-size: 0.95em;
     }
 }
 
