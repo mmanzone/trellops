@@ -663,6 +663,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             }
         });
 
+        const missingAddressCards = [];
+
         const newQueue = cards.filter(c => {
             // 1. Check if card belongs to a block allowed on map
             const block = blocks.find(b => b.listIds.includes(c.idList));
@@ -672,7 +674,19 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             if (block.ignoreFirstCard && c.pos === minPosByList[c.idList]) return false;
 
             // 3. Ignore if description is empty (Explicitly for Geocoding)
-            if (!c.desc || !c.desc.trim()) return false;
+            // If empty desc, we can't parse address. Should we flag error?
+            // Usually empty desc means "no address intent". Let's skip error for purely empty desc?
+            // User request implies they want to match Dashboard count.
+            // If Dashboard counts empty desc cards (unless filtered), we should probably flag them too?
+            // But 'ignoreNoDescCards' handles that globally.
+            // If passed global filter, it implies it SHOULD be mapped.
+            if (!c.desc || !c.desc.trim()) {
+                // If we are here, it means 'ignoreNoDescCards' is FALSE.
+                // So user wants to see it. But we can't map it.
+                // Add to missing?
+                missingAddressCards.push({ cardId: c.id, cardUrl: c.shortUrl, failedAddress: "No description found" });
+                return false;
+            }
 
             // 4. Find cards WITHOUT coordinates
             const hasCoords = c.coordinates && c.coordinates.lat;
@@ -680,11 +694,30 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             // 5. ... but WITH a potential address in description
             const address = parseAddressFromDescription(c.desc);
-            return !!address;
+            if (!address) {
+                missingAddressCards.push({ cardId: c.id, cardUrl: c.shortUrl, failedAddress: "No valid address found" });
+                return false;
+            }
+            return true;
         });
 
         if (newQueue.length > 0) {
             setGeocodingQueue(newQueue);
+        }
+
+        // Add missing address cards to errors if not already present
+        if (missingAddressCards.length > 0) {
+            setErrors(prev => {
+                const newErrors = [...prev];
+                let changed = false;
+                missingAddressCards.forEach(m => {
+                    if (!newErrors.some(e => e.cardId === m.cardId)) {
+                        newErrors.push(m);
+                        changed = true;
+                    }
+                });
+                return changed ? newErrors : prev;
+            });
         }
     }, [cards, blocks]);
 
