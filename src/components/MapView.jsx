@@ -878,20 +878,32 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         const map = googleMapRef.current;
 
         // 1. FILTER ALL CARDS (Regardless of Coords)
+        let droppedByGlobal = 0;
+        let droppedByList = 0;
+        let droppedByRule = 0;
+
         const allPotentialCards = cards.filter(c => {
             // Global Settings Filters
-            if (ignoreTemplateCards && c.isTemplate) return false;
-            if (ignoreCompletedCards && c.dueComplete) return false;
-            if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) return false;
+            if (ignoreTemplateCards && c.isTemplate) { droppedByGlobal++; return false; }
+            if (ignoreCompletedCards && c.dueComplete) { droppedByGlobal++; return false; }
+            if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) { droppedByGlobal++; return false; }
 
-            if (!visibleListIds.has(c.idList)) return false;
+            if (!visibleListIds.has(c.idList)) {
+                droppedByList++;
+                // console.log(`Dropped by List: ${c.name} (${c.idList})`);
+                return false;
+            }
             const block = blocks.find(b => b.listIds.includes(c.idList));
             if (!block) return true; // Unassigned lists
             // Rules check? (Technically rules are for markers, but filtering usually applies if rules are unchecked?)
             // If I uncheck "Red", cards that would be Red are hidden.
             const { activeRuleIds } = getMarkerConfig(c, block, markerRules);
-            return [...activeRuleIds].some(id => visibleRuleIds.has(id));
+            const isVisibleRule = [...activeRuleIds].some(id => visibleRuleIds.has(id));
+            if (!isVisibleRule) droppedByRule++;
+            return isVisibleRule;
         });
+
+        console.log(`[MapView Debug] Total: ${cards.length} | Potential: ${allPotentialCards.length} | Dropped: Global=${droppedByGlobal}, List=${droppedByList}, Rule=${droppedByRule}`);
 
         setTotalFilteredCards(allPotentialCards.length);
 
