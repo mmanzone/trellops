@@ -232,20 +232,38 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
             } else alert("Failed to get details for this location.");
         });
     };
+
+    // Truncate description for display
+    const descriptionPreview = error.cardDesc
+        ? (error.cardDesc.length > 100 ? error.cardDesc.substring(0, 100) + '...' : error.cardDesc)
+        : 'No description';
+
     return (
-        <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', width: '350px', flexDirection: 'column', alignItems: 'flex-start', padding: '12px', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', marginBottom: '10px', animation: 'slideIn 0.3s ease-out' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
-                    {error.cardUrl && <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.85em', textDecoration: 'underline' }}>View Card</a>}
+        <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', width: '350px', flexDirection: 'column', alignItems: 'flex-start', padding: '12px', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', marginBottom: '10px', animation: 'slideIn 0.3s ease-out', pointerEvents: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ color: '#c92a2a', fontWeight: 'bold', fontSize: '0.95em' }}>Geocoding Error</span>
+                    {error.cardUrl ? (
+                        <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontWeight: 'bold', textDecoration: 'none', fontSize: '1em' }}>
+                            {error.cardName || 'View Card'}
+                        </a>
+                    ) : (
+                        <span style={{ fontWeight: 'bold' }}>{error.cardName || 'Unknown Card'}</span>
+                    )}
                 </div>
-                <button onClick={() => onDismiss(error.cardId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: '0 4px', color: '#666' }}>&times;</button>
+                <button onClick={() => onDismiss(error.cardId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5em', lineHeight: '1', color: '#888' }}>&times;</button>
             </div>
-            <div style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>Failed: {error.failedAddress}</div>
+
+            <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.03)', padding: '6px', borderRadius: '4px', width: '100%', marginTop: '4px' }}>
+                {descriptionPreview}
+            </div>
+
+            <div style={{ fontSize: '0.9em', color: '#c92a2a', marginTop: '4px' }}>Failed Address: {error.failedAddress}</div>
+
             <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
                 <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Manual Fix (Search):</label>
                 <div style={{ position: 'relative' }}>
-                    <input type="text" value={manualAddress} onChange={handleManualAddressChange} placeholder="Google Maps Search..." style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    <input type="text" value={manualAddress} onChange={handleManualAddressChange} placeholder="Search address..." style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }} />
                     {searchResults.length > 0 && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 3000, background: 'white', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', maxHeight: '150px', overflowY: 'auto', color: 'black' }}>
                             {searchResults.map((p) => (
@@ -426,6 +444,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const boardName = (settings && settings.boardName) ? settings.boardName : (storedSettings.boardName || 'Trello Board');
     const mapGeocodeMode = (settings && settings.mapGeocodeMode) || storedSettings?.mapGeocodeMode || 'store';
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
+    const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
+    const ignoreNoDescCards = localStorage.getItem(STORAGE_KEYS.IGNORE_NO_DESC_CARDS + boardId) === 'true';
+
     const updateTrelloCoordinates = localStorage.getItem('updateTrelloCoordinates_' + boardId) === 'true';
     const enableCardMove = localStorage.getItem('enableCardMove_' + boardId) === 'true';
     const enableStreetView = localStorage.getItem('enableStreetView_' + boardId) === 'true';
@@ -614,6 +635,14 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
             const ignoreNoDescCards = localStorage.getItem('IGNORE_NO_DESC_CARDS_' + boardId) === 'true';
 
+            // Calculate Absolute First Card (Min Pos) Per List - BEFORE filtering
+            const absoluteMinPosByList = {};
+            cardsData.forEach(c => {
+                if (absoluteMinPosByList[c.idList] === undefined || c.pos < absoluteMinPosByList[c.idList]) {
+                    absoluteMinPosByList[c.idList] = c.pos;
+                }
+            });
+
             const processedCards = cardsData.filter(c => {
                 if (ignoreTemplateCards && c.isTemplate) return false;
                 if (ignoreCompletedCards && c.dueComplete) return false;
@@ -632,7 +661,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     }
                 }
                 if ((!coords || !coords.lat) && cache[c.id]) coords = cache[c.id];
-                return { ...c, coordinates: coords };
+                const isFirstInList = c.pos === absoluteMinPosByList[c.idList];
+                return { ...c, coordinates: coords, isFirstInList };
             });
             setCards(processedCards);
         } catch (e) {
@@ -652,13 +682,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     useEffect(() => {
         if (!cards.length) return;
 
-        // Identify first cards in each list (min pos)
-        const minPosByList = {};
-        cards.forEach(c => {
-            if (minPosByList[c.idList] === undefined || c.pos < minPosByList[c.idList]) {
-                minPosByList[c.idList] = c.pos;
-            }
-        });
+        const missingAddressCards = [];
 
         const newQueue = cards.filter(c => {
             // 1. Check if card belongs to a block allowed on map
@@ -666,10 +690,22 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             if (!block || block.includeOnMap === false) return false;
 
             // 2. Ignore first card logic
-            if (block.ignoreFirstCard && c.pos === minPosByList[c.idList]) return false;
+            if (block.ignoreFirstCard && c.isFirstInList) return false;
 
             // 3. Ignore if description is empty (Explicitly for Geocoding)
-            if (!c.desc || !c.desc.trim()) return false;
+            // If empty desc, we can't parse address. Should we flag error?
+            // Usually empty desc means "no address intent". Let's skip error for purely empty desc?
+            // User request implies they want to match Dashboard count.
+            // If Dashboard counts empty desc cards (unless filtered), we should probably flag them too?
+            // But 'ignoreNoDescCards' handles that globally.
+            // If passed global filter, it implies it SHOULD be mapped.
+            if (!c.desc || !c.desc.trim()) {
+                // If we are here, it means 'ignoreNoDescCards' is FALSE.
+                // So user wants to see it. But we can't map it.
+                // Add to missing?
+                missingAddressCards.push({ cardId: c.id, cardName: c.name, cardDesc: c.desc, cardUrl: c.shortUrl, failedAddress: "No description found" });
+                return false;
+            }
 
             // 4. Find cards WITHOUT coordinates
             const hasCoords = c.coordinates && c.coordinates.lat;
@@ -677,11 +713,30 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             // 5. ... but WITH a potential address in description
             const address = parseAddressFromDescription(c.desc);
-            return !!address;
+            if (!address) {
+                missingAddressCards.push({ cardId: c.id, cardName: c.name, cardDesc: c.desc, cardUrl: c.shortUrl, failedAddress: "No valid address found" });
+                return false;
+            }
+            return true;
         });
 
         if (newQueue.length > 0) {
             setGeocodingQueue(newQueue);
+        }
+
+        // Add missing address cards to errors if not already present
+        if (missingAddressCards.length > 0) {
+            setErrors(prev => {
+                const newErrors = [...prev];
+                let changed = false;
+                missingAddressCards.forEach(m => {
+                    if (!newErrors.some(e => e.cardId === m.cardId)) {
+                        newErrors.push(m);
+                        changed = true;
+                    }
+                });
+                return changed ? newErrors : prev;
+            });
         }
     }, [cards, blocks]);
 
@@ -705,8 +760,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             setStatus(statusText.length > 30 ? statusText.substring(0, 30) + '...' : statusText);
 
             if (geocoderRef.current) {
-                geocoderRef.current.geocode({ address: cleanAddress }, async (results, statusCode) => {
-                    if (statusCode === 'OK' && results[0]) {
+                geocoderRef.current.geocode({ address: cleanAddress }, async (results, status) => {
+                    if (status === 'OK' && results[0]) {
                         const loc = results[0].geometry.location;
                         const coords = { lat: loc.lat(), lng: loc.lng(), display_name: results[0].formatted_address };
 
@@ -729,10 +784,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         }
 
                     } else {
-                        if (statusCode === 'OVER_QUERY_LIMIT') {
+                        console.warn(`Geocoding failed for ${card.name}: ${status}`); // DEBUG
+                        if (status === 'OVER_QUERY_LIMIT') {
+                            setStatus(`Rate limited. Retrying in 2s...`);
                             await new Promise(r => setTimeout(r, 2000));
+                            // Force re-try by creating new reference to same queue
+                            setGeocodingQueue(prev => [...prev]);
+                            return; // EXIT HERE so we don't slice
                         } else {
-                            setErrors(prev => [...prev, { cardId: card.id, cardUrl: card.shortUrl, failedAddress: cleanAddress }]);
+                            setErrors(prev => [...prev, { cardId: card.id, cardName: card.name, cardDesc: card.desc, cardUrl: card.shortUrl, failedAddress: cleanAddress }]);
                         }
                     }
 
@@ -864,18 +924,68 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     // --- MARKERS RENDER ---
     const prevRefreshVersion = useRef(0);
+    const [totalFilteredCards, setTotalFilteredCards] = useState(0); // State for header
+
     useEffect(() => {
         if (!googleMapRef.current || !mapLoaded) return;
         const map = googleMapRef.current;
-        const validCards = cards.filter(c => c.coordinates && c.coordinates.lat);
 
-        const visibleCards = validCards.filter(c => {
-            if (!visibleListIds.has(c.idList)) return false;
+        // 1. FILTER ALL CARDS (Regardless of Coords)
+        let droppedByGlobal = 0;
+        let droppedByList = 0;
+        let droppedByRule = 0;
+        let droppedByFirstCard = 0;
+
+
+
+        const allPotentialCards = cards.filter(c => {
+            // Global Settings Filters
+            if (ignoreTemplateCards && c.isTemplate) { droppedByGlobal++; return false; }
+            if (ignoreCompletedCards && c.dueComplete) { droppedByGlobal++; return false; }
+            if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) { droppedByGlobal++; return false; }
+
+            if (!visibleListIds.has(c.idList)) {
+                droppedByList++;
+                // console.log(`Dropped by List: ${c.name} (${c.idList})`);
+                return false;
+            }
             const block = blocks.find(b => b.listIds.includes(c.idList));
-            if (!block) return true;
+            if (!block) return true; // Unassigned lists
+
+            // Ignore First Card Check
+            if (block.ignoreFirstCard && c.isFirstInList) {
+                droppedByFirstCard++;
+                return false;
+            }
+
+            // Rules check? (Technically rules are for markers, but filtering usually applies if rules are unchecked?)
+            // If I uncheck "Red", cards that would be Red are hidden.
             const { activeRuleIds } = getMarkerConfig(c, block, markerRules);
-            return [...activeRuleIds].some(id => visibleRuleIds.has(id));
+            const isVisibleRule = [...activeRuleIds].some(id => visibleRuleIds.has(id));
+            if (!isVisibleRule) droppedByRule++;
+            return isVisibleRule;
         });
+
+        console.log(`[MapView Debug] Total: ${cards.length} | Potential: ${allPotentialCards.length} | Dropped: Global=${droppedByGlobal}, List=${droppedByList}, Rule=${droppedByRule}`);
+
+        setTotalFilteredCards(allPotentialCards.length);
+
+        // 2. GET MAPPED CARDS (Must have coords)
+        const validCards = allPotentialCards.filter(c => c.coordinates && c.coordinates.lat);
+
+        // DEBUG: Log Missing Cards
+        const missingCards = allPotentialCards.filter(c => !c.coordinates || !c.coordinates.lat);
+        if (missingCards.length > 0) {
+            console.log(`[MapView Debug] Missing Coordinates for ${missingCards.length} cards:`);
+            missingCards.forEach(c => {
+                const parsed = parseAddressFromDescription(c.desc);
+                console.log(` - "${c.name}" (ID: ${c.id}) | Desc len: ${c.desc ? c.desc.length : 0} | Parsed Addr: "${parsed}" | Queue Status: ${geocodingQueue.some(q => q.id === c.id) ? 'In Queue' : 'Not in Queue'} | Error Status: ${errors.some(e => e.cardId === c.id) ? 'Has Error' : 'No Error'}`);
+            });
+        }
+
+        setVisibleMarkersCount(validCards.length);
+
+        const visibleCards = validCards; // Logic already applied above
 
         const newMarkers = {};
         visibleCards.forEach(c => {
@@ -1045,7 +1155,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         <>
                             {/* Card Count */}
                             <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                                {visibleMarkersCount} cards
+                                Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
                             </span>
 
                             {/* Base Layer */}
