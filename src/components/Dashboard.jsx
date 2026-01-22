@@ -416,11 +416,11 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                     </button>
                                 )}
 
-                                <button className="settings-button" onClick={() => setShowSettings(true)}>
+                                <button className="settings-button" onClick={onShowSettings}>
                                     Settings
                                 </button>
 
-                                <button className="logout-button" onClick={handleLogout}>
+                                <button className="logout-button" onClick={onLogout}>
                                     Logout
                                 </button>
                             </div>
