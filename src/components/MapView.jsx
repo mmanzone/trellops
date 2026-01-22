@@ -759,7 +759,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             setStatus(statusText.length > 30 ? statusText.substring(0, 30) + '...' : statusText);
 
             if (geocoderRef.current) {
-                geocoderRef.current.geocode({ address: cleanAddress }, async (results, statusCode) => {
+                geocoderRef.current.geocode({ address: cleanAddress }, async (results, status) => {
                     if (status === 'OK' && results[0]) {
                         const loc = results[0].geometry.location;
                         const coords = { lat: loc.lat(), lng: loc.lng(), display_name: results[0].formatted_address };
@@ -783,8 +783,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         }
 
                     } else {
-                        console.warn(`Geocoding failed for ${card.name}: ${statusCode}`); // DEBUG
-                        if (statusCode === 'OVER_QUERY_LIMIT') {
+                        console.warn(`Geocoding failed for ${card.name}: ${status}`); // DEBUG
+                        if (status === 'OVER_QUERY_LIMIT') {
                             setStatus(`Rate limited. Retrying in 2s...`);
                             await new Promise(r => setTimeout(r, 2000));
                             // Force re-try by creating new reference to same queue
