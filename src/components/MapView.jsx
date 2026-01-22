@@ -1155,6 +1155,12 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
                     {/* DESKTOP HEADER ACTIONS */}
                     <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '5px' }}>
+                            Mapped: {visibleMarkersCount} / {totalFilteredCards}
+                        </span>
+                        <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '5px' }}>
+                            Mapped: {visibleMarkersCount} / {totalFilteredCards}
+                        </span>
                         {!onStopSlideshow && (
                             <>
                                 {/* Base Layer */}

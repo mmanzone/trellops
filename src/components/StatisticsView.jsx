@@ -198,215 +198,223 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             try { window.Chart.register(window.ChartDataLabels); } catch (e) { }
         }
 
-        // ==========================
-        // 1. LINE CHART DATA
-        // ==========================
-        // Requirements: 
-        // - X-Axis: Time (buckets). 
-        // - Filter 1: Date Filter (Created Date Range).
-        // - Filter 2: Labels (apply selections to the line chart too).
-        // - Granularity: Day, Hour, Month, Cumulative Hour.
+        try {
 
-        // A. Filter Dataset first (Cross-filtering: Apply Label Filter to Line Chart)
-        const lineChartCards = cards.filter(matchesLabelFilter);
+            // ==========================
+            // 1. LINE CHART DATA
+            // ==========================
+            // Requirements: 
+            // - X-Axis: Time (buckets). 
+            // - Filter 1: Date Filter (Created Date Range).
+            // - Filter 2: Labels (apply selections to the line chart too).
+            // - Granularity: Day, Hour, Month, Cumulative Hour.
 
-        // B. Determine Range for Zero-Filling
-        // If "hour" or "day", we want to show 0s.
-        const range = getFilterRange(createdFilter);
+            // A. Filter Dataset first (Cross-filtering: Apply Label Filter to Line Chart)
+            const lineChartCards = cards.filter(matchesLabelFilter);
 
-        const bucketMap = new Map(); // key -> { created: 0, completed: 0, sortDate: ts }
+            // B. Determine Range for Zero-Filling
+            // If "hour" or "day", we want to show 0s.
+            const range = getFilterRange(createdFilter);
 
-        // Initialize Buckets for Zero-Filling if range exists
-        if (range && (granularity === 'hour' || granularity === 'day' || granularity === 'cumulative_hour')) {
-            let current = new Date(range.start);
-            const end = new Date(range.end);
+            const bucketMap = new Map(); // key -> { created: 0, completed: 0, sortDate: ts }
 
-            // Safety: Don't infinite loop if range is bad
-            if (current < end) {
-                while (current <= end) {
-                    const key = formatDateBucket(current, granularity);
-                    // For cumulative, key is just "10 AM".
-                    // We need a sort index. For cumulative, 0-23.
-                    // For others, timestamp.
-                    let sortDate = current.getTime();
-                    if (granularity === 'cumulative_hour') {
-                        sortDate = current.getHours();
+            // Initialize Buckets for Zero-Filling if range exists
+            if (range && (granularity === 'hour' || granularity === 'day' || granularity === 'cumulative_hour')) {
+                let current = new Date(range.start);
+                const end = new Date(range.end);
+
+                // Safety: Don't infinite loop if range is bad
+                if (current < end) {
+                    while (current <= end) {
+                        const key = formatDateBucket(current, granularity);
+                        // For cumulative, key is just "10 AM".
+                        // We need a sort index. For cumulative, 0-23.
+                        // For others, timestamp.
+                        let sortDate = current.getTime();
+                        if (granularity === 'cumulative_hour') {
+                            sortDate = current.getHours();
+                        }
+
+                        if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
+
+                        // Increment
+                        if (granularity === 'hour' || granularity === 'cumulative_hour') current.setHours(current.getHours() + 1);
+                        else current.setDate(current.getDate() + 1);
                     }
-
-                    if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
-
-                    // Increment
-                    if (granularity === 'hour' || granularity === 'cumulative_hour') current.setHours(current.getHours() + 1);
-                    else current.setDate(current.getDate() + 1);
                 }
-            }
-            // For cumulative hour, strictly ensure 0-23 buckets exist?
-            if (granularity === 'cumulative_hour') {
-                for (let h = 0; h < 24; h++) {
-                    const dateSim = new Date(); dateSim.setHours(h, 0, 0, 0);
-                    const key = formatDateBucket(dateSim, 'cumulative_hour');
-                    if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate: h });
-                }
-            }
-        }
-
-        // C. Process Created (using filtered cards)
-        // Only count if Created Date in filter
-        const validCreatedCards = lineChartCards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
-        validCreatedCards.forEach(c => {
-            const date = getCreationDate(c.id);
-            const key = formatDateBucket(date, granularity);
-
-            let sortDate = date.getTime();
-            if (granularity === 'cumulative_hour') sortDate = date.getHours();
-
-            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
-            bucketMap.get(key).created++;
-        });
-
-        // D. Process Completed
-        // Only count if Completed Date in filter (same filter)
-        const validCompletedCards = lineChartCards.filter(c => {
-            if (!c.dueComplete || !c.due) return false;
-            return isDateInFilter(new Date(c.due), createdFilter);
-        });
-
-        validCompletedCards.forEach(c => {
-            const date = new Date(c.due);
-            const key = formatDateBucket(date, granularity);
-
-            let sortDate = date.getTime();
-            if (granularity === 'cumulative_hour') sortDate = date.getHours();
-
-            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
-            bucketMap.get(key).completed++;
-        });
-
-        // Sort
-        const sortedKeys = Array.from(bucketMap.keys()).sort((a, b) => {
-            return bucketMap.get(a).sortDate - bucketMap.get(b).sortDate;
-        });
-
-        // Calculate Totals for Title
-        const totalCreated = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.created, 0);
-        const totalCompleted = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.completed, 0);
-
-
-
-
-
-        const ctxLine = lineChartRef.current.getContext('2d');
-        lineChartInstance.current = new window.Chart(ctxLine, {
-            type: 'line',
-            data: {
-                labels: sortedKeys,
-                datasets: [
-                    {
-                        label: `Created (${totalCreated})`,
-                        data: sortedKeys.map(k => bucketMap.get(k).created),
-                        borderColor: '#0079bf',
-                        backgroundColor: '#0079bf',
-                        tension: 0.1
-                    },
-                    {
-                        label: `Completed (${totalCompleted})`,
-                        data: sortedKeys.map(k => bucketMap.get(k).completed),
-                        borderColor: '#61bd4f',
-                        backgroundColor: '#61bd4f',
-                        tension: 0.1
+                // For cumulative hour, strictly ensure 0-23 buckets exist?
+                if (granularity === 'cumulative_hour') {
+                    for (let h = 0; h < 24; h++) {
+                        const dateSim = new Date(); dateSim.setHours(h, 0, 0, 0);
+                        const key = formatDateBucket(dateSim, 'cumulative_hour');
+                        if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate: h });
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'top' },
-                    title: {
-                        display: true,
-                        text: `${totalCreated} cards created / ${totalCompleted} Completed - ${filterLabelText}${labelInfo}`,
-                        font: { size: 16 }
-                    },
-                    datalabels: { display: false }
-                },
-                scales: {
-                    x: { title: { display: true, text: granularity.includes('hour') ? 'Hour' : 'Date' } },
-                    y: { title: { display: true, text: 'Count' }, beginAtZero: true }
                 }
             }
-        });
+
+            // C. Process Created (using filtered cards)
+            // Only count if Created Date in filter
+            const validCreatedCards = lineChartCards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
+            validCreatedCards.forEach(c => {
+                const date = getCreationDate(c.id);
+                const key = formatDateBucket(date, granularity);
+
+                let sortDate = date.getTime();
+                if (granularity === 'cumulative_hour') sortDate = date.getHours();
+
+                if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
+                bucketMap.get(key).created++;
+            });
+
+            // D. Process Completed
+            // Only count if Completed Date in filter (same filter)
+            const validCompletedCards = lineChartCards.filter(c => {
+                if (!c.dueComplete || !c.due) return false;
+                return isDateInFilter(new Date(c.due), createdFilter);
+            });
+
+            validCompletedCards.forEach(c => {
+                const date = new Date(c.due);
+                const key = formatDateBucket(date, granularity);
+
+                let sortDate = date.getTime();
+                if (granularity === 'cumulative_hour') sortDate = date.getHours();
+
+                if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
+                bucketMap.get(key).completed++;
+            });
+
+            // Sort
+            const sortedKeys = Array.from(bucketMap.keys()).sort((a, b) => {
+                return bucketMap.get(a).sortDate - bucketMap.get(b).sortDate;
+            });
+
+            // Calculate Totals for Title
+            const totalCreated = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.created, 0);
+            const totalCompleted = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.completed, 0);
 
 
-        // ==========================
-        // 2. PIE CHART (LABELS)
-        // ==========================
-        // Requirements:
-        // - Filter 1: Label Filters (Standard).
-        // - Filter 2: Date Filter (Bucketing). apply Date Filter to Pie Chart too?
-        // Req: "the ceated date filter should also apply to the Labels breakdown chart."
 
-        // A. Filter by Date first
-        const pieCardsDateFiltered = cards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
 
-        // B. Apply Label Filter logic (AND/OR) for visualization
-        // Wait, normally Pie Chart shows distribution OF labels.
-        // If I filter by "Label A", do I show only "Label A" slice?
-        // Reuse matchesLabelFilter?
-        // If I select "Label A" and "Label B" (OR), I expect to see distribution of cards having A or B.
-        // The slices will represent label combinations or individual labels?
-        // Previous logic: Slices = Unique Combinations of labels on cards.
 
-        const validPieCards = pieCardsDateFiltered.filter(matchesLabelFilter);
-
-        const labelCombinations = {};
-
-        validPieCards.forEach(c => {
-            if (!c.labels || c.labels.length === 0) {
-                const key = "No Label";
-                labelCombinations[key] = (labelCombinations[key] || 0) + 1;
-            } else {
-                const names = c.labels.map(l => l.name || l.color).sort().join(' + ');
-                labelCombinations[names] = (labelCombinations[names] || 0) + 1;
-            }
-        });
-
-        const ctxPie = pieChartRef.current.getContext('2d');
-        pieChartInstance.current = new window.Chart(ctxPie, {
-            type: 'pie',
-            data: {
-                labels: Object.keys(labelCombinations),
-                datasets: [{
-                    data: Object.values(labelCombinations),
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: 50 }, // Increased padding from 30 to 50
-                plugins: {
-                    legend: { display: false },
-                    datalabels: {
-                        color: '#000',
-                        anchor: 'end',
-                        align: 'end',
-                        offset: 10,
-                        backgroundColor: 'rgba(255,255,255,0.8)',
-                        borderRadius: 4,
-                        padding: 4,
-                        formatter: (value, ctx) => {
-                            const label = ctx.chart.data.labels[ctx.dataIndex];
-                            // Return array for newline support
-                            return [label, `(${value})`];
+            const ctxLine = lineChartRef.current.getContext('2d');
+            lineChartInstance.current = new window.Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: sortedKeys,
+                    datasets: [
+                        {
+                            label: `Created (${totalCreated})`,
+                            data: sortedKeys.map(k => bucketMap.get(k).created),
+                            borderColor: '#0079bf',
+                            backgroundColor: '#0079bf',
+                            tension: 0.1
                         },
-                        font: { weight: 'bold', size: 11 }
+                        {
+                            label: `Completed (${totalCompleted})`,
+                            data: sortedKeys.map(k => bucketMap.get(k).completed),
+                            borderColor: '#61bd4f',
+                            backgroundColor: '#61bd4f',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: {
+                            display: true,
+                            text: `${totalCreated} cards created / ${totalCompleted} Completed - ${filterLabelText}${labelInfo}`,
+                            font: { size: 16 }
+                        },
+                        datalabels: { display: false }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: granularity.includes('hour') ? 'Hour' : 'Date' } },
+                        y: { title: { display: true, text: 'Count' }, beginAtZero: true }
                     }
                 }
-            }
-        });
+            });
+
+
+            // ==========================
+            // 2. PIE CHART (LABELS)
+            // ==========================
+            // Requirements:
+            // - Filter 1: Label Filters (Standard).
+            // - Filter 2: Date Filter (Bucketing). apply Date Filter to Pie Chart too?
+            // Req: "the ceated date filter should also apply to the Labels breakdown chart."
+
+            // A. Filter by Date first
+            const pieCardsDateFiltered = cards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
+
+            // B. Apply Label Filter logic (AND/OR) for visualization
+            // Wait, normally Pie Chart shows distribution OF labels.
+            // If I filter by "Label A", do I show only "Label A" slice?
+            // Reuse matchesLabelFilter?
+            // If I select "Label A" and "Label B" (OR), I expect to see distribution of cards having A or B.
+            // The slices will represent label combinations or individual labels?
+            // Previous logic: Slices = Unique Combinations of labels on cards.
+
+            const validPieCards = pieCardsDateFiltered.filter(matchesLabelFilter);
+
+            const labelCombinations = {};
+
+            validPieCards.forEach(c => {
+                if (!c.labels || c.labels.length === 0) {
+                    const key = "No Label";
+                    labelCombinations[key] = (labelCombinations[key] || 0) + 1;
+                } else {
+                    const names = c.labels.map(l => l.name || l.color).sort().join(' + ');
+                    labelCombinations[names] = (labelCombinations[names] || 0) + 1;
+                }
+            });
+
+            const ctxPie = pieChartRef.current.getContext('2d');
+            pieChartInstance.current = new window.Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(labelCombinations),
+                    datasets: [{
+                        data: Object.values(labelCombinations),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: 50 }, // Increased padding from 30 to 50
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            color: '#000',
+                            anchor: 'end',
+                            align: 'end',
+                            offset: 10,
+                            backgroundColor: 'rgba(255,255,255,0.8)',
+                            borderRadius: 4,
+                            padding: 4,
+                            formatter: (value, ctx) => {
+                                const label = ctx.chart.data.labels[ctx.dataIndex];
+                                // Return array for newline support
+                                return [label, `(${value})`];
+                            },
+                            font: { weight: 'bold', size: 11 }
+                        }
+                    }
+                }
+            });
+
+
+
+        } catch (err) {
+            console.error("Chart error:", err);
+        }
 
     }, [cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
 

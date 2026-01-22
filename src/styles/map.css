@@ -451,3 +451,20 @@
 [data-theme='dark'] .filters-actions button:hover {
     background: rgba(255, 255, 255, 0.1);
 }
+
+/* Responsive Card Description Text */
+.card-description-text {
+    font-size: 0.85em;
+    line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+    .card-description-text {
+        font-size: 0.6em;
+        /* Smaller on mobile or user preference */
+    }
+
+    /* Ensure only Hamburger has theme toggle on mobile for Tasks View specifically if needed, 
+       but we handled it via JSX classes. 
+       We can also enforce hiding generic headers if we want. */
+}

@@ -308,9 +308,9 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
                 <div className="map-header-actions" style={{ flexGrow: 1, justifyContent: 'flex-end', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     {/* FILTERS - visible/shrinkable */}
-                    <div className="header-filters" style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'nowrap', overflow: 'hidden', flexShrink: 1 }}>
+                    <div className="header-filters" style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'nowrap', flexShrink: 1 }}>
                         <MultiSelectFilter
-                            label="WS"
+                            label="Workspace"
                             options={Array.from(new Set(processedTasks.map(t => t.orgId))).map(orgId => ({ id: orgId, name: processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown' })).sort(safeSort)}
                             selectedIds={selectedWorkspaceIds}
                             onChange={(ids) => { setSelectedWorkspaceIds(ids); setSelectedBoardIds(null); }}
@@ -337,15 +337,17 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
                         {/* Checkboxes - hide on very small screens? or wrap? */}
                         <div className="desktop-only" style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.9em' }}>
-                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '4px' }} /> Me</label>
-                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '4px' }} /> Mem</label>
+                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '4px' }} /> Assigned to me</label>
+                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '4px' }} /> Member of</label>
                             <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '4px' }} /> Done</label>
                         </div>
                     </div>
 
-                    <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ flexShrink: 0 }}>
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
+                    <div className="desktop-only">
+                        <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ flexShrink: 0 }}>
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
+                    </div>
 
                     {/* MOBILE HAMBURGER MENU */}
                     <div className="mobile-only" style={{ marginLeft: '5px' }}>
@@ -353,9 +355,8 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             {/* Section 1: Filters (Moved before Actions) */}
                             <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
                                 <strong>Filters</strong>
-                                <LabelFilter /* Reusing helper or manual checkboxes */
-                                /* If LabelFilter is not available here, use manual list if intended, but the component has specific filters: Assigned/Member/Completed */
-                                />
+                                {/* LabelFilter removed on mobile as requested */}
+
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px', padding: '0 10px', width: '100%', boxSizing: 'border-box' }}>
                                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9em', width: '100%' }}>
                                         <input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '10px', transform: 'scale(1.2)' }} />
