@@ -232,20 +232,38 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
             } else alert("Failed to get details for this location.");
         });
     };
+
+    // Truncate description for display
+    const descriptionPreview = error.cardDesc
+        ? (error.cardDesc.length > 100 ? error.cardDesc.substring(0, 100) + '...' : error.cardDesc)
+        : 'No description';
+
     return (
-        <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', width: '350px', flexDirection: 'column', alignItems: 'flex-start', padding: '12px', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', marginBottom: '10px', animation: 'slideIn 0.3s ease-out' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#c92a2a', fontWeight: 'bold' }}>Geocoding Error</span>
-                    {error.cardUrl && <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontSize: '0.85em', textDecoration: 'underline' }}>View Card</a>}
+        <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', width: '350px', flexDirection: 'column', alignItems: 'flex-start', padding: '12px', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', marginBottom: '10px', animation: 'slideIn 0.3s ease-out', pointerEvents: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ color: '#c92a2a', fontWeight: 'bold', fontSize: '0.95em' }}>Geocoding Error</span>
+                    {error.cardUrl ? (
+                        <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontWeight: 'bold', textDecoration: 'none', fontSize: '1em' }}>
+                            {error.cardName || 'View Card'}
+                        </a>
+                    ) : (
+                        <span style={{ fontWeight: 'bold' }}>{error.cardName || 'Unknown Card'}</span>
+                    )}
                 </div>
-                <button onClick={() => onDismiss(error.cardId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2em', padding: '0 4px', color: '#666' }}>&times;</button>
+                <button onClick={() => onDismiss(error.cardId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5em', lineHeight: '1', color: '#888' }}>&times;</button>
             </div>
-            <div style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>Failed: {error.failedAddress}</div>
+
+            <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.03)', padding: '6px', borderRadius: '4px', width: '100%', marginTop: '4px' }}>
+                {descriptionPreview}
+            </div>
+
+            <div style={{ fontSize: '0.9em', color: '#c92a2a', marginTop: '4px' }}>Failed Address: {error.failedAddress}</div>
+
             <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
                 <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Manual Fix (Search):</label>
                 <div style={{ position: 'relative' }}>
-                    <input type="text" value={manualAddress} onChange={handleManualAddressChange} placeholder="Google Maps Search..." style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    <input type="text" value={manualAddress} onChange={handleManualAddressChange} placeholder="Search address..." style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }} />
                     {searchResults.length > 0 && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 3000, background: 'white', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', maxHeight: '150px', overflowY: 'auto', color: 'black' }}>
                             {searchResults.map((p) => (
@@ -684,7 +702,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 // If we are here, it means 'ignoreNoDescCards' is FALSE.
                 // So user wants to see it. But we can't map it.
                 // Add to missing?
-                missingAddressCards.push({ cardId: c.id, cardUrl: c.shortUrl, failedAddress: "No description found" });
+                missingAddressCards.push({ cardId: c.id, cardName: c.name, cardDesc: c.desc, cardUrl: c.shortUrl, failedAddress: "No description found" });
                 return false;
             }
 
@@ -695,7 +713,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             // 5. ... but WITH a potential address in description
             const address = parseAddressFromDescription(c.desc);
             if (!address) {
-                missingAddressCards.push({ cardId: c.id, cardUrl: c.shortUrl, failedAddress: "No valid address found" });
+                missingAddressCards.push({ cardId: c.id, cardName: c.name, cardDesc: c.desc, cardUrl: c.shortUrl, failedAddress: "No valid address found" });
                 return false;
             }
             return true;
@@ -742,7 +760,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             if (geocoderRef.current) {
                 geocoderRef.current.geocode({ address: cleanAddress }, async (results, statusCode) => {
-                    if (statusCode === 'OK' && results[0]) {
+                    if (status === 'OK' && results[0]) {
                         const loc = results[0].geometry.location;
                         const coords = { lat: loc.lat(), lng: loc.lng(), display_name: results[0].formatted_address };
 
@@ -765,6 +783,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         }
 
                     } else {
+                        console.warn(`Geocoding failed for ${card.name}: ${statusCode}`); // DEBUG
                         if (statusCode === 'OVER_QUERY_LIMIT') {
                             setStatus(`Rate limited. Retrying in 2s...`);
                             await new Promise(r => setTimeout(r, 2000));
@@ -772,7 +791,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             setGeocodingQueue(prev => [...prev]);
                             return; // EXIT HERE so we don't slice
                         } else {
-                            setErrors(prev => [...prev, { cardId: card.id, cardUrl: card.shortUrl, failedAddress: cleanAddress }]);
+                            setErrors(prev => [...prev, { cardId: card.id, cardName: card.name, cardDesc: card.desc, cardUrl: card.shortUrl, failedAddress: cleanAddress }]);
                         }
                     }
 
