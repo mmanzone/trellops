@@ -11,6 +11,7 @@ import MapFilters from './MapFilters';
 import { loadGoogleMaps } from '/src/utils/googleMapsLoader';
 import { marked } from 'marked';
 import Dashboard from './Dashboard'; // For Slideshow
+import HamburgerMenu from './common/HamburgerMenu';
 import '/src/styles/map.css';
 
 // --- CUSTOM MAP STYLES ---
@@ -564,7 +565,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 mapTypeControl: false,
                 streetViewControl: false,
                 fullscreenControl: false,
-                styles: defaultStyles
+                styles: defaultStyles,
+                gestureHandling: 'cooperative'
             };
             const map = new maps.Map(mapRef.current, mapOptions);
             map.addListener("click", () => {
@@ -1151,36 +1153,92 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
 
-                    {!onStopSlideshow && (
-                        <>
-                            {/* Card Count */}
-                            <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                                Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
-                            </span>
+                    {/* DESKTOP HEADER ACTIONS */}
+                    <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        {!onStopSlideshow && (
+                            <>
+                                {/* Card Count */}
+                                <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
+                                    Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
+                                </span>
 
-                            {/* Base Layer */}
-                            <select
-                                value={baseMap}
-                                onChange={e => setBaseMap(e.target.value)}
-                                className="time-filter-select" // Reuse dashboard class
-                            >
-                                <option value="roadmap">Roadmap</option>
-                                <option value="traffic">Traffic</option>
-                                <option value="satellite">Satellite</option>
-                                <option value="hybrid">Hybrid</option>
-                                <option value="terrain">Terrain</option>
-                                <option value="dark">Dark Mode</option>
-                            </select>
-                        </>
-                    )}
+                                {/* Base Layer */}
+                                <select
+                                    value={baseMap}
+                                    onChange={e => setBaseMap(e.target.value)}
+                                    className="time-filter-select"
+                                >
+                                    <option value="roadmap">Roadmap</option>
+                                    <option value="traffic">Traffic</option>
+                                    <option value="satellite">Satellite</option>
+                                    <option value="hybrid">Hybrid</option>
+                                    <option value="terrain">Terrain</option>
+                                    <option value="dark">Dark Mode</option>
+                                </select>
+                            </>
+                        )}
 
-                    <button
-                        className="theme-toggle-button"
-                        onClick={() => toggleTheme()}
-                        style={{ marginLeft: '10px' }}
-                    >
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
+                        <button
+                            className="theme-toggle-button"
+                            onClick={() => toggleTheme()}
+                        >
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
+                    </div>
+
+                    {/* MOBILE HAMBURGER MENU */}
+                    <div className="mobile-only">
+                        <HamburgerMenu>
+                            {/* Section 1: Map Controls */}
+                            <div className="hamburger-section">
+                                <strong>Map Settings</strong>
+                                <select
+                                    value={baseMap}
+                                    onChange={e => setBaseMap(e.target.value)}
+                                    className="time-filter-select"
+                                    style={{ width: '100%', margin: 0 }}
+                                >
+                                    <option value="roadmap">Roadmap</option>
+                                    <option value="traffic">Traffic</option>
+                                    <option value="satellite">Satellite</option>
+                                    <option value="hybrid">Hybrid</option>
+                                    <option value="terrain">Terrain</option>
+                                    <option value="dark">Dark Mode</option>
+                                </select>
+                                <button className="settings-button" onClick={() => toggleTheme()}>
+                                    Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+                                </button>
+                            </div>
+
+                            {/* Section 2: Actions */}
+                            <div className="hamburger-section">
+                                <strong>Actions</strong>
+                                <div style={{ padding: '10px 0', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                    Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
+                                </div>
+
+                                {!onStopSlideshow && (
+                                    <>
+                                        <button className="button-secondary" onClick={() => { setCountdown(refreshIntervalSeconds); loadData(true); }}>
+                                            Refresh Now ({formatDynamicCountdown(countdown)})
+                                        </button>
+                                        <button className="button-secondary" onClick={() => onClose()}>
+                                            Dashboard View
+                                        </button>
+                                        <button className="button-secondary" onClick={() => onShowTasks()}>
+                                            Tasks View
+                                        </button>
+                                        <button className="button-secondary" onClick={() => onShowSettings('board')}>
+                                            Settings
+                                        </button>
+                                        <button className="logout-button" onClick={onLogout}>
+                                            Logout
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </HamburgerMenu>
+                    </div>
                 </div>
             </div>
 
@@ -1259,7 +1317,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         </button>
                     </div>
                 )}
-                <div className="map-footer-right">
+                <div className="map-footer-right desktop-only">
                     {!onStopSlideshow && (
                         <span style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
                             {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}

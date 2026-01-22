@@ -765,6 +765,40 @@ input:checked+.slider:before {
         font-size: 2em;
     }
 
+    /* Resize Header Elements for Mobile */
+    .header h1 {
+        font-size: 1.2em;
+        /* Reduced from 2em */
+        margin-right: 10px;
+    }
+
+    .large-clock {
+        font-size: 1.5em;
+        /* Reduced from 2.5em */
+        min-width: auto;
+        /* Remove fixed width constraint */
+        margin-right: 10px;
+        letter-spacing: 1px;
+    }
+
+    /* Wrap header content naturally */
+    .header {
+        flex-wrap: wrap;
+        /* Already set, but ensuring */
+        padding-bottom: 10px;
+    }
+
+    .header-title-area {
+        max-width: 100%;
+        /* Use full width on mobile */
+        margin-bottom: 5px;
+    }
+
+    .header-actions {
+        margin-left: auto;
+        /* Push to right */
+    }
+
     .value-grid {
         grid-template-columns: 1fr;
     }
@@ -783,10 +817,22 @@ input:checked+.slider:before {
     }
 
     .dashboard-grid {
-        grid-template-columns: 1fr;
+        /* Mobile Portrait: 2 Columns */
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 1024px) and (orientation: landscape) {
+    .dashboard-grid {
+        /* Tablet/Mobile Landscape: 4 Columns */
+        grid-template-columns: repeat(4, 1fr);
         gap: 15px;
     }
+}
 
+
+@media (max-width: 768px) {
     .dashboard-tile {
         min-height: 140px;
     }

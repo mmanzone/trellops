@@ -327,33 +327,98 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                 <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
 
-                    {!onStopSlideshow && (
-                        <>
-                            {/* Label Filter - Moved BEFORE Time Filter */}
-                            <LabelFilter
-                                labels={boardLabels}
-                                selectedLabelIds={selectedLabelIds}
-                                onChange={setSelectedLabelIds}
-                            />
+                    {/* DESKTOP ACTIONS */}
+                    <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
+                        {!onStopSlideshow && (
+                            <>
+                                {/* Label Filter - Moved BEFORE Time Filter */}
+                                <LabelFilter
+                                    labels={boardLabels}
+                                    selectedLabelIds={selectedLabelIds}
+                                    onChange={setSelectedLabelIds}
+                                />
 
-                            {/* Time Filter */}
-                            <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
-                                {Object.keys(TIME_FILTERS).map(key => (
-                                    <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
-                                ))}
-                            </select>
+                                {/* Time Filter */}
+                                <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
+                                    {Object.keys(TIME_FILTERS).map(key => (
+                                        <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                    ))}
+                                </select>
 
-                            {settings?.statistics?.enabled && (
-                                <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
-                                    Stats
-                                </button>
+                                {settings?.statistics?.enabled && (
+                                    <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
+                                        Stats
+                                    </button>
+                                )}
+                            </>
+                        )}
+
+                        <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
+                    </div>
+
+                    {/* MOBILE HAMBURGER MENU */}
+                    <div className="mobile-only">
+                        <HamburgerMenu>
+                            {/* Section 1: Filters */}
+                            {!onStopSlideshow && (
+                                <div className="hamburger-section">
+                                    <strong>Filters</strong>
+                                    <LabelFilter /* Helper: Might need styling for mobile or simplified view */
+                                        labels={boardLabels}
+                                        selectedLabelIds={selectedLabelIds}
+                                        onChange={setSelectedLabelIds}
+                                    />
+                                    <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ width: '100%', margin: 0 }}>
+                                        {Object.keys(TIME_FILTERS).map(key => (
+                                            <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             )}
-                        </>
-                    )}
 
-                    <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
+                            {/* Section 2: Actions (Footer Items + Stats + Theme) */}
+                            <div className="hamburger-section">
+                                <strong>Actions</strong>
+                                <button className="settings-button" onClick={() => toggleTheme()}>
+                                    Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+                                </button>
+
+                                {settings?.statistics?.enabled && (
+                                    <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))}>
+                                        Statistics View
+                                    </button>
+                                )}
+
+                                <button className="refresh-button" onClick={handleRefresh}>
+                                    Refresh Now {countdown > 0 ? `(${formatDynamicCountdown(countdown)})` : ''}
+                                </button>
+
+                                {/* Map Link */}
+                                {enableMapView && (
+                                    <button className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
+                                        Map View
+                                    </button>
+                                )}
+
+                                {/* Tasks Link */}
+                                {settings?.enableTaskView && (
+                                    <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
+                                        Tasks View
+                                    </button>
+                                )}
+
+                                <button className="settings-button" onClick={() => setShowSettings(true)}>
+                                    Settings
+                                </button>
+
+                                <button className="logout-button" onClick={handleLogout}>
+                                    Logout
+                                </button>
+                            </div>
+                        </HamburgerMenu>
+                    </div>
                 </div>
             </div>
 
