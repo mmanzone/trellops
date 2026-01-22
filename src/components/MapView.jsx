@@ -733,7 +733,11 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
                     } else {
                         if (statusCode === 'OVER_QUERY_LIMIT') {
+                            setStatus(`Rate limited. Retrying in 2s...`);
                             await new Promise(r => setTimeout(r, 2000));
+                            // Force re-try by creating new reference to same queue
+                            setGeocodingQueue(prev => [...prev]);
+                            return; // EXIT HERE so we don't slice
                         } else {
                             setErrors(prev => [...prev, { cardId: card.id, cardUrl: card.shortUrl, failedAddress: cleanAddress }]);
                         }
@@ -867,12 +871,14 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     // --- MARKERS RENDER ---
     const prevRefreshVersion = useRef(0);
+    const [totalFilteredCards, setTotalFilteredCards] = useState(0); // State for header
+
     useEffect(() => {
         if (!googleMapRef.current || !mapLoaded) return;
         const map = googleMapRef.current;
-        const validCards = cards.filter(c => c.coordinates && c.coordinates.lat);
 
-        const visibleCards = validCards.filter(c => {
+        // 1. FILTER ALL CARDS (Regardless of Coords)
+        const allPotentialCards = cards.filter(c => {
             // Global Settings Filters
             if (ignoreTemplateCards && c.isTemplate) return false;
             if (ignoreCompletedCards && c.dueComplete) return false;
@@ -880,10 +886,21 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             if (!visibleListIds.has(c.idList)) return false;
             const block = blocks.find(b => b.listIds.includes(c.idList));
-            if (!block) return true;
+            if (!block) return true; // Unassigned lists
+            // Rules check? (Technically rules are for markers, but filtering usually applies if rules are unchecked?)
+            // If I uncheck "Red", cards that would be Red are hidden.
             const { activeRuleIds } = getMarkerConfig(c, block, markerRules);
             return [...activeRuleIds].some(id => visibleRuleIds.has(id));
         });
+
+        setTotalFilteredCards(allPotentialCards.length);
+
+        // 2. GET MAPPED CARDS (Must have coords)
+        const validCards = allPotentialCards.filter(c => c.coordinates && c.coordinates.lat);
+
+        setVisibleMarkersCount(validCards.length);
+
+        const visibleCards = validCards; // Logic already applied above
 
         const newMarkers = {};
         visibleCards.forEach(c => {
@@ -1053,7 +1070,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         <>
                             {/* Card Count */}
                             <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                                {visibleMarkersCount} cards
+                                Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
                             </span>
 
                             {/* Base Layer */}
