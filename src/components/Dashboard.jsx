@@ -639,7 +639,17 @@ const DashboardContent = ({
                             </button>
                         </div>
                         {!isCollapsed && (
-                            <div className="dashboard-grid">
+                            <div
+                                className="dashboard-grid"
+                                style={{
+                                    gridTemplateColumns: (() => {
+                                        const count = blockTiles.length;
+                                        if (count < 4) return `repeat(${count}, 1fr)`;
+                                        if (count === 5 || count === 6) return `repeat(3, 1fr)`;
+                                        return `repeat(4, 1fr)`; // Default for 4, 7, 8+
+                                    })()
+                                }}
+                            >
                                 {blockTiles.map((item) => (
                                     <div key={item.listId} className="dashboard-tile" style={{ backgroundColor: item.displayColor, color: 'white' }} onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}>
                                         <div className="card-count">{item.count}</div>

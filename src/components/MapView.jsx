@@ -1184,14 +1184,21 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     {/* MOBILE HAMBURGER MENU */}
                     <div className="mobile-only">
                         <HamburgerMenu>
+                            {/* Section 0: Mapped Stats (Moved to Top) */}
+                            <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+                                <div style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                    Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
+                                </div>
+                            </div>
+
                             {/* Section 1: Map Controls */}
-                            <div className="hamburger-section">
+                            <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
                                 <strong>Map Settings</strong>
                                 <select
                                     value={baseMap}
                                     onChange={e => setBaseMap(e.target.value)}
                                     className="time-filter-select"
-                                    style={{ width: '100%', margin: 0 }}
+                                    style={{ width: '100%', margin: '10px 0 0 0' }}
                                 >
                                     <option value="roadmap">Roadmap</option>
                                     <option value="traffic">Traffic</option>
@@ -1205,25 +1212,18 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             {/* Section 2: Actions */}
                             <div className="hamburger-section">
                                 <strong>Actions</strong>
-                                <div style={{ padding: '10px 0', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                                    Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
-                                </div>
-
                                 {!onStopSlideshow && (
                                     <>
-                                        <button className="button-secondary" onClick={() => { setCountdown(refreshIntervalSeconds); loadData(true); }}>
-                                            Refresh Now ({formatDynamicCountdown(countdown)})
-                                        </button>
-                                        <button className="button-secondary" onClick={() => onClose()}>
+                                        <button className="menu-link" onClick={() => onClose()}>
                                             Dashboard View
                                         </button>
-                                        <button className="button-secondary" onClick={() => onShowTasks()}>
+                                        <button className="menu-link" onClick={() => onShowTasks()}>
                                             Tasks View
                                         </button>
-                                        <button className="button-secondary" onClick={() => onShowSettings('board')}>
+                                        <button className="menu-link" onClick={() => onShowSettings('board')}>
                                             Settings
                                         </button>
-                                        <button className="logout-button" onClick={onLogout}>
+                                        <button className="menu-link" onClick={onLogout}>
                                             Logout
                                         </button>
                                     </>
