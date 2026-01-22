@@ -146,6 +146,12 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         return () => clearInterval(interval);
     }, [fetchData, effectiveSeconds]);
 
+    const handleRefresh = useCallback(() => {
+        setCountdown(effectiveSeconds);
+        fetchData(true);
+    }, [effectiveSeconds, fetchData]);
+
+
 
     // CALCULATE COUNTS (Client-side Filtering)
     const counts = useMemo(() => {
