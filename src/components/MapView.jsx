@@ -1157,11 +1157,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         {!onStopSlideshow && (
                             <>
-                                {/* Card Count */}
-                                <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--text-secondary)' }}>
-                                    Mapped: {visibleMarkersCount} / {totalFilteredCards} cards
-                                </span>
-
                                 {/* Base Layer */}
                                 <select
                                     value={baseMap}

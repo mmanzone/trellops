@@ -13,6 +13,7 @@ import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
 import MapView from './MapView'; // For Slideshow
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
+import HamburgerMenu from './common/HamburgerMenu';
 import '../styles/map.css';
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow }) => {
