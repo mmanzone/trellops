@@ -1184,3 +1184,77 @@ footer a:hover {
         padding: 30px;
     }
 }
+
+/* --- Hamburger Menu --- */
+.hamburger-menu-container {
+    position: relative;
+    display: inline-block;
+}
+
+.hamburger-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-color);
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hamburger-dropdown {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-color);
+}
+
+.hamburger-section {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.hamburger-section:last-child {
+    margin-bottom: 0;
+}
+
+.menu-link {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-size: 1rem;
+    cursor: pointer;
+    text-decoration: none;
+    padding: 8px 16px;
+    transition: color 0.2s, background-color 0.2s;
+    border-radius: 4px;
+    width: 100%;
+    text-align: center;
+    font-weight: 500;
+}
+
+.menu-link:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-color);
+}
+
+/* Ensure inputs/selects in menu are centered and look good */
+.hamburger-dropdown select,
+.hamburger-dropdown input {
+    width: 100%;
+    max-width: 220px;
+    /* Prevent overly wide inputs */
+    margin: 5px 0;
+}
