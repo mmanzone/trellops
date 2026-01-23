@@ -143,7 +143,7 @@ button:disabled,
 .menu-link {
     display: block;
     width: 100%;
-    text-align: left;
+    text-align: center;
     background: none;
     border: none;
     padding: 10px 15px;
@@ -320,6 +320,12 @@ button:disabled,
     max-width: 95%;
     margin: 20px auto;
     position: relative;
+}
+
+@media (max-width: 768px) {
+    .form-card {
+        padding: 15px;
+    }
 }
 
 .form-card label {

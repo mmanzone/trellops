@@ -393,7 +393,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                     <strong>Filters</strong>
                                     {/* Label Filter: Left Aligned & Reduced Width */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', alignItems: 'center' }}>
-                                        <div style={{ width: '85%', textAlign: 'left' }}>
+                                        <div style={{ width: '85%', textAlign: 'center' }}>
                                             <LabelFilter
                                                 labels={boardLabels}
                                                 selectedLabelIds={selectedLabelIds}

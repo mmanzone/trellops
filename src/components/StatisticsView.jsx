@@ -467,12 +467,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                             </div>
                         )}
 
-                        <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 5px' }}></div>
-
-                        <button className="button-secondary" onClick={onGoToDashboard}>Dashboard</button>
-                        <button className="button-secondary" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map</button>
-                        <button className="button-secondary" onClick={onShowSettings}>Settings</button>
-                        <button className="button-secondary" onClick={onLogout}>Log Out</button>
+                        <button
+                            className="theme-toggle-button"
+                            onClick={() => toggleTheme()}
+                            title="Toggle Theme"
+                            style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none', marginLeft: '10px' }}
+                        >
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
                     </div>
 
                     <div className="mobile-only">
@@ -481,7 +483,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                             <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
                                 <strong>Filters</strong>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', alignItems: 'center' }}>
-                                    <div style={{ width: '85%', textAlign: 'left' }}>
+                                    <div style={{ width: '85%', textAlign: 'center' }}>
                                         <LabelFilter
                                             labels={allLabels}
                                             selectedLabelIds={selectedLabelIds}
