@@ -163,6 +163,7 @@ const LabelFilter = ({ labels, selectedLabelIds, onChange, labelLogic, onLabelLo
                                 <label key={label.id} style={{
                                     display: 'flex',
                                     alignItems: 'center',
+                                    justifyContent: 'flex-start',
                                     padding: '6px 0',
                                     cursor: 'pointer',
                                     color: 'var(--text-primary)'

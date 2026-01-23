@@ -438,91 +438,112 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     <h1 style={{ marginLeft: '20px' }}>{boardName} - Statistics</h1>
                 </div>
                 <div className="header-actions" style={{ display: 'flex', alignItems: 'center' }}>
-                    {/* Desktop Actions - Hidden on Mobile if needed, or fully replaced by Hamburger */}
-                    <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        {/* Desktop specific stats controls can go here if any, otherwise keep empty or move all to hamburger for consistency? 
-                             User said: "implement the same hamburger menu [...] moving the filters in the hamburger menu"
-                             So we hide these on mobile/desktop or just use Hamburger for everything? 
-                             Let's keep Desktop visible for ease of use, but Mobile gets Hamburger. 
-                             Actually, user said "implement same hamburger menu... moving filters in" implies standardizing.
-                             Let's use the Hamburger for everything or Responsive?
-                             The Dashboard has both. Let's do responsive. Desktop: Toolbar. Mobile: Hamburger. 
-                             Wait, user said "move the filters in the hamburger menu" implies they want them HIDDEN inside the menu?
-                             "implement the same hamburger menu as other views" -> currently Dashboard & Map have items hidden in menu on mobile, visible on desktop?
-                             Actually Dashboard has "Filters" INSIDE Hamburger content. 
-                             Let's follow the Dashboard pattern: Mobile = Hamburger, Desktop = Toolbar? 
-                             Or maybe just Hamburger for everything if that's what they want? 
-                             "moving the filters in the hamburger menu" -> This sounds like they want them INSIDE the menu.
-                         */}
+                    {/* Desktop Actions - Hidden on Mobile */}
+                    <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <LabelFilter
+                            labels={allLabels}
+                            selectedLabelIds={selectedLabelIds}
+                            onChange={setSelectedLabelIds}
+                            labelLogic={labelLogic}
+                            onLabelLogicChange={setLabelLogic}
+                        />
+                        <select className="time-filter-select" value={createdFilter} onChange={e => {
+                            const val = e.target.value;
+                            setCreatedFilter(val);
+                            if (val === 'custom') setShowCustomRange(true);
+                            else setShowCustomRange(false);
+                        }} style={{ margin: 0 }}>
+                            <option value="this_week">Created: This Week</option>
+                            {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
+                                <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
+                            ))}
+                            <option value="custom">Custom Range</option>
+                        </select>
+                        {createdFilter === 'custom' && (
+                            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                                <input type="date" value={customRange.start || ''} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} />
+                                <span>to</span>
+                                <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} />
+                            </div>
+                        )}
+
+                        <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+
+                        <button className="button-secondary" onClick={onGoToDashboard}>Dashboard</button>
+                        <button className="button-secondary" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>Map</button>
+                        <button className="button-secondary" onClick={onShowSettings}>Settings</button>
+                        <button className="button-secondary" onClick={onLogout}>Log Out</button>
                     </div>
 
-                    <HamburgerMenu>
-                        {/* Section 1: Filters */}
-                        <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
-                            <strong>Filters</strong>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', alignItems: 'center' }}>
-                                <div style={{ width: '85%', textAlign: 'left' }}>
-                                    <LabelFilter
-                                        labels={allLabels}
-                                        selectedLabelIds={selectedLabelIds}
-                                        onChange={setSelectedLabelIds}
-                                        labelLogic={labelLogic}
-                                        onLabelLogicChange={setLabelLogic}
-                                    />
-                                </div>
-
-                                <select className="time-filter-select" value={createdFilter} onChange={e => {
-                                    const val = e.target.value;
-                                    setCreatedFilter(val);
-                                    if (val === 'custom') setShowCustomRange(true);
-                                    else setShowCustomRange(false);
-                                }} style={{ width: '85%', margin: 0 }}>
-                                    <option value="this_week">Created: This Week</option>
-                                    {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
-                                        <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
-                                    ))}
-                                    <option value="custom">Custom Range</option>
-                                </select>
-
-                                {createdFilter === 'custom' && (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '85%' }}>
-                                        <input type="date" value={customRange.start || ''} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} style={{ width: '100%' }} />
-                                        <span style={{ textAlign: 'center' }}>to</span>
-                                        <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} style={{ width: '100%' }} />
+                    <div className="mobile-only">
+                        <HamburgerMenu>
+                            {/* Section 1: Filters */}
+                            <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+                                <strong>Filters</strong>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', alignItems: 'center' }}>
+                                    <div style={{ width: '85%', textAlign: 'left' }}>
+                                        <LabelFilter
+                                            labels={allLabels}
+                                            selectedLabelIds={selectedLabelIds}
+                                            onChange={setSelectedLabelIds}
+                                            labelLogic={labelLogic}
+                                            onLabelLogicChange={setLabelLogic}
+                                        />
                                     </div>
-                                )}
+
+                                    <select className="time-filter-select" value={createdFilter} onChange={e => {
+                                        const val = e.target.value;
+                                        setCreatedFilter(val);
+                                        if (val === 'custom') setShowCustomRange(true);
+                                        else setShowCustomRange(false);
+                                    }} style={{ width: '85%', margin: 0 }}>
+                                        <option value="this_week">Created: This Week</option>
+                                        {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
+                                            <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
+                                        ))}
+                                        <option value="custom">Custom Range</option>
+                                    </select>
+
+                                    {createdFilter === 'custom' && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '85%' }}>
+                                            <input type="date" value={customRange.start || ''} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} style={{ width: '100%' }} />
+                                            <span style={{ textAlign: 'center' }}>to</span>
+                                            <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} style={{ width: '100%' }} />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Section 2: Actions */}
-                        <div className="hamburger-section">
-                            <strong>Actions</strong>
-                            <button className="menu-link" onClick={onGoToDashboard}>
-                                Dashboard View
-                            </button>
-                            <button className="menu-link" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>
-                                Map View
-                            </button>
-                            <button className="menu-link" onClick={onShowSettings}>
-                                Settings
-                            </button>
-                            <button className="menu-link" onClick={onLogout}>
-                                Logout
-                            </button>
-                        </div>
+                            {/* Section 2: Actions */}
+                            <div className="hamburger-section">
+                                <strong>Actions</strong>
+                                <button className="menu-link" onClick={onGoToDashboard}>
+                                    Dashboard View
+                                </button>
+                                <button className="menu-link" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>
+                                    Map View
+                                </button>
+                                <button className="menu-link" onClick={onShowSettings}>
+                                    Settings
+                                </button>
+                                <button className="menu-link" onClick={onLogout}>
+                                    Logout
+                                </button>
+                            </div>
 
-                        {/* Theme Toggle at Bottom */}
-                        <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                            <button
-                                className="theme-toggle-button"
-                                onClick={() => toggleTheme()}
-                                title="Toggle Theme"
-                                style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
-                            >
-                                {theme === 'dark' ? '☀️' : '🌙'}
-                            </button>
-                        </div>
-                    </HamburgerMenu>
+                            {/* Theme Toggle at Bottom */}
+                            <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                <button
+                                    className="theme-toggle-button"
+                                    onClick={() => toggleTheme()}
+                                    title="Toggle Theme"
+                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
+                                >
+                                    {theme === 'dark' ? '☀️' : '🌙'}
+                                </button>
+                            </div>
+                        </HamburgerMenu>
+                    </div>
                 </div>
             </div>
             <div className="container" style={{ flex: 1, paddingBottom: '80px' }}>

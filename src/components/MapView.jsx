@@ -1158,9 +1158,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '5px' }}>
                             Mapped: {visibleMarkersCount} / {totalFilteredCards}
                         </span>
-                        <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '5px' }}>
-                            Mapped: {visibleMarkersCount} / {totalFilteredCards}
-                        </span>
+
                         {!onStopSlideshow && (
                             <>
                                 {/* Base Layer */}
