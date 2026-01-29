@@ -9,6 +9,7 @@ import SettingsScreen from './components/SettingsScreen';
 import MapView from './components/MapView';
 import TaskView from './components/TaskView';
 import StatisticsView from './components/StatisticsView';
+import useWakeLock from './hooks/useWakeLock';
 
 const App = () => {
     const [user, setUser] = useState(null);
@@ -22,6 +23,18 @@ const App = () => {
     const [previousView, setPreviousView] = useState(null);
     const [slideshowActive, setSlideshowActive] = useState(false);
     const [slideshowView, setSlideshowView] = useState(null); // 'dashboard' or 'map'
+
+    const [keepScreenOn, setKeepScreenOn] = useState(false);
+    const { requestWakeLock, releaseWakeLock } = useWakeLock();
+
+    // Wake Lock Effect
+    useEffect(() => {
+        if (slideshowActive || keepScreenOn) {
+            requestWakeLock();
+        } else {
+            releaseWakeLock();
+        }
+    }, [slideshowActive, keepScreenOn, requestWakeLock, releaseWakeLock]);
 
     // Check for token in URL or existing session
     useEffect(() => {
@@ -304,6 +317,8 @@ const App = () => {
                 slideshowContent={slideshowActive ? slideshowView : null}
                 onStartSlideshow={handleStartSlideshow}
                 onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
+                keepScreenOn={keepScreenOn}
+                onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
             />
         );
     }
@@ -379,6 +394,8 @@ const App = () => {
                 slideshowContent={slideshowActive ? slideshowView : null}
                 onStartSlideshow={handleStartSlideshow}
                 onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
+                keepScreenOn={keepScreenOn}
+                onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
             />
         );
     }

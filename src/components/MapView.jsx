@@ -433,7 +433,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
 };
 
 
-const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow }) => {
+const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
     const [boardLabels, setBoardLabels] = useState([]);
@@ -528,7 +528,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             // Fallback: No markers visible
             if (homeLocation && homeLocation.coords) {
                 // Zoom to Home Address even if not shown
-                googleMapRef.current.setCenter({ lat: homeLocation.coords.lat, lng: homeLocation.coords.lon });
+                const lat = typeof homeLocation.coords.lat === 'function' ? homeLocation.coords.lat() : parseFloat(homeLocation.coords.lat);
+                const lng = typeof homeLocation.coords.lng === 'function' ? homeLocation.coords.lng() : parseFloat(homeLocation.coords.lon || homeLocation.coords.lng);
+                googleMapRef.current.setCenter({ lat, lng });
                 googleMapRef.current.setZoom(14);
             } else {
                 // Fallback: Australia
@@ -1162,7 +1164,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             }
         } else if (homeMarkerRef.current) { homeMarkerRef.current.setMap(null); }
 
-        if (visibleCards.length > 0 && !initialFitDone) {
+        if (!initialFitDone && (visibleCards.length > 0 || !loading)) {
             fitMapBounds();
             setInitialFitDone(true);
             prevValidCardCount.current = validCards.length;
@@ -1178,7 +1180,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             prevValidCardCount.current = validCards.length;
         }
 
-    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists, refreshVersion]);
+    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists, refreshVersion, loading]);
 
     // EMBEDDED MODE
     if (isEmbedded) {
@@ -1266,6 +1268,23 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                 </select>
                             </>
                         )}
+
+                        <button className="theme-toggle-button" onClick={onToggleScreenLock} style={{ marginLeft: '10px' }} title={keepScreenOn ? "Prevent screen from turning off" : "Allow screen to turn off"}>
+                            {keepScreenOn ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                    <line x1="8" y1="21" x2="16" y2="21" />
+                                    <line x1="12" y1="17" x2="12" y2="21" />
+                                </svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                    <line x1="8" y1="21" x2="16" y2="21" />
+                                    <line x1="12" y1="17" x2="12" y2="21" />
+                                    <line x1="1" y1="1" x2="23" y2="23" style={{ stroke: 'currentColor' }} />
+                                </svg>
+                            )}
+                        </button>
 
                         <button
                             className="theme-toggle-button"

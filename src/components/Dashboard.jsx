@@ -16,7 +16,7 @@ import MapView from './MapView'; // For Slideshow
 import HamburgerMenu from './common/HamburgerMenu';
 import '../styles/map.css';
 
-const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow }) => {
+const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
     // DATA STATE
     const [allCards, setAllCards] = useState([]);
     const [allListsMap, setAllListsMap] = useState(new Map());
@@ -378,6 +378,23 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                 )}
                             </>
                         )}
+
+                        <button className="theme-toggle-button" onClick={onToggleScreenLock} style={{ marginLeft: '10px' }} title={keepScreenOn ? "Prevent screen from turning off" : "Allow screen to turn off"}>
+                            {keepScreenOn ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                    <line x1="8" y1="21" x2="16" y2="21" />
+                                    <line x1="12" y1="17" x2="12" y2="21" />
+                                </svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                    <line x1="8" y1="21" x2="16" y2="21" />
+                                    <line x1="12" y1="17" x2="12" y2="21" />
+                                    <line x1="1" y1="1" x2="23" y2="23" style={{ stroke: 'currentColor' }} />
+                                </svg>
+                            )}
+                        </button>
 
                         <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
                             {theme === 'dark' ? '☀️' : '🌙'}
