@@ -5,6 +5,7 @@ import LabelFilter from './common/LabelFilter';
 import { useDarkMode } from '../context/DarkModeContext';
 import { Sun, Moon } from 'lucide-react';
 import DigitalClock from './common/DigitalClock';
+import HamburgerMenu from './common/HamburgerMenu';
 
 const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
     const [cards, setCards] = useState([]);
@@ -197,215 +198,223 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             try { window.Chart.register(window.ChartDataLabels); } catch (e) { }
         }
 
-        // ==========================
-        // 1. LINE CHART DATA
-        // ==========================
-        // Requirements: 
-        // - X-Axis: Time (buckets). 
-        // - Filter 1: Date Filter (Created Date Range).
-        // - Filter 2: Labels (apply selections to the line chart too).
-        // - Granularity: Day, Hour, Month, Cumulative Hour.
+        try {
 
-        // A. Filter Dataset first (Cross-filtering: Apply Label Filter to Line Chart)
-        const lineChartCards = cards.filter(matchesLabelFilter);
+            // ==========================
+            // 1. LINE CHART DATA
+            // ==========================
+            // Requirements: 
+            // - X-Axis: Time (buckets). 
+            // - Filter 1: Date Filter (Created Date Range).
+            // - Filter 2: Labels (apply selections to the line chart too).
+            // - Granularity: Day, Hour, Month, Cumulative Hour.
 
-        // B. Determine Range for Zero-Filling
-        // If "hour" or "day", we want to show 0s.
-        const range = getFilterRange(createdFilter);
+            // A. Filter Dataset first (Cross-filtering: Apply Label Filter to Line Chart)
+            const lineChartCards = cards.filter(matchesLabelFilter);
 
-        const bucketMap = new Map(); // key -> { created: 0, completed: 0, sortDate: ts }
+            // B. Determine Range for Zero-Filling
+            // If "hour" or "day", we want to show 0s.
+            const range = getFilterRange(createdFilter);
 
-        // Initialize Buckets for Zero-Filling if range exists
-        if (range && (granularity === 'hour' || granularity === 'day' || granularity === 'cumulative_hour')) {
-            let current = new Date(range.start);
-            const end = new Date(range.end);
+            const bucketMap = new Map(); // key -> { created: 0, completed: 0, sortDate: ts }
 
-            // Safety: Don't infinite loop if range is bad
-            if (current < end) {
-                while (current <= end) {
-                    const key = formatDateBucket(current, granularity);
-                    // For cumulative, key is just "10 AM".
-                    // We need a sort index. For cumulative, 0-23.
-                    // For others, timestamp.
-                    let sortDate = current.getTime();
-                    if (granularity === 'cumulative_hour') {
-                        sortDate = current.getHours();
+            // Initialize Buckets for Zero-Filling if range exists
+            if (range && (granularity === 'hour' || granularity === 'day' || granularity === 'cumulative_hour')) {
+                let current = new Date(range.start);
+                const end = new Date(range.end);
+
+                // Safety: Don't infinite loop if range is bad
+                if (current < end) {
+                    while (current <= end) {
+                        const key = formatDateBucket(current, granularity);
+                        // For cumulative, key is just "10 AM".
+                        // We need a sort index. For cumulative, 0-23.
+                        // For others, timestamp.
+                        let sortDate = current.getTime();
+                        if (granularity === 'cumulative_hour') {
+                            sortDate = current.getHours();
+                        }
+
+                        if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
+
+                        // Increment
+                        if (granularity === 'hour' || granularity === 'cumulative_hour') current.setHours(current.getHours() + 1);
+                        else current.setDate(current.getDate() + 1);
                     }
-
-                    if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
-
-                    // Increment
-                    if (granularity === 'hour' || granularity === 'cumulative_hour') current.setHours(current.getHours() + 1);
-                    else current.setDate(current.getDate() + 1);
                 }
-            }
-            // For cumulative hour, strictly ensure 0-23 buckets exist?
-            if (granularity === 'cumulative_hour') {
-                for (let h = 0; h < 24; h++) {
-                    const dateSim = new Date(); dateSim.setHours(h, 0, 0, 0);
-                    const key = formatDateBucket(dateSim, 'cumulative_hour');
-                    if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate: h });
-                }
-            }
-        }
-
-        // C. Process Created (using filtered cards)
-        // Only count if Created Date in filter
-        const validCreatedCards = lineChartCards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
-        validCreatedCards.forEach(c => {
-            const date = getCreationDate(c.id);
-            const key = formatDateBucket(date, granularity);
-
-            let sortDate = date.getTime();
-            if (granularity === 'cumulative_hour') sortDate = date.getHours();
-
-            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
-            bucketMap.get(key).created++;
-        });
-
-        // D. Process Completed
-        // Only count if Completed Date in filter (same filter)
-        const validCompletedCards = lineChartCards.filter(c => {
-            if (!c.dueComplete || !c.due) return false;
-            return isDateInFilter(new Date(c.due), createdFilter);
-        });
-
-        validCompletedCards.forEach(c => {
-            const date = new Date(c.due);
-            const key = formatDateBucket(date, granularity);
-
-            let sortDate = date.getTime();
-            if (granularity === 'cumulative_hour') sortDate = date.getHours();
-
-            if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
-            bucketMap.get(key).completed++;
-        });
-
-        // Sort
-        const sortedKeys = Array.from(bucketMap.keys()).sort((a, b) => {
-            return bucketMap.get(a).sortDate - bucketMap.get(b).sortDate;
-        });
-
-        // Calculate Totals for Title
-        const totalCreated = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.created, 0);
-        const totalCompleted = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.completed, 0);
-
-
-
-
-
-        const ctxLine = lineChartRef.current.getContext('2d');
-        lineChartInstance.current = new window.Chart(ctxLine, {
-            type: 'line',
-            data: {
-                labels: sortedKeys,
-                datasets: [
-                    {
-                        label: `Created (${totalCreated})`,
-                        data: sortedKeys.map(k => bucketMap.get(k).created),
-                        borderColor: '#0079bf',
-                        backgroundColor: '#0079bf',
-                        tension: 0.1
-                    },
-                    {
-                        label: `Completed (${totalCompleted})`,
-                        data: sortedKeys.map(k => bucketMap.get(k).completed),
-                        borderColor: '#61bd4f',
-                        backgroundColor: '#61bd4f',
-                        tension: 0.1
+                // For cumulative hour, strictly ensure 0-23 buckets exist?
+                if (granularity === 'cumulative_hour') {
+                    for (let h = 0; h < 24; h++) {
+                        const dateSim = new Date(); dateSim.setHours(h, 0, 0, 0);
+                        const key = formatDateBucket(dateSim, 'cumulative_hour');
+                        if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate: h });
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'top' },
-                    title: {
-                        display: true,
-                        text: `${totalCreated} cards created / ${totalCompleted} Completed - ${filterLabelText}${labelInfo}`,
-                        font: { size: 16 }
-                    },
-                    datalabels: { display: false }
-                },
-                scales: {
-                    x: { title: { display: true, text: granularity.includes('hour') ? 'Hour' : 'Date' } },
-                    y: { title: { display: true, text: 'Count' }, beginAtZero: true }
                 }
             }
-        });
+
+            // C. Process Created (using filtered cards)
+            // Only count if Created Date in filter
+            const validCreatedCards = lineChartCards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
+            validCreatedCards.forEach(c => {
+                const date = getCreationDate(c.id);
+                const key = formatDateBucket(date, granularity);
+
+                let sortDate = date.getTime();
+                if (granularity === 'cumulative_hour') sortDate = date.getHours();
+
+                if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
+                bucketMap.get(key).created++;
+            });
+
+            // D. Process Completed
+            // Only count if Completed Date in filter (same filter)
+            const validCompletedCards = lineChartCards.filter(c => {
+                if (!c.dueComplete || !c.due) return false;
+                return isDateInFilter(new Date(c.due), createdFilter);
+            });
+
+            validCompletedCards.forEach(c => {
+                const date = new Date(c.due);
+                const key = formatDateBucket(date, granularity);
+
+                let sortDate = date.getTime();
+                if (granularity === 'cumulative_hour') sortDate = date.getHours();
+
+                if (!bucketMap.has(key)) bucketMap.set(key, { created: 0, completed: 0, sortDate });
+                bucketMap.get(key).completed++;
+            });
+
+            // Sort
+            const sortedKeys = Array.from(bucketMap.keys()).sort((a, b) => {
+                return bucketMap.get(a).sortDate - bucketMap.get(b).sortDate;
+            });
+
+            // Calculate Totals for Title
+            const totalCreated = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.created, 0);
+            const totalCompleted = bucketMap && Array.from(bucketMap.values()).reduce((acc, val) => acc + val.completed, 0);
 
 
-        // ==========================
-        // 2. PIE CHART (LABELS)
-        // ==========================
-        // Requirements:
-        // - Filter 1: Label Filters (Standard).
-        // - Filter 2: Date Filter (Bucketing). apply Date Filter to Pie Chart too?
-        // Req: "the ceated date filter should also apply to the Labels breakdown chart."
 
-        // A. Filter by Date first
-        const pieCardsDateFiltered = cards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
 
-        // B. Apply Label Filter logic (AND/OR) for visualization
-        // Wait, normally Pie Chart shows distribution OF labels.
-        // If I filter by "Label A", do I show only "Label A" slice?
-        // Reuse matchesLabelFilter?
-        // If I select "Label A" and "Label B" (OR), I expect to see distribution of cards having A or B.
-        // The slices will represent label combinations or individual labels?
-        // Previous logic: Slices = Unique Combinations of labels on cards.
 
-        const validPieCards = pieCardsDateFiltered.filter(matchesLabelFilter);
-
-        const labelCombinations = {};
-
-        validPieCards.forEach(c => {
-            if (!c.labels || c.labels.length === 0) {
-                const key = "No Label";
-                labelCombinations[key] = (labelCombinations[key] || 0) + 1;
-            } else {
-                const names = c.labels.map(l => l.name || l.color).sort().join(' + ');
-                labelCombinations[names] = (labelCombinations[names] || 0) + 1;
-            }
-        });
-
-        const ctxPie = pieChartRef.current.getContext('2d');
-        pieChartInstance.current = new window.Chart(ctxPie, {
-            type: 'pie',
-            data: {
-                labels: Object.keys(labelCombinations),
-                datasets: [{
-                    data: Object.values(labelCombinations),
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: 50 }, // Increased padding from 30 to 50
-                plugins: {
-                    legend: { display: false },
-                    datalabels: {
-                        color: '#000',
-                        anchor: 'end',
-                        align: 'end',
-                        offset: 10,
-                        backgroundColor: 'rgba(255,255,255,0.8)',
-                        borderRadius: 4,
-                        padding: 4,
-                        formatter: (value, ctx) => {
-                            const label = ctx.chart.data.labels[ctx.dataIndex];
-                            // Return array for newline support
-                            return [label, `(${value})`];
+            const ctxLine = lineChartRef.current.getContext('2d');
+            lineChartInstance.current = new window.Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: sortedKeys,
+                    datasets: [
+                        {
+                            label: `Created (${totalCreated})`,
+                            data: sortedKeys.map(k => bucketMap.get(k).created),
+                            borderColor: '#0079bf',
+                            backgroundColor: '#0079bf',
+                            tension: 0.1
                         },
-                        font: { weight: 'bold', size: 11 }
+                        {
+                            label: `Completed (${totalCompleted})`,
+                            data: sortedKeys.map(k => bucketMap.get(k).completed),
+                            borderColor: '#61bd4f',
+                            backgroundColor: '#61bd4f',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: {
+                            display: true,
+                            text: `${totalCreated} cards created / ${totalCompleted} Completed - ${filterLabelText}${labelInfo}`,
+                            font: { size: 16 }
+                        },
+                        datalabels: { display: false }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: granularity.includes('hour') ? 'Hour' : 'Date' } },
+                        y: { title: { display: true, text: 'Count' }, beginAtZero: true }
                     }
                 }
-            }
-        });
+            });
+
+
+            // ==========================
+            // 2. PIE CHART (LABELS)
+            // ==========================
+            // Requirements:
+            // - Filter 1: Label Filters (Standard).
+            // - Filter 2: Date Filter (Bucketing). apply Date Filter to Pie Chart too?
+            // Req: "the ceated date filter should also apply to the Labels breakdown chart."
+
+            // A. Filter by Date first
+            const pieCardsDateFiltered = cards.filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
+
+            // B. Apply Label Filter logic (AND/OR) for visualization
+            // Wait, normally Pie Chart shows distribution OF labels.
+            // If I filter by "Label A", do I show only "Label A" slice?
+            // Reuse matchesLabelFilter?
+            // If I select "Label A" and "Label B" (OR), I expect to see distribution of cards having A or B.
+            // The slices will represent label combinations or individual labels?
+            // Previous logic: Slices = Unique Combinations of labels on cards.
+
+            const validPieCards = pieCardsDateFiltered.filter(matchesLabelFilter);
+
+            const labelCombinations = {};
+
+            validPieCards.forEach(c => {
+                if (!c.labels || c.labels.length === 0) {
+                    const key = "No Label";
+                    labelCombinations[key] = (labelCombinations[key] || 0) + 1;
+                } else {
+                    const names = c.labels.map(l => l.name || l.color).sort().join(' + ');
+                    labelCombinations[names] = (labelCombinations[names] || 0) + 1;
+                }
+            });
+
+            const ctxPie = pieChartRef.current.getContext('2d');
+            pieChartInstance.current = new window.Chart(ctxPie, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(labelCombinations),
+                    datasets: [{
+                        data: Object.values(labelCombinations),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8e5ea2', '#3cba9f', '#e8c3b9', '#c45850'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: 50 }, // Increased padding from 30 to 50
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            color: '#000',
+                            anchor: 'end',
+                            align: 'end',
+                            offset: 10,
+                            backgroundColor: 'rgba(255,255,255,0.8)',
+                            borderRadius: 4,
+                            padding: 4,
+                            formatter: (value, ctx) => {
+                                const label = ctx.chart.data.labels[ctx.dataIndex];
+                                // Return array for newline support
+                                return [label, `(${value})`];
+                            },
+                            font: { weight: 'bold', size: 11 }
+                        }
+                    }
+                }
+            });
+
+
+
+        } catch (err) {
+            console.error("Chart error:", err);
+        }
 
     }, [cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
 
@@ -429,43 +438,114 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     <h1 style={{ marginLeft: '20px' }}>{boardName} - Statistics</h1>
                 </div>
                 <div className="header-actions" style={{ display: 'flex', alignItems: 'center' }}>
-                    <LabelFilter
-                        labels={allLabels}
-                        selectedLabelIds={selectedLabelIds}
-                        onChange={setSelectedLabelIds}
-                        labelLogic={labelLogic}
-                        onLabelLogicChange={setLabelLogic}
-                    />
+                    {/* Desktop Actions - Hidden on Mobile */}
+                    <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <LabelFilter
+                            labels={allLabels}
+                            selectedLabelIds={selectedLabelIds}
+                            onChange={setSelectedLabelIds}
+                            labelLogic={labelLogic}
+                            onLabelLogicChange={setLabelLogic}
+                        />
+                        <select className="time-filter-select" value={createdFilter} onChange={e => {
+                            const val = e.target.value;
+                            setCreatedFilter(val);
+                            if (val === 'custom') setShowCustomRange(true);
+                            else setShowCustomRange(false);
+                        }} style={{ margin: 0 }}>
+                            <option value="this_week">Created: This Week</option>
+                            {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
+                                <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
+                            ))}
+                            <option value="custom">Custom Range</option>
+                        </select>
+                        {createdFilter === 'custom' && (
+                            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                                <input type="date" value={customRange.start || ''} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} />
+                                <span>to</span>
+                                <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} />
+                            </div>
+                        )}
 
-                    <select className="time-filter-select" value={createdFilter} onChange={e => {
-                        const val = e.target.value;
-                        setCreatedFilter(val);
-                        if (val === 'custom') setShowCustomRange(true);
-                        else setShowCustomRange(false);
-                    }} style={{ marginLeft: '10px' }}>
-                        <option value="this_week">Created: This Week</option>
-                        {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
-                            <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
-                        ))}
-                        <option value="custom">Custom Range</option>
-                    </select>
+                        <button
+                            className="theme-toggle-button"
+                            onClick={() => toggleTheme()}
+                            title="Toggle Theme"
+                            style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none', marginLeft: '10px' }}
+                        >
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
+                    </div>
 
-                    {createdFilter === 'custom' && (
-                        <div style={{ display: 'inline-flex', gap: '5px', marginLeft: '10px', alignItems: 'center' }}>
-                            <input type="date" value={customRange.start || ''} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} />
-                            <span>to</span>
-                            <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} />
-                        </div>
-                    )}
+                    <div className="mobile-only">
+                        <HamburgerMenu>
+                            {/* Section 1: Filters */}
+                            <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+                                <strong>Filters</strong>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', alignItems: 'center' }}>
+                                    <div style={{ width: '85%', textAlign: 'center' }}>
+                                        <LabelFilter
+                                            labels={allLabels}
+                                            selectedLabelIds={selectedLabelIds}
+                                            onChange={setSelectedLabelIds}
+                                            labelLogic={labelLogic}
+                                            onLabelLogicChange={setLabelLogic}
+                                        />
+                                    </div>
 
-                    <button
-                        className="theme-toggle-button"
-                        onClick={() => toggleTheme()}
-                        style={{ marginLeft: '15px', padding: '6px', fontSize: '1.2em', background: 'none', border: 'none', cursor: 'pointer' }}
-                    >
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
+                                    <select className="time-filter-select" value={createdFilter} onChange={e => {
+                                        const val = e.target.value;
+                                        setCreatedFilter(val);
+                                        if (val === 'custom') setShowCustomRange(true);
+                                        else setShowCustomRange(false);
+                                    }} style={{ width: '85%', margin: 0 }}>
+                                        <option value="this_week">Created: This Week</option>
+                                        {Object.keys(TIME_FILTERS).filter(k => k !== 'all').map(k => (
+                                            <option key={k} value={k}>{TIME_FILTERS[k].label}</option>
+                                        ))}
+                                        <option value="custom">Custom Range</option>
+                                    </select>
 
+                                    {createdFilter === 'custom' && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', width: '85%' }}>
+                                            <input type="date" value={customRange.start || ''} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} style={{ width: '100%' }} />
+                                            <span style={{ textAlign: 'center' }}>to</span>
+                                            <input type="date" value={customRange.end || ''} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} style={{ width: '100%' }} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Section 2: Actions */}
+                            <div className="hamburger-section">
+                                <strong>Actions</strong>
+                                <button className="menu-link" onClick={onGoToDashboard}>
+                                    Dashboard View
+                                </button>
+                                <button className="menu-link" disabled={!enableMapView} onClick={() => window.location.href = '/map'}>
+                                    Map View
+                                </button>
+                                <button className="menu-link" onClick={onShowSettings}>
+                                    Settings
+                                </button>
+                                <button className="menu-link" onClick={onLogout}>
+                                    Logout
+                                </button>
+                            </div>
+
+                            {/* Theme Toggle at Bottom */}
+                            <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                <button
+                                    className="theme-toggle-button"
+                                    onClick={() => toggleTheme()}
+                                    title="Toggle Theme"
+                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
+                                >
+                                    {theme === 'dark' ? '☀️' : '🌙'}
+                                </button>
+                            </div>
+                        </HamburgerMenu>
+                    </div>
                 </div>
             </div>
             <div className="container" style={{ flex: 1, paddingBottom: '80px' }}>

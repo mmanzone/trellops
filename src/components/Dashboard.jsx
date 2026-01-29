@@ -13,6 +13,7 @@ import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
 import MapView from './MapView'; // For Slideshow
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
+import HamburgerMenu from './common/HamburgerMenu';
 import '../styles/map.css';
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow }) => {
@@ -27,6 +28,8 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
     // FILTER STATE
     const [timeFilter, setTimeFilter] = useState('all');
     const [selectedLabelIds, setSelectedLabelIds] = useState(null); // null = All
+    const [labelLogic, setLabelLogic] = useState('OR'); // 'AND' or 'OR'
+
 
     const [enableMapView, setEnableMapView] = useState(() => {
         if (settings && settings.enableMapView !== undefined) return settings.enableMapView;
@@ -145,6 +148,12 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         return () => clearInterval(interval);
     }, [fetchData, effectiveSeconds]);
 
+    const handleRefresh = useCallback(() => {
+        setCountdown(effectiveSeconds);
+        fetchData(true);
+    }, [effectiveSeconds, fetchData]);
+
+
 
     // CALCULATE COUNTS (Client-side Filtering)
     const counts = useMemo(() => {
@@ -213,13 +222,28 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 // Label Filter (Multi-select)
                 // If selectedLabelIds is NULL, it means ALL -> return true.
                 if (selectedLabelIds !== null && selectedLabelIds.size > 0) {
-                    if (!c.labels || c.labels.length === 0) return false; // Card has no labels -> filtered out if specific labels selected?
-                    // If I select "Red", and card has "Blue", fail.
-                    // If I select "Red", and card has no labels, fail.
-                    const hasMatch = c.labels.some(l => selectedLabelIds.has(l.id));
-                    if (!hasMatch) return false;
+                    if (!c.labels || c.labels.length === 0) return false; // Card has no labels
+
+                    const cardLabelIds = new Set(c.labels.map(l => l.id));
+
+                    if (labelLogic === 'AND') {
+                        // Match ALL selected
+                        for (let id of selectedLabelIds) {
+                            if (!cardLabelIds.has(id)) return false;
+                        }
+                    } else {
+                        // Match ANY selected
+                        let hasMatch = false;
+                        for (let id of selectedLabelIds) {
+                            if (cardLabelIds.has(id)) {
+                                hasMatch = true;
+                                break;
+                            }
+                        }
+                        if (!hasMatch) return false;
+                    }
                 } else if (selectedLabelIds !== null && selectedLabelIds.size === 0) {
-                    // Logic for "Select None" -> Show Nothing?
+                    // "Select None" -> Show Nothing
                     return false;
                 }
                 // If null (All), proceed.
@@ -249,7 +273,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
         return countsMap;
 
-    }, [allCards, timeFilter, selectedLabelIds, allListsMap, sectionsLayout, user.id, boardId, ignoreTemplateCards, ignoreCompletedCards, ignoreNoDescCards]);
+    }, [allCards, timeFilter, selectedLabelIds, labelLogic, allListsMap, sectionsLayout, user.id, boardId, ignoreTemplateCards, ignoreCompletedCards, ignoreNoDescCards]);
 
 
     const handleTileClick = (listId, listName, color) => {
@@ -327,33 +351,115 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                 <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
 
-                    {!onStopSlideshow && (
-                        <>
-                            {/* Label Filter - Moved BEFORE Time Filter */}
-                            <LabelFilter
-                                labels={boardLabels}
-                                selectedLabelIds={selectedLabelIds}
-                                onChange={setSelectedLabelIds}
-                            />
+                    {/* DESKTOP ACTIONS */}
+                    <div className="desktop-only" style={{ display: 'flex', alignItems: 'center' }}>
+                        {!onStopSlideshow && (
+                            <>
+                                {/* Label Filter - Moved BEFORE Time Filter */}
+                                <LabelFilter
+                                    labels={boardLabels}
+                                    selectedLabelIds={selectedLabelIds}
+                                    onChange={setSelectedLabelIds}
+                                    labelLogic={labelLogic}
+                                    onLabelLogicChange={setLabelLogic}
+                                />
 
-                            {/* Time Filter */}
-                            <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
-                                {Object.keys(TIME_FILTERS).map(key => (
-                                    <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
-                                ))}
-                            </select>
+                                {/* Time Filter */}
+                                <select className="time-filter-select" value={timeFilter} onChange={e => setTimeFilter(e.target.value)} style={{ marginLeft: '10px' }}>
+                                    {Object.keys(TIME_FILTERS).map(key => (
+                                        <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                    ))}
+                                </select>
 
-                            {settings?.statistics?.enabled && (
-                                <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
-                                    Stats
-                                </button>
+                                {settings?.statistics?.enabled && (
+                                    <button className="button-secondary" onClick={onGoToStats || (() => window.open('/stats', '_self'))} style={{ marginLeft: '10px', height: '34px', padding: '0 15px', display: 'flex', alignItems: 'center' }}>
+                                        Stats
+                                    </button>
+                                )}
+                            </>
+                        )}
+
+                        <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
+                    </div>
+
+                    {/* MOBILE HAMBURGER MENU */}
+                    <div className="mobile-only">
+                        <HamburgerMenu>
+                            {/* FILTERS */}
+                            {!onStopSlideshow && (
+                                <div className="hamburger-section" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '15px' }}>
+                                    <strong>Filters</strong>
+                                    {/* Label Filter: Left Aligned & Reduced Width */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', width: '100%', alignItems: 'center' }}>
+                                        <div style={{ width: '85%', textAlign: 'center' }}>
+                                            <LabelFilter
+                                                labels={boardLabels}
+                                                selectedLabelIds={selectedLabelIds}
+                                                onChange={setSelectedLabelIds}
+                                                labelLogic={labelLogic}
+                                                onLabelLogicChange={setLabelLogic}
+                                            />
+                                        </div>
+
+                                        <select
+                                            value={timeFilter}
+                                            onChange={(e) => setTimeFilter(e.target.value)}
+                                            className="time-filter-select"
+                                            style={{ width: '85%', margin: 0 }}
+                                        >
+                                            {Object.keys(TIME_FILTERS).map(key => (
+                                                <option key={key} value={key}>{TIME_FILTERS[key].label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             )}
-                        </>
-                    )}
 
-                    <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
+                            {/* ACTIONS */}
+                            <div className="hamburger-section">
+                                <strong>Actions</strong>
+
+                                {settings?.statistics?.enabled && (
+                                    <button className="menu-link" onClick={onGoToStats || (() => window.open('/stats', '_self'))}>
+                                        Statistics View
+                                    </button>
+                                )}
+
+                                {enableMapView && (
+                                    <button className="menu-link" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
+                                        Map View
+                                    </button>
+                                )}
+
+                                {/* Always show Task View Link */}
+                                <button className="menu-link" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
+                                    Tasks View
+                                </button>
+
+                                <button className="menu-link" onClick={onShowSettings}>
+                                    Settings
+                                </button>
+
+                                <button className="menu-link" onClick={onLogout}>
+                                    Logout
+                                </button>
+                            </div>
+
+                            {/* Theme Toggle at Bottom */}
+                            <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                                <button
+                                    className="theme-toggle-button"
+                                    onClick={() => toggleTheme()}
+                                    title="Toggle Theme"
+                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
+                                >
+                                    {theme === 'dark' ? '☀️' : '🌙'}
+                                </button>
+                            </div>
+                        </HamburgerMenu>
+                    </div>
                 </div>
             </div>
 
@@ -481,7 +587,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     </button>
 
                     {!onStopSlideshow && (
-                        <>
+                        <div className="desktop-only" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                             {enableMapView && (
                                 <div style={{ position: 'relative' }}>
                                     <div style={{ display: 'flex' }}>
@@ -523,7 +629,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                             <button className="button-secondary" onClick={onShowSettings}>Settings</button>
                             <button className="button-secondary" onClick={onLogout}>Log Out</button>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
@@ -576,13 +682,41 @@ const DashboardContent = ({
                             </button>
                         </div>
                         {!isCollapsed && (
-                            <div className="dashboard-grid">
+                            <div
+                                className="dashboard-grid"
+                                style={{
+                                    gridTemplateColumns: (() => {
+                                        const count = blockTiles.length;
+                                        // Desktop: No limit, fit as many as possible or default grid
+                                        // But logic needs to support responsive behavior.
+                                        // If we just say repeat(auto-fill, minmax(100px, 1fr)), it handles itself.
+                                        // However, existing logic was specific for Mobile/Fixed counts?
+                                        // Let's use a media query aware style or just CSS Grid auto-fit for desktop?
+
+                                        // For Mobile (simulated by logic?) -> User said "only in mobile view" keep limit.
+                                        // We can't easily detect mobile in JS render without hook, but we can return undefined and let CSS handle, or check window width safely.
+                                        const isDesktop = window.innerWidth > 768; // Simple check, or assume desktop by default?
+
+                                        if (isDesktop) {
+                                            return `repeat(${count < 6 ? count : 'auto-fill, minmax(100px, 1fr)'}, 1fr)`;
+                                            // If we want "no limit", we might want flex-wrap or auto-fill. 
+                                            // `repeat(${count}, 1fr)` puts ALL in one row. That's "no limit".
+                                            return `repeat(${count}, 1fr)`;
+                                        }
+
+                                        // Mobile logic (Keep existing or similar constraint)
+                                        if (count < 4) return `repeat(${count}, 1fr)`;
+                                        if (count === 5 || count === 6) return `repeat(3, 1fr)`;
+                                        return `repeat(4, 1fr)`; // Default for 4, 7, 8+
+                                    })()
+                                }}
+                            >
                                 {blockTiles.map((item) => (
                                     <div key={item.listId} className="dashboard-tile" style={{ backgroundColor: item.displayColor, color: 'white' }} onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}>
                                         <div className="card-count">{item.count}</div>
                                         <div className="list-name">{item.name}</div>
                                         {item.firstCardName && (
-                                            <div className="card-description" title={item.firstCardName}>{item.firstCardName}</div>
+                                            <div className="card-description card-description-text" title={item.firstCardName}>{item.firstCardName}</div>
                                         )}
                                     </div>
                                 ))}

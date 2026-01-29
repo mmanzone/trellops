@@ -140,6 +140,28 @@ button:disabled,
     flex-shrink: 0;
 }
 
+.menu-link {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: none;
+    border: none;
+    padding: 10px 15px;
+    font-size: 1rem;
+    color: var(--text-color);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.menu-link:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='dark'] .menu-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Subtle help link shown next to the settings header */
 .subtle-help-link {
     margin-left: 12px;
@@ -298,6 +320,12 @@ button:disabled,
     max-width: 95%;
     margin: 20px auto;
     position: relative;
+}
+
+@media (max-width: 768px) {
+    .form-card {
+        padding: 15px;
+    }
 }
 
 .form-card label {
@@ -765,6 +793,40 @@ input:checked+.slider:before {
         font-size: 2em;
     }
 
+    /* Resize Header Elements for Mobile */
+    .header h1 {
+        font-size: 1.2em;
+        /* Reduced from 2em */
+        margin-right: 10px;
+    }
+
+    .large-clock {
+        font-size: 1.5em;
+        /* Reduced from 2.5em */
+        min-width: auto;
+        /* Remove fixed width constraint */
+        margin-right: 10px;
+        letter-spacing: 1px;
+    }
+
+    /* Wrap header content naturally */
+    .header {
+        flex-wrap: wrap;
+        /* Already set, but ensuring */
+        padding-bottom: 10px;
+    }
+
+    .header-title-area {
+        max-width: 100%;
+        /* Use full width on mobile */
+        margin-bottom: 5px;
+    }
+
+    .header-actions {
+        margin-left: auto;
+        /* Push to right */
+    }
+
     .value-grid {
         grid-template-columns: 1fr;
     }
@@ -783,20 +845,35 @@ input:checked+.slider:before {
     }
 
     .dashboard-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
+        /* Mobile Portrait: 2 Columns */
+        /* User Requirement: 4 columns on mobile too */
+        grid-template-columns: repeat(4, 1fr);
+        gap: 5px;
+        /* Tight gap */
+    }
+
+    /* Single Tile Expansion */
+    .dashboard-grid>.dashboard-tile:only-child {
+        grid-column: 1 / -1;
+        /* Span all columns */
     }
 
     .dashboard-tile {
-        min-height: 140px;
+        min-height: 80px;
+        /* Small tiles */
+        padding: 5px;
     }
 
     .card-count {
-        font-size: 3.5em;
+        font-size: 1.8em;
+        /* Small font */
     }
 
     .list-name {
-        font-size: 1em;
+        font-size: 0.75em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* Form and settings responsive */
@@ -851,6 +928,79 @@ input:checked+.slider:before {
 
     h3 {
         font-size: 1.2em;
+    }
+}
+
+/* Header Filters Compact Mode */
+.time-filter-select {
+    padding: 6px 10px;
+    font-size: 0.9em;
+    max-width: 120px;
+    text-overflow: ellipsis;
+}
+
+/* Common Menu Link Style (Hamburger) */
+.menu-link {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 10px 0;
+    font-size: 1.05em;
+    color: var(--text-color);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    text-decoration: none;
+}
+
+.menu-link:last-child {
+    border-bottom: none;
+}
+
+.menu-link:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    /* Subtle hover */
+    /* text-decoration: underline; Optional */
+}
+
+/* Hamburger Section Vertical Stack */
+.hamburger-section {
+    display: flex;
+    flex-direction: column;
+    /* gap: 5px; handled by padding in link */
+}
+
+/* Desktop Only / Mobile Only Strict Visibility */
+.mobile-only {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block !important;
+    }
+
+    .desktop-only {
+        display: none !important;
+    }
+
+    /* Force Header Filters to fit */
+    .time-filter-select {
+        max-width: 80px;
+        /* Force shrinking */
+        padding: 4px;
+        font-size: 0.8em;
+    }
+}
+
+@media (max-width: 600px) {
+    .time-filter-select {
+        max-width: 70px;
+    }
+
+    .map-header h1 {
+        font-size: 0.95em;
     }
 }
 
@@ -1061,4 +1211,78 @@ footer a:hover {
         margin: 20px;
         padding: 30px;
     }
+}
+
+/* --- Hamburger Menu --- */
+.hamburger-menu-container {
+    position: relative;
+    display: inline-block;
+}
+
+.hamburger-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-color);
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hamburger-dropdown {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-color);
+}
+
+.hamburger-section {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.hamburger-section:last-child {
+    margin-bottom: 0;
+}
+
+.menu-link {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-size: 1rem;
+    cursor: pointer;
+    text-decoration: none;
+    padding: 8px 16px;
+    transition: color 0.2s, background-color 0.2s;
+    border-radius: 4px;
+    width: 100%;
+    text-align: center;
+    font-weight: 500;
+}
+
+.menu-link:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-color);
+}
+
+/* Ensure inputs/selects in menu are centered and look good */
+.hamburger-dropdown select,
+.hamburger-dropdown input {
+    width: 100%;
+    max-width: 220px;
+    /* Prevent overly wide inputs */
+    margin: 5px 0;
 }
