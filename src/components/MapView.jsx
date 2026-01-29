@@ -528,7 +528,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             // Fallback: No markers visible
             if (homeLocation && homeLocation.coords) {
                 // Zoom to Home Address even if not shown
-                googleMapRef.current.setCenter({ lat: homeLocation.coords.lat, lng: homeLocation.coords.lon });
+                const lat = typeof homeLocation.coords.lat === 'function' ? homeLocation.coords.lat() : parseFloat(homeLocation.coords.lat);
+                const lng = typeof homeLocation.coords.lng === 'function' ? homeLocation.coords.lng() : parseFloat(homeLocation.coords.lon || homeLocation.coords.lng);
+                googleMapRef.current.setCenter({ lat, lng });
                 googleMapRef.current.setZoom(14);
             } else {
                 // Fallback: Australia
@@ -1162,7 +1164,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             }
         } else if (homeMarkerRef.current) { homeMarkerRef.current.setMap(null); }
 
-        if (visibleCards.length > 0 && !initialFitDone) {
+        if (!initialFitDone && (visibleCards.length > 0 || !loading)) {
             fitMapBounds();
             setInitialFitDone(true);
             prevValidCardCount.current = validCards.length;
@@ -1178,7 +1180,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             prevValidCardCount.current = validCards.length;
         }
 
-    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists, refreshVersion]);
+    }, [cards, visibleListIds, visibleRuleIds, blocks, markerRules, homeLocation, showHomeLocation, mapLoaded, lists, refreshVersion, loading]);
 
     // EMBEDDED MODE
     if (isEmbedded) {
