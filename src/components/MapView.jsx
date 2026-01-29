@@ -433,7 +433,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
 };
 
 
-const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow }) => {
+const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
     const [boardLabels, setBoardLabels] = useState([]);
@@ -1266,6 +1266,18 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                 </select>
                             </>
                         )}
+
+                        <button className="theme-toggle-button" onClick={onToggleScreenLock} style={{ marginLeft: '10px' }} title={keepScreenOn ? "Screen stays on" : "Screen may sleep"}>
+                            {keepScreenOn ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path>
+                                    <path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            )}
+                        </button>
 
                         <button
                             className="theme-toggle-button"
