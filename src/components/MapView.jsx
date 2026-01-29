@@ -204,7 +204,7 @@ const parseAddressFromDescription = (desc) => {
 /* formatCountdown removed - using formatDynamicCountdown from helpers */
 
 // --- ERROR TOAST ---
-const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
+const GeocodingErrorToast = ({ error, onDismiss, onApply, onIgnore }) => {
     const [manualAddress, setManualAddress] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const autocompleteService = useRef(null);
@@ -261,6 +261,26 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
 
             <div style={{ fontSize: '0.9em', color: '#c92a2a', marginTop: '4px' }}>Failed Address: {error.failedAddress}</div>
 
+            <div style={{ width: '100%', marginTop: '8px', display: 'flex', gap: '8px' }}>
+                <button
+                    onClick={() => onIgnore(error.cardId)}
+                    style={{
+                        flex: 1,
+                        padding: '6px',
+                        background: '#f8f9fa',
+                        border: '1px solid #ced4da',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.85em',
+                        color: '#495057'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#e9ecef'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#f8f9fa'}
+                >
+                    Do not show on map
+                </button>
+            </div>
+
             <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
                 <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Manual Fix (Search):</label>
                 <div style={{ position: 'relative' }}>
@@ -279,7 +299,7 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply }) => {
 };
 
 // --- POPUP COMPONENT ---
-const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStreetView, onZoom }) => {
+const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStreetView, onZoom, onFixAddress }) => {
     // Group lists by Block
     const groupedLists = blocks.reduce((acc, block) => {
         if (block.includeOnMap === false) return acc;
@@ -373,29 +393,42 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
                             <line x1="12" y1="22" x2="12" y2="18" />
                         </svg>
                     </button>
+                    {/* Fix Address Button */}
+                    <button
+                        title="Fix Address"
+                        onClick={() => onFixAddress && onFixAddress(card)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: '4px' }}
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    </button>
                 </div>
 
                 {/* Move Action */}
-                {onMove && lists.length > 0 && (
-                    <select
-                        onChange={(e) => onMove(card.id, e.target.value)}
-                        value=""
-                        style={{ maxWidth: '140px', fontSize: '0.9em', padding: '4px', borderRadius: '4px', borderColor: '#dfe1e6' }}
-                    >
-                        <option value="" disabled>Move to...</option>
-                        {Object.values(groupedLists).map(group => (
-                            group.lists.length > 0 && (
-                                <optgroup key={group.name} label={group.name}>
-                                    {group.lists.map(l => (
-                                        <option key={l.id} value={l.id}>{l.name}</option>
-                                    ))}
-                                </optgroup>
-                            )
-                        ))}
-                    </select>
-                )}
-            </div>
-        </div>
+                {
+                    onMove && lists.length > 0 && (
+                        <select
+                            onChange={(e) => onMove(card.id, e.target.value)}
+                            value=""
+                            style={{ maxWidth: '140px', fontSize: '0.9em', padding: '4px', borderRadius: '4px', borderColor: '#dfe1e6' }}
+                        >
+                            <option value="" disabled>Move to...</option>
+                            {Object.values(groupedLists).map(group => (
+                                group.lists.length > 0 && (
+                                    <optgroup key={group.name} label={group.name}>
+                                        {group.lists.map(l => (
+                                            <option key={l.id} value={l.id}>{l.name}</option>
+                                        ))}
+                                    </optgroup>
+                                )
+                            ))}
+                        </select>
+                    )
+                }
+            </div >
+        </div >
     );
 };
 
@@ -408,6 +441,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const [loading, setLoading] = useState(true);
     const [geocodingQueue, setGeocodingQueue] = useState([]);
     const [blocks, setBlocks] = useState([]);
+
+    const [ignoredCards, setIgnoredCards] = useState(new Set());
 
     const [visibleListIds, setVisibleListIds] = useState(new Set());
     const [visibleRuleIds, setVisibleRuleIds] = useState(new Set(['default']));
@@ -622,6 +657,10 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 setVisibleListIds(new Set(allListIds));
                 const allRuleIds = (savedRules ? JSON.parse(savedRules) : []).map(r => r.id).concat(['default']);
                 setVisibleRuleIds(new Set(allRuleIds));
+
+                // Load Ignored Cards
+                const ignored = JSON.parse(localStorage.getItem(STORAGE_KEYS.IGNORE_CARDS + boardId) || '[]');
+                setIgnoredCards(new Set(ignored));
             }
 
             const [listsData, labelsData, cardsData] = await Promise.all([
@@ -647,8 +686,15 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             const processedCards = cardsData.filter(c => {
                 if (ignoreTemplateCards && c.isTemplate) return false;
+                if (ignoreTemplateCards && c.isTemplate) return false;
                 if (ignoreCompletedCards && c.dueComplete) return false;
                 if (ignoreNoDescCards && (!c.desc || !c.desc.trim())) return false; // Basic catch, specific logic in geocoding
+                // Note: We don't filter `ignoredCards` here because we need them in the `cards` state to manage them (un-ignore?) 
+                // OR we filter them here so they don't show up at all?
+                // Request says "ignore for decoding... do not show on map". 
+                // If we filter here, they won't even be in `cards` list for other stats? 
+                // Usually map-only filters should be applied in geocoding or render.
+                // Let's keep them in `cards` but skip in geocoding and map rendering.
                 return true;
             }).map(c => {
                 let coords = null;
@@ -693,6 +739,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             // 2. Ignore first card logic
             if (block.ignoreFirstCard && c.isFirstInList) return false;
+
+            // 2.5 Check if card is manually ignored
+            if (ignoredCards.has(c.id)) return false;
 
             // 3. Ignore if description is empty (Explicitly for Geocoding)
             // If empty desc, we can't parse address. Should we flag error?
@@ -913,6 +962,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         lists={lists}
                         onMove={handleMoveCard}
                         enableStreetView={enableStreetView}
+                        onFixAddress={handleFixAddress}
                     />
                 );
                 infoWindowRef.current.setContent(div);
@@ -923,6 +973,45 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             alert("Failed to move card.");
         }
     };
+
+
+    // --- HANDLERS ---
+    const handleIgnoreCard = (cardId) => {
+        setIgnoredCards(prev => {
+            const next = new Set(prev);
+            next.add(cardId);
+            localStorage.setItem(STORAGE_KEYS.IGNORE_CARDS + boardId, JSON.stringify(Array.from(next)));
+            return next;
+        });
+
+        // Remove from cards list if we strictly don't want to see it? 
+        // Or just remove coordinates so it doesn't show pin?
+        // If we just remove coordinates, we need to update state.
+        setCards(prev => prev.map(c => c.id === cardId ? { ...c, coordinates: null } : c));
+
+        // Remove from errors if present
+        setErrors(prev => prev.filter(e => e.cardId !== cardId));
+
+        // Remove from queue if present
+        setGeocodingQueue(prev => prev.filter(c => c.id !== cardId));
+    };
+
+    const handleFixAddress = useCallback((card) => {
+        // Open the geocoding error toast for this card, effectively acting as "Manual Fix" mode
+        // Check if already in errors
+        setErrors(prev => {
+            if (prev.some(e => e.cardId === card.id)) return prev;
+            return [...prev, {
+                cardId: card.id,
+                cardName: card.name,
+                cardDesc: card.desc,
+                cardUrl: card.shortUrl,
+                failedAddress: parseAddressFromDescription(card.desc) || "Manual Fix Requested"
+            }];
+        });
+        if (infoWindowRef.current) infoWindowRef.current.close();
+    }, []);
+
 
     // --- MARKERS RENDER ---
     const prevRefreshVersion = useRef(0);
@@ -1028,6 +1117,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             lists={enableCardMove ? lists : []}
                             onMove={handleMoveCard}
                             enableStreetView={enableStreetView}
+                            onFixAddress={handleFixAddress}
                             onZoom={(c) => {
                                 if (googleMapRef.current && c.coordinates) {
                                     googleMapRef.current.setCenter({ lat: c.coordinates.lat, lng: c.coordinates.lng });
@@ -1251,7 +1341,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999, pointerEvents: 'none' }}>
                 <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                    {errors.map(err => <GeocodingErrorToast key={err.cardId} error={err} onDismiss={handleDismissError} onApply={handleApplyResult} />)}
+                    {errors.map(err => <GeocodingErrorToast key={err.cardId} error={err} onDismiss={handleDismissError} onApply={handleApplyResult} onIgnore={handleIgnoreCard} />)}
                 </div>
             </div>
 
