@@ -10,7 +10,8 @@ import { ICONS } from './common/IconPicker';
 import MapFilters from './MapFilters';
 import { loadGoogleMaps } from '/src/utils/googleMapsLoader';
 import { marked } from 'marked';
-import Dashboard from './Dashboard'; // For Slideshow
+// import Dashboard from './Dashboard'; // Removed to avoid circular dependency
+const Dashboard = React.lazy(() => import('./Dashboard'));
 import HamburgerMenu from './common/HamburgerMenu';
 import '/src/styles/map.css';
 
@@ -1394,7 +1395,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
                 {slideshowContent === 'dashboard' ? (
                     <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-                        <Dashboard isEmbedded={true} user={user} settings={settings} />
+                        <React.Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><span className="spinner"></span></div>}>
+                            <Dashboard isEmbedded={true} user={user} settings={settings} />
+                        </React.Suspense>
                     </div>
                 ) : (
                     <>
