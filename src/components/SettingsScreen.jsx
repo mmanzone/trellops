@@ -1526,7 +1526,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         try {
                                                             const key = `MAP_GEOCODING_CACHE_${selectedBoard.id}`;
                                                             localStorage.removeItem(key);
-                                                            alert('Cache cleared successfully.');
+                                                            // Also clear ignored cards so they can be re-attempted
+                                                            localStorage.removeItem(STORAGE_KEYS.IGNORE_CARDS + selectedBoard.id);
+                                                            alert('Cache and ignored cards cleared successfully.');
                                                         } catch (e) {
                                                             alert('Failed to clear cache');
                                                         }
