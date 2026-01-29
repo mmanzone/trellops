@@ -481,25 +481,37 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             </div>
 
             {/* RENDER BLOCKS OR SLIDESHOW CONTENT */}
-            {slideshowContent === 'map' ? (
-                <div style={{ flex: 1, position: 'relative', width: '100%', overflow: 'hidden' }}>
-                    <MapView isEmbedded={true} user={user} settings={settings} />
+            <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {slideshowContent !== null && (
+                    <div style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                        visibility: slideshowContent === 'map' ? 'visible' : 'hidden',
+                        zIndex: slideshowContent === 'map' ? 100 : -1,
+                        background: 'var(--bg-primary)'
+                    }}>
+                        <MapView isEmbedded={true} user={user} settings={settings} />
+                    </div>
+                )}
+
+                <div style={{
+                    flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                    visibility: (slideshowContent === 'map') ? 'hidden' : 'visible'
+                }}>
+                    <DashboardContent
+                        sectionsLayout={sectionsLayout}
+                        blocksMap={blocksMap}
+                        counts={counts}
+                        allListsMap={allListsMap}
+                        handleTileClick={handleTileClick}
+                        handleToggleCollapse={handleToggleCollapse}
+                        handleCloseModal={handleCloseModal}
+                        user={user}
+                        ignoreTemplateCards={ignoreTemplateCards}
+                        ignoreNoDescCards={ignoreNoDescCards}
+                        modalList={modalList}
+                    />
                 </div>
-            ) : (
-                <DashboardContent
-                    sectionsLayout={sectionsLayout}
-                    blocksMap={blocksMap}
-                    counts={counts}
-                    allListsMap={allListsMap}
-                    handleTileClick={handleTileClick}
-                    handleToggleCollapse={handleToggleCollapse}
-                    handleCloseModal={handleCloseModal}
-                    user={user}
-                    ignoreTemplateCards={ignoreTemplateCards}
-                    ignoreNoDescCards={ignoreNoDescCards}
-                    modalList={modalList}
-                />
-            )}
+            </div>
             {/* OLD CONTENT DISABLED */}{false && (
                 <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', position: 'relative', zIndex: 1 }}>
                     {sectionsLayout.map(block => {

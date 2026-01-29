@@ -12,7 +12,8 @@ export const STORAGE_KEYS = {
     IGNORE_COMPLETED_CARDS: 'dashboardIgnoreCompletedCards_',
     IGNORE_NO_DESC_CARDS: 'IGNORE_NO_DESC_CARDS_', // Matches legacy/SettingsScreen value
     RANDOM_COLORS_CACHE: 'dashboardRandomColors',
-    IGNORE_CARDS: 'dashboardIgnoredCards_'
+    IGNORE_CARDS: 'dashboardIgnoredCards_',
+    BASEMAP_PREF: 'dashboardBasemapPref_'
 };
 
 export const DEFAULT_LAYOUT = [{ id: 'all', name: 'Default', listIds: [], ignoreFirstCard: false, displayFirstCardDescription: true, isCollapsed: false }];

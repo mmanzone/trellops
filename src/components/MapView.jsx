@@ -433,7 +433,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
 };
 
 
-const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
+const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock, isVisible = true }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
     const [boardLabels, setBoardLabels] = useState([]);
@@ -448,7 +448,33 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const [visibleRuleIds, setVisibleRuleIds] = useState(new Set(['default']));
     const [showHomeLocation, setShowHomeLocation] = useState(true);
 
-    const [baseMap, setBaseMap] = useState('roadmap');
+    // Initializing baseMap from localStorage if available
+    const [baseMap, setBaseMap] = useState(() => {
+        const boardId = settings?.boardId || (user && JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings?.boardId);
+        if (boardId) {
+            const stored = localStorage.getItem(STORAGE_KEYS.BASEMAP_PREF + boardId);
+            if (stored) return stored;
+        }
+        return 'roadmap';
+    });
+
+    // Load baseMap preference when boardId changes (in case it wasn't ready initially)
+    useEffect(() => {
+        if (boardId) {
+            const stored = localStorage.getItem(STORAGE_KEYS.BASEMAP_PREF + boardId);
+            if (stored && stored !== baseMap) {
+                setBaseMap(stored);
+            }
+        }
+    }, [boardId]);
+
+    // Save baseMap preference
+    useEffect(() => {
+        if (boardId) {
+            localStorage.setItem(STORAGE_KEYS.BASEMAP_PREF + boardId, baseMap);
+        }
+    }, [baseMap, boardId]);
+
     const [errors, setErrors] = useState([]);
     const [markerRules, setMarkerRules] = useState([]);
     const [homeLocation, setHomeLocation] = useState(null);
@@ -501,6 +527,18 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             currentOpenCardId.current = null;
         });
     }, [mapLoaded]);
+
+    // VISIBILITY CHANGE HANDLER: Trigger Resize & FitBounds
+    useEffect(() => {
+        if (isVisible && googleMapRef.current && mapLoaded) {
+            console.log("MapView became visible - triggering resize");
+            window.google.maps.event.trigger(googleMapRef.current, "resize");
+            // Re-fit bounds if we have cards
+            if (initialFitDone) {
+                fitMapBounds();
+            }
+        }
+    }, [isVisible, mapLoaded, initialFitDone]);
 
     const fitMapBounds = () => {
         if (!googleMapRef.current) return;
@@ -556,28 +594,16 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             if (trafficLayerRef.current) {
                 trafficLayerRef.current.setMap(null);
             }
-            // Map 'satellite' to 'satellite', 'roadmap' to 'roadmap', 'terrain' to 'terrain', 'hybrid' to 'hybrid'
-            // 'dark' is custom styled roadmap usually, handled by map options?
-            // Wait, existing code handles 'dark' via stylized map options?
-            // Let's check where baseMap is used. It's used in this useEffect technically if we add it.
-            // Actually, the previous implementation of baseMap switching might be missing?
-            // Let me check if there was an existing baseMap effect.
-            // I don't see one in the previous `view_file`.
-            // Wait, line 890 sets `baseMap`. But where is it USED?
-            // I might have missed it.
-            // If it wasn't used, then "Roadmap/Topo/Sat" wasn't working?
-            // Ah, I need to check if there is an existing effect for `baseMap`.
-            // If not, I should add it.
-            // I'll assume I need to add it.
-
-            // For 'dark', usually we set options.
-            // But for standard types:
             if (baseMap !== 'dark' && baseMap !== 'traffic') {
                 googleMapRef.current.setMapTypeId(baseMap);
             } else if (baseMap === 'dark') {
                 // Use the registered 'dark_mode' map type
                 googleMapRef.current.setMapTypeId('dark_mode');
             }
+
+            // Re-apply Persistent Basemap check on load if it was set before mapLoaded
+            // The effect runs on 'baseMap' change or 'mapLoaded'.
+            // If baseMap was set from local storage, it triggers this.
         }
     }, [baseMap, mapLoaded]);
 
