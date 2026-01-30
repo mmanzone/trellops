@@ -11,7 +11,8 @@ import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
-import MapView from './MapView'; // For Slideshow
+// import MapView from './MapView'; // Removed to avoid circular dependency
+const MapView = React.lazy(() => import('./MapView'));
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import HamburgerMenu from './common/HamburgerMenu';
 import '../styles/map.css';
@@ -489,7 +490,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         zIndex: slideshowContent === 'map' ? 100 : -1,
                         background: 'var(--bg-primary)'
                     }}>
-                        <MapView isEmbedded={true} user={user} settings={settings} />
+                        <React.Suspense fallback={<div className="spinner"></div>}>
+                            <MapView isEmbedded={true} user={user} settings={settings} />
+                        </React.Suspense>
                     </div>
                 )}
 
