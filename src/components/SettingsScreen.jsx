@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { trelloFetch, trelloAuth } from '../api/trello';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
 import IconPicker from './common/IconPicker';
 import ColorPicker from './common/ColorPicker';
