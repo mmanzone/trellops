@@ -4,9 +4,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
 import IconPicker from './common/IconPicker';
 import ColorPicker from './common/ColorPicker';
-import { getPersistentLayout } from '../utils/persistence';
-import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
-import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
+import { getPersistentLayout, setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import '../styles/settings.css';
 
 const ShareConfigModal = ({ config, onClose, boardName }) => {

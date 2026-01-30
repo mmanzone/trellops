@@ -6,7 +6,7 @@ import { DarkModeProvider } from './context/DarkModeContext';
 import LandingPage from './components/common/LandingPage';
 import Dashboard from './components/Dashboard';
 import SettingsScreen from './components/SettingsScreen';
-import MapView from './components/MapView';
+const MapView = React.lazy(() => import('./components/MapView'));
 import TaskView from './components/TaskView';
 import StatisticsView from './components/StatisticsView';
 import useWakeLock from './hooks/useWakeLock';
@@ -301,35 +301,37 @@ const App = () => {
 
     if (view === 'map') {
         return (
-            <MapView
-                user={user}
-                settings={settings}
-                onClose={() => {
-                    setView('dashboard');
-                    window.history.pushState({}, '', '/dashboard');
-                }}
-                onShowSettings={() => {
-                    setPreviousView('map');
-                    setSettingsTab('map');
-                    setView('settings');
-                    window.history.pushState({}, '', '/settings');
-                }}
-                onLogout={handleLogout}
-                onShowTasks={() => {
-                    setPreviousView('map');
-                    setView('tasks');
-                    window.history.pushState({}, '', '/tasks');
-                }}
-                onShowDashboard={() => {
-                    setView('dashboard');
-                    window.history.pushState({}, '', '/dashboard');
-                }}
-                slideshowContent={slideshowActive ? slideshowView : null}
-                onStartSlideshow={handleStartSlideshow}
-                onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
-                keepScreenOn={keepScreenOn}
-                onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
-            />
+            <React.Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading Map...</div>}>
+                <MapView
+                    user={user}
+                    settings={settings}
+                    onClose={() => {
+                        setView('dashboard');
+                        window.history.pushState({}, '', '/dashboard');
+                    }}
+                    onShowSettings={() => {
+                        setPreviousView('map');
+                        setSettingsTab('map');
+                        setView('settings');
+                        window.history.pushState({}, '', '/settings');
+                    }}
+                    onLogout={handleLogout}
+                    onShowTasks={() => {
+                        setPreviousView('map');
+                        setView('tasks');
+                        window.history.pushState({}, '', '/tasks');
+                    }}
+                    onShowDashboard={() => {
+                        setView('dashboard');
+                        window.history.pushState({}, '', '/dashboard');
+                    }}
+                    slideshowContent={slideshowActive ? slideshowView : null}
+                    onStartSlideshow={handleStartSlideshow}
+                    onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
+                    keepScreenOn={keepScreenOn}
+                    onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
+                />
+            </React.Suspense>
         );
     }
 
