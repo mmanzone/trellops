@@ -111,7 +111,16 @@ const App = () => {
 
     const handleStartSlideshow = () => {
         setSlideshowActive(true);
+        // If starting from Map, switch to Dashboard view to use persistent map container
+        if (view === 'map') {
+            setView('dashboard');
+            window.history.replaceState({}, '', '/dashboard');
+        }
         // Start with the current view if applicable, else dashboard
+        // If we were map, we validly want to show map first likely? 
+        // Or if we switched to dashboard, we might want to show map?
+        // Let's default to dashboard since we just switched context?
+        // Or logic: prev was map -> show map? 
         setSlideshowView(view === 'map' ? 'map' : 'dashboard');
     };
 

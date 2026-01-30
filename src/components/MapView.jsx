@@ -10,8 +10,7 @@ import { ICONS } from './common/IconPicker';
 import MapFilters from './MapFilters';
 import { loadGoogleMaps } from '/src/utils/googleMapsLoader';
 import { marked } from 'marked';
-// import Dashboard from './Dashboard'; // Removed to avoid circular dependency
-const Dashboard = React.lazy(() => import('./Dashboard'));
+// Dashboard import removed entirely to prevent circular dependency
 import HamburgerMenu from './common/HamburgerMenu';
 import '/src/styles/map.css';
 
@@ -1391,59 +1390,50 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 </div>
             </div>
 
-            {/* MAIN CONTENT: Map or Dashboard Slideshow */}
+            {/* MAIN CONTENT: Map View */}
             <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
-                {slideshowContent === 'dashboard' ? (
-                    <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-                        <React.Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><span className="spinner"></span></div>}>
-                            <Dashboard isEmbedded={true} user={user} settings={settings} />
-                        </React.Suspense>
-                    </div>
-                ) : (
-                    <>
-                        {/* Fit Map Button (Custom Overlay - Absolute to this relative container) */}
-                        <div
-                            style={{
-                                position: 'absolute',
-                                top: '5px',
-                                right: '20px',
-                                zIndex: 800,
-                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                                padding: '8px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#333'
-                            }}
-                            onClick={fitMapBounds}
-                            title="Fit Map to Markers"
-                        >
-                            <svg width="60" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="22" y1="12" x2="18" y2="12" />
-                                <line x1="6" y1="12" x2="2" y2="12" />
-                                <line x1="12" y1="6" x2="12" y2="2" />
-                                <line x1="12" y1="22" x2="12" y2="18" />
-                            </svg>
-                        </div>
-                        <div className="map-sidebar">
-                            <MapFilters
-                                lists={lists} cards={cards} allLabels={boardLabels}
-                                visibleListIds={visibleListIds} onToggleList={handleToggleList}
-                                blocks={blocks} onToggleBlock={handleToggleBlock} onToggleAllBlocks={handleToggleAllBlocks}
-                                markerRules={markerRules} visibleRuleIds={visibleRuleIds} onToggleRule={handleToggleRule} onToggleAllRules={handleToggleAllRules}
-                                homeLocation={homeLocation} showHomeLocation={showHomeLocation} onToggleHome={() => setShowHomeLocation(!showHomeLocation)}
-                            />
-                        </div>
-                        <div style={{ flexGrow: 1, position: 'relative', background: '#e0e0e0' }}>
-                            <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
-                            {!mapLoaded && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>Loading Google Maps...</div>}
-                        </div>
-                    </>
-                )}
+                {/* Fit Map Button (Custom Overlay - Absolute to this relative container) */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: '5px',
+                        right: '20px',
+                        zIndex: 800,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        padding: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#333'
+                    }}
+                    onClick={fitMapBounds}
+                    title="Fit Map to Markers"
+                >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="22" y1="12" x2="18" y2="12" />
+                        <line x1="6" y1="12" x2="2" y2="12" />
+                        <line x1="12" y1="6" x2="12" y2="2" />
+                        <line x1="12" y1="22" x2="12" y2="18" />
+                    </svg>
+                </div>
+                {/* Internal Floating Filters */}
+                <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 5 }}>
+                    <MapFilters
+                        lists={lists} cards={cards} allLabels={boardLabels}
+                        visibleListIds={visibleListIds} onToggleList={handleToggleList}
+                        blocks={blocks} onToggleBlock={handleToggleBlock} onToggleAllBlocks={handleToggleAllBlocks}
+                        markerRules={markerRules} visibleRuleIds={visibleRuleIds} onToggleRule={handleToggleRule} onToggleAllRules={handleToggleAllRules}
+                        homeLocation={homeLocation} showHomeLocation={showHomeLocation} onToggleHome={() => setShowHomeLocation(!showHomeLocation)}
+                    />
+                </div>
+                <div style={{ flexGrow: 1, position: 'relative', background: '#e0e0e0', height: '100%' }}>
+                    <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
+                    {!mapLoaded && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>Loading Google Maps...</div>}
+                </div>
             </div>
 
             <div className="map-footer">
