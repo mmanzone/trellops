@@ -483,7 +483,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
             {/* RENDER BLOCKS OR SLIDESHOW CONTENT */}
             <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                {slideshowContent !== null && (
+                {!isEmbedded && slideshowContent !== null && (
                     <div style={{
                         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                         visibility: slideshowContent === 'map' ? 'visible' : 'hidden',
