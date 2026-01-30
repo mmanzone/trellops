@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createRoot } from 'react-dom/client';
+// createRoot import removed
 import { trelloFetch } from '/src/api/trello';
 import { getPersistentLayout } from '/src/utils/persistence';
 import { useDarkMode } from '/src/context/DarkModeContext';
