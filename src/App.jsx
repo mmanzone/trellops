@@ -10,6 +10,7 @@ import MapView from './components/MapView';
 import TaskView from './components/TaskView';
 import StatisticsView from './components/StatisticsView';
 import useWakeLock from './hooks/useWakeLock';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 const App = () => {
     const [user, setUser] = useState(null);
@@ -380,32 +381,34 @@ const App = () => {
 
     if (view === 'dashboard') {
         return (
-            <Dashboard
-                user={user}
-                settings={settings}
-                onShowSettings={() => {
-                    setPreviousView('dashboard');
-                    setSettingsTab('dashboard');
-                    setView('settings');
-                    window.history.pushState({}, '', '/settings');
-                }}
-                onLogout={handleLogout}
-                onShowTasks={() => {
-                    setPreviousView('dashboard');
-                    setView('tasks');
-                    window.history.pushState({}, '', '/tasks');
-                }}
-                onShowMap={() => {
-                    setPreviousView('dashboard');
-                    setView('map');
-                    window.history.pushState({}, '', '/map');
-                }}
-                slideshowContent={slideshowActive ? slideshowView : null}
-                onStartSlideshow={handleStartSlideshow}
-                onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
-                keepScreenOn={keepScreenOn}
-                onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
-            />
+            <ErrorBoundary>
+                <Dashboard
+                    user={user}
+                    settings={settings}
+                    onShowSettings={() => {
+                        setPreviousView('dashboard');
+                        setSettingsTab('dashboard');
+                        setView('settings');
+                        window.history.pushState({}, '', '/settings');
+                    }}
+                    onLogout={handleLogout}
+                    onShowTasks={() => {
+                        setPreviousView('dashboard');
+                        setView('tasks');
+                        window.history.pushState({}, '', '/tasks');
+                    }}
+                    onShowMap={() => {
+                        setPreviousView('dashboard');
+                        setView('map');
+                        window.history.pushState({}, '', '/map');
+                    }}
+                    slideshowContent={slideshowActive ? slideshowView : null}
+                    onStartSlideshow={handleStartSlideshow}
+                    onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
+                    keepScreenOn={keepScreenOn}
+                    onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
+                />
+            </ErrorBoundary>
         );
     }
 

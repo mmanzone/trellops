@@ -6,10 +6,8 @@ import './styles/index.css';
 import PreviewBanner from './components/common/PreviewBanner';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-        <DarkModeProvider>
-            <PreviewBanner />
-            <App />
-        </DarkModeProvider>
-    </React.StrictMode>
+    <DarkModeProvider>
+        <PreviewBanner />
+        <App />
+    </DarkModeProvider>
 );
