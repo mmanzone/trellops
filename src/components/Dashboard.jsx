@@ -15,7 +15,11 @@ import LabelFilter from './common/LabelFilter';
 const MapView = React.lazy(() => import('./MapView'));
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import HamburgerMenu from './common/HamburgerMenu';
-import '../styles/map.css';
+// WRAPPER for separation (Moved to top to avoid TDZ issues)
+// DashboardContent moved to top of file
+
+// Start of Dashboard Component
+
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
     // DATA STATE
