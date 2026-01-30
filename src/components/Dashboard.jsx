@@ -16,7 +16,103 @@ const MapView = React.lazy(() => import('./MapView'));
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import HamburgerMenu from './common/HamburgerMenu';
 // WRAPPER for separation (Moved to top to avoid TDZ issues)
-// DashboardContent moved to top of file
+const DashboardContent = ({
+    sectionsLayout, blocksMap, counts, allListsMap,
+    handleTileClick, handleToggleCollapse, handleCloseModal,
+    user, ignoreTemplateCards, ignoreNoDescCards, modalList
+}) => {
+    return (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px', paddingBottom: '80px', position: 'relative', zIndex: 1 }}>
+            {sectionsLayout.map(block => {
+                const blockTiles = block.listIds
+                    .map(listId => {
+                        const tileData = counts.get(listId);
+                        if (!tileData) {
+                            const list = allListsMap.get(listId);
+                            if (list) {
+                                // Fallback logic
+                                return { listId: list.id, name: list.name, count: '...', displayColor: '#ccc', firstCardName: '' };
+                            }
+                            return undefined;
+                        }
+                        return tileData;
+                    })
+                    .filter(item => item !== undefined);
+
+                const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
+                if (blockTiles.length === 0 && !isCollapsed) return null;
+
+                return (
+                    <div key={block.id} className="dashboard-block">
+                        <div className="block-header-row">
+                            <div className="block-header">{block.name}</div>
+                            <button className="collapse-toggle" onClick={() => handleToggleCollapse(block.id)} title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}>
+                                {isCollapsed ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path><path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                ) : (
+                                    <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8-11-8-11-8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                )}
+                            </button>
+                        </div>
+                        {!isCollapsed && (
+                            <div
+                                className="dashboard-grid"
+                                style={{
+                                    gridTemplateColumns: (() => {
+                                        const count = blockTiles.length;
+                                        // Desktop: No limit, fit as many as possible or default grid
+                                        // But logic needs to support responsive behavior.
+                                        // If we just say repeat(auto-fill, minmax(100px, 1fr)), it handles itself.
+                                        // However, existing logic was specific for Mobile/Fixed counts?
+                                        // Let's use a media query aware style or just CSS Grid auto-fit for desktop?
+
+                                        // For Mobile (simulated by logic?) -> User said "only in mobile view" keep limit.
+                                        // We can't easily detect mobile in JS render without hook, but we can return undefined and let CSS handle, or check window width safely.
+                                        const isDesktop = window.innerWidth > 768; // Simple check, or assume desktop by default?
+
+                                        if (isDesktop) {
+                                            return `repeat(${count < 6 ? count : 'auto-fill, minmax(100px, 1fr)'}, 1fr)`;
+                                            // If we want "no limit", we might want flex-wrap or auto-fill. 
+                                            // `repeat(${count}, 1fr)` puts ALL in one row. That's "no limit".
+                                            return `repeat(${count}, 1fr)`;
+                                        }
+
+                                        // Mobile logic (Keep existing or similar constraint)
+                                        if (count < 4) return `repeat(${count}, 1fr)`;
+                                        if (count === 5 || count === 6) return `repeat(3, 1fr)`;
+                                        return `repeat(4, 1fr)`; // Default for 4, 7, 8+
+                                    })()
+                                }}
+                            >
+                                {blockTiles.map((item) => (
+                                    <div key={item.listId} className="dashboard-tile" style={{ backgroundColor: item.displayColor, color: 'white' }} onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}>
+                                        <div className="card-count">{item.count}</div>
+                                        <div className="list-name">{item.name}</div>
+                                        {item.firstCardName && (
+                                            <div className="card-description card-description-text" title={item.firstCardName}>{item.firstCardName}</div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+            {modalList && (
+                <CardDetailsModal
+                    listId={modalList.listId}
+                    listName={modalList.listName}
+                    color={modalList.color}
+                    token={user.token}
+                    onClose={handleCloseModal}
+                    sectionsLayout={sectionsLayout}
+                    ignoreTemplateCards={ignoreTemplateCards}
+                    ignoreNoDescCards={ignoreNoDescCards}
+                />
+            )}
+        </div>
+    );
+};
 
 // Start of Dashboard Component
 
@@ -673,105 +769,6 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* Click Outside to Close Dropdowns */}
             {(showTaskDropdown || showMapDropdown) && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => { setShowTaskDropdown(false); setShowMapDropdown(false); }} />
-            )}
-        </div>
-    );
-};
-
-// WRAPPER for separation
-const DashboardContent = ({
-    sectionsLayout, blocksMap, counts, allListsMap,
-    handleTileClick, handleToggleCollapse, handleCloseModal,
-    user, ignoreTemplateCards, ignoreNoDescCards, modalList
-}) => {
-    return (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px', paddingBottom: '80px', position: 'relative', zIndex: 1 }}>
-            {sectionsLayout.map(block => {
-                const blockTiles = block.listIds
-                    .map(listId => {
-                        const tileData = counts.get(listId);
-                        if (!tileData) {
-                            const list = allListsMap.get(listId);
-                            if (list) {
-                                // Fallback logic
-                                return { listId: list.id, name: list.name, count: '...', displayColor: '#ccc', firstCardName: '' };
-                            }
-                            return undefined;
-                        }
-                        return tileData;
-                    })
-                    .filter(item => item !== undefined);
-
-                const isCollapsed = blocksMap.get(block.id)?.isCollapsed || false;
-                if (blockTiles.length === 0 && !isCollapsed) return null;
-
-                return (
-                    <div key={block.id} className="dashboard-block">
-                        <div className="block-header-row">
-                            <div className="block-header">{block.name}</div>
-                            <button className="collapse-toggle" onClick={() => handleToggleCollapse(block.id)} title={isCollapsed ? 'Show Tiles' : 'Hide Tiles'}>
-                                {isCollapsed ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.02 18.02 0 0 1 5.06-5.06"></path><path d="M4.22 4.22L12 12m5.07-5.07A10.07 10.07 0 0 1 23 12s-4 8-11 8c-1.85 0-3.61-.5-5.17-1.42"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                                ) : (
-                                    <svg className="icon-eye" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8-11-8-11-8-11-8-11-8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                )}
-                            </button>
-                        </div>
-                        {!isCollapsed && (
-                            <div
-                                className="dashboard-grid"
-                                style={{
-                                    gridTemplateColumns: (() => {
-                                        const count = blockTiles.length;
-                                        // Desktop: No limit, fit as many as possible or default grid
-                                        // But logic needs to support responsive behavior.
-                                        // If we just say repeat(auto-fill, minmax(100px, 1fr)), it handles itself.
-                                        // However, existing logic was specific for Mobile/Fixed counts?
-                                        // Let's use a media query aware style or just CSS Grid auto-fit for desktop?
-
-                                        // For Mobile (simulated by logic?) -> User said "only in mobile view" keep limit.
-                                        // We can't easily detect mobile in JS render without hook, but we can return undefined and let CSS handle, or check window width safely.
-                                        const isDesktop = window.innerWidth > 768; // Simple check, or assume desktop by default?
-
-                                        if (isDesktop) {
-                                            return `repeat(${count < 6 ? count : 'auto-fill, minmax(100px, 1fr)'}, 1fr)`;
-                                            // If we want "no limit", we might want flex-wrap or auto-fill. 
-                                            // `repeat(${count}, 1fr)` puts ALL in one row. That's "no limit".
-                                            return `repeat(${count}, 1fr)`;
-                                        }
-
-                                        // Mobile logic (Keep existing or similar constraint)
-                                        if (count < 4) return `repeat(${count}, 1fr)`;
-                                        if (count === 5 || count === 6) return `repeat(3, 1fr)`;
-                                        return `repeat(4, 1fr)`; // Default for 4, 7, 8+
-                                    })()
-                                }}
-                            >
-                                {blockTiles.map((item) => (
-                                    <div key={item.listId} className="dashboard-tile" style={{ backgroundColor: item.displayColor, color: 'white' }} onClick={() => handleTileClick(item.listId, item.name, item.displayColor)}>
-                                        <div className="card-count">{item.count}</div>
-                                        <div className="list-name">{item.name}</div>
-                                        {item.firstCardName && (
-                                            <div className="card-description card-description-text" title={item.firstCardName}>{item.firstCardName}</div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-            {modalList && (
-                <CardDetailsModal
-                    listId={modalList.listId}
-                    listName={modalList.listName}
-                    color={modalList.color}
-                    token={user.token}
-                    onClose={handleCloseModal}
-                    sectionsLayout={sectionsLayout}
-                    ignoreTemplateCards={ignoreTemplateCards}
-                    ignoreNoDescCards={ignoreNoDescCards}
-                />
             )}
         </div>
     );

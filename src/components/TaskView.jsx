@@ -13,6 +13,136 @@ import HamburgerMenu from './common/HamburgerMenu';
 // MapView uses specific SVG classes. TaskView should match standard dashboard style requested to MATCH Map View.
 // MapView Header: <div className="map-header">...</div>
 
+// Helper for label colors
+const getLabelColor = (colorName) => {
+    const colors = {
+        green: '#61bd4f',
+        yellow: '#f2d600',
+        orange: '#ff9f1a',
+        red: '#eb5a46',
+        purple: '#c377e0',
+        blue: '#0079bf',
+        sky: '#00c2e0',
+        lime: '#51e898',
+        pink: '#ff78cb',
+        black: '#344563',
+        none: '#b3bac5'
+    };
+    return colors[colorName] || '#b3bac5';
+};
+
+// Generic Multi-Select Component (Internal)
+const MultiSelectFilter = ({ label, options, selectedIds, onChange, className }) => {
+    const { theme } = useDarkMode();
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+    const isAll = selectedIds === null || selectedIds === undefined;
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleOption = (id) => {
+        if (isAll) {
+            const allOtherIds = new Set(options.filter(o => o.id !== id).map(o => o.id));
+            onChange(allOtherIds);
+        } else {
+            const newSet = new Set(selectedIds);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            onChange(newSet);
+        }
+    };
+
+    return (
+        <div style={{ position: 'relative', display: 'inline-block' }} ref={dropdownRef} className={className}>
+            <button
+                className="settings-button"
+                onClick={() => setIsOpen(!isOpen)}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    fontSize: '0.9em',
+                    backgroundColor: theme === 'dark' ? 'var(--bg-secondary)' : '#ffffff',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)',
+                    maxWidth: '100%',
+                    justifyContent: 'space-between'
+                }}
+            >
+                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{label}</span>
+                {!isAll && selectedIds.size > 0 && (
+                    <span style={{
+                        background: 'var(--accent-color)',
+                        color: 'white',
+                        borderRadius: '10px',
+                        padding: '0 6px',
+                        fontSize: '0.8em',
+                        marginLeft: '4px'
+                    }}>
+                        {selectedIds.size}
+                    </span>
+                )}
+                <span style={{ fontSize: '0.8em', marginLeft: '4px' }}>▼</span>
+            </button>
+
+            {isOpen && (
+                <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '5px',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 12px var(--shadow-color)',
+                    zIndex: 1000,
+                    minWidth: '200px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    maxHeight: '400px'
+                }}>
+                    <div style={{
+                        padding: '8px',
+                        borderBottom: '1px solid var(--border-color)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '0.85em',
+                        fontWeight: 'bold',
+                        color: 'var(--text-primary)'
+                    }}>
+                        <span>{label}</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={() => onChange(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline' }}>All</button>
+                            <button onClick={() => onChange(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>None</button>
+                        </div>
+                    </div>
+                    <div style={{ overflowY: 'auto', padding: '8px', flex: 1 }}>
+                        {options.map(opt => {
+                            const isChecked = isAll || selectedIds.has(opt.id);
+                            return (
+                                <label key={opt.id} style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.9em' }}>
+                                    <input type="checkbox" checked={isChecked} onChange={() => toggleOption(opt.id)} style={{ marginRight: '8px' }} />
+                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opt.name}</span>
+                                </label>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap, onMainView }) => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({ orgs: [], boards: [], cards: [] });
@@ -470,134 +600,6 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
     );
 };
 
-// Helper for label colors
-const getLabelColor = (colorName) => {
-    const colors = {
-        green: '#61bd4f',
-        yellow: '#f2d600',
-        orange: '#ff9f1a',
-        red: '#eb5a46',
-        purple: '#c377e0',
-        blue: '#0079bf',
-        sky: '#00c2e0',
-        lime: '#51e898',
-        pink: '#ff78cb',
-        black: '#344563',
-        none: '#b3bac5'
-    };
-    return colors[colorName] || '#b3bac5';
-};
 
-// Generic Multi-Select Component (Internal)
-const MultiSelectFilter = ({ label, options, selectedIds, onChange, className }) => {
-    const { theme } = useDarkMode();
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef(null);
-    const isAll = selectedIds === null || selectedIds === undefined;
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const toggleOption = (id) => {
-        if (isAll) {
-            const allOtherIds = new Set(options.filter(o => o.id !== id).map(o => o.id));
-            onChange(allOtherIds);
-        } else {
-            const newSet = new Set(selectedIds);
-            if (newSet.has(id)) newSet.delete(id);
-            else newSet.add(id);
-            onChange(newSet);
-        }
-    };
-
-    return (
-        <div style={{ position: 'relative', display: 'inline-block' }} ref={dropdownRef} className={className}>
-            <button
-                className="settings-button"
-                onClick={() => setIsOpen(!isOpen)}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    fontSize: '0.9em',
-                    backgroundColor: theme === 'dark' ? 'var(--bg-secondary)' : '#ffffff',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-color)',
-                    maxWidth: '100%',
-                    justifyContent: 'space-between'
-                }}
-            >
-                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{label}</span>
-                {!isAll && selectedIds.size > 0 && (
-                    <span style={{
-                        background: 'var(--accent-color)',
-                        color: 'white',
-                        borderRadius: '10px',
-                        padding: '0 6px',
-                        fontSize: '0.8em',
-                        marginLeft: '4px'
-                    }}>
-                        {selectedIds.size}
-                    </span>
-                )}
-                <span style={{ fontSize: '0.8em', marginLeft: '4px' }}>▼</span>
-            </button>
-
-            {isOpen && (
-                <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '5px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    boxShadow: '0 4px 12px var(--shadow-color)',
-                    zIndex: 1000,
-                    minWidth: '200px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: '400px'
-                }}>
-                    <div style={{
-                        padding: '8px',
-                        borderBottom: '1px solid var(--border-color)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '0.85em',
-                        fontWeight: 'bold',
-                        color: 'var(--text-primary)'
-                    }}>
-                        <span>{label}</span>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={() => onChange(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline' }}>All</button>
-                            <button onClick={() => onChange(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>None</button>
-                        </div>
-                    </div>
-                    <div style={{ overflowY: 'auto', padding: '8px', flex: 1 }}>
-                        {options.map(opt => {
-                            const isChecked = isAll || selectedIds.has(opt.id);
-                            return (
-                                <label key={opt.id} style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.9em' }}>
-                                    <input type="checkbox" checked={isChecked} onChange={() => toggleOption(opt.id)} style={{ marginRight: '8px' }} />
-                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opt.name}</span>
-                                </label>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
 
 export default TaskView;
