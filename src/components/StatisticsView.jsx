@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { trelloFetch } from '../api/trello';
 import { TIME_FILTERS, STORAGE_KEYS } from '../utils/constants';
 import LabelFilter from './common/LabelFilter';
@@ -8,6 +8,7 @@ import DigitalClock from './common/DigitalClock';
 import HamburgerMenu from './common/HamburgerMenu';
 import { marked } from 'marked';
 import { getTerminology } from '../utils/terminology';
+import { useAISummary } from '../hooks/useAISummary';
 
 const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
     const [cards, setCards] = useState([]);
@@ -21,8 +22,8 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     const LabelsTerm = terms.labels ? terms.labels.charAt(0).toUpperCase() + terms.labels.slice(1) : 'Labels';
     
     // AI Summary State
-    const [summaryText, setSummaryText] = useState('');
-    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const { summaryText, isGenerating: isGeneratingSummary, source: summarySource, generate: generateSummary } = useAISummary();
+    const summaryHtml = useMemo(() => (summaryText ? marked(summaryText) : ''), [summaryText]);
 
     // Filters
     const [createdFilter, setCreatedFilter] = useState('this_week');
@@ -57,16 +58,15 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
         const fetchData = async () => {
             try {
-                // 1. Fetch Labels
-                const labelsData = await trelloFetch(`/boards/${boardId}/labels`, user.token);
+                // Fetch labels, members and cards in parallel (previously sequential).
+                // pluginData was dropped from the cards request: it is not used here and inflates the payload.
+                const [labelsData, membersData, cardsData] = await Promise.all([
+                    trelloFetch(`/boards/${boardId}/labels`, user.token),
+                    trelloFetch(`/boards/${boardId}/members?fields=id,fullName`, user.token),
+                    trelloFetch(`/boards/${boardId}/cards?fields=id,name,labels,idList,due,dueComplete,dateLastActivity,desc,pos,coordinates,badges,idMembers&actions=commentCard`, user.token),
+                ]);
                 setAllLabels(labelsData);
-
-                // 2. Fetch Members
-                const membersData = await trelloFetch(`/boards/${boardId}/members?fields=id,fullName`, user.token);
                 setMembers(membersData);
-
-                // 3. Fetch Cards
-                const cardsData = await trelloFetch(`/boards/${boardId}/cards?fields=id,name,labels,idList,due,dueComplete,dateLastActivity,desc,pos,coordinates,badges,idMembers&pluginData=true&actions=commentCard`, user.token);
 
                 // Process coords (omitted for brevity as map logs are gone, but we keep structure)
                 const processedCards = cardsData.map(c => {
@@ -456,112 +456,53 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         });
     };
 
-    const handleGenerateSummary = async () => {
-        setIsGeneratingSummary(true);
-        setSummaryText('');
-        
-        let attempts = 0;
-        const maxAttempts = 3;
+    const buildSummaryPayload = () => {
+        const range = getFilterRange(createdFilter);
+        const diffDays = range && range.end && range.start ? (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24) : 0;
 
-        while (attempts < maxAttempts) {
-            attempts++;
-            try {
-                const range = getFilterRange(createdFilter);
-                const diffDays = range && range.end && range.start ? (range.end.getTime() - range.start.getTime()) / (1000 * 60 * 60 * 24) : 0;
-                
-                const validCreatedCards = cards.filter(matchesLabelFilter).filter(c => isDateInFilter(getCreationDate(c.id), createdFilter));
-                const validCompletedCards = cards.filter(matchesLabelFilter).filter(c => c.dueComplete && c.due && isDateInFilter(new Date(c.due), createdFilter));
-                
-                const uniqueCardsMap = new Map();
-                validCreatedCards.forEach(c => uniqueCardsMap.set(c.id, { ...c, isCreatedInPeriod: true }));
-                validCompletedCards.forEach(c => {
-                   if (uniqueCardsMap.has(c.id)) {
-                       uniqueCardsMap.get(c.id).isCompletedInPeriod = true;
-                   } else {
-                       uniqueCardsMap.set(c.id, { ...c, isCompletedInPeriod: true });
-                   }
-                });
-                
-                const payloadCards = Array.from(uniqueCardsMap.values()).map(c => {
-                    const optimizedCard = { name: c.name };
-                    if (c.desc) optimizedCard.desc = c.desc.replace(/[\r\n]+/g, ' ').substring(0, 60).trim() + '...';
-                    if (c.labels && c.labels.length > 0) optimizedCard.labels = c.labels.map(l => l.name || l.color);
-                    
-                    if (c.idMembers?.length > 0) {
-                        optimizedCard.members = c.idMembers.map(id => {
-                            const m = members.find(mbr => mbr.id === id);
-                            return m ? m.fullName : id;
-                        });
-                    }
-                    if (c.actions && c.actions.length > 0) {
-                        optimizedCard.comments = c.actions
-                            .filter(a => a.type === 'commentCard' && a.data?.text)
-                            .map(a => a.data.text.substring(0, 100)); // Cap to 100chars per comment to protect size
-                    } else if (c.badges?.comments > 0) {
-                        optimizedCard.commentsCount = c.badges.comments;
-                    }
+        const labelled = cards.filter(matchesLabelFilter);
+        const uniqueCardsMap = new Map();
+        labelled
+            .filter(c => isDateInFilter(getCreationDate(c.id), createdFilter))
+            .forEach(c => uniqueCardsMap.set(c.id, { card: c, created: true }));
+        labelled
+            .filter(c => c.dueComplete && c.due && isDateInFilter(new Date(c.due), createdFilter))
+            .forEach(c => {
+                const existing = uniqueCardsMap.get(c.id);
+                if (existing) existing.completed = true;
+                else uniqueCardsMap.set(c.id, { card: c, completed: true });
+            });
 
-                    if (c.coordinates) optimizedCard.coords = { 
-                        lat: Math.round(c.coordinates.lat * 1000) / 1000, 
-                        lng: Math.round(c.coordinates.lng * 1000) / 1000 
-                    };
-                    if (c.isCreatedInPeriod) optimizedCard.created = true;
-                    if (c.isCompletedInPeriod) optimizedCard.completed = true;
-                    return optimizedCard;
-                });
+        const memberNames = new Map(members.map(m => [m.id, m.fullName]));
 
-                const response = await fetch('/api/summarize', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        cardsData: payloadCards,
-                        periodLabel: filterLabelText,
-                        diffDays,
-                        customPromptContext: settings?.statistics?.customAIPrompt || ''
-                    })
-                });
+        const cardsData = Array.from(uniqueCardsMap.values()).map(({ card: c, created, completed }) => {
+            const out = { name: c.name };
+            if (c.desc) out.desc = c.desc.replace(/\s+/g, ' ').substring(0, 80).trim();
+            if (c.labels?.length) out.labels = c.labels.map(l => l.name || l.color);
+            if (c.idMembers?.length) out.members = c.idMembers.map(id => memberNames.get(id) || id);
+            const comments = (c.actions || []).filter(a => a.type === 'commentCard' && a.data?.text);
+            // Newest few comments as snippets, plus the true total.
+            if (comments.length) out.comments = comments.slice(0, 3).map(a => a.data.text.substring(0, 100));
+            const commentsCount = Math.max(c.badges?.comments || 0, comments.length);
+            if (commentsCount) out.commentsCount = commentsCount;
+            if (c.coordinates) out.coords = {
+                lat: Math.round(c.coordinates.lat * 1000) / 1000,
+                lng: Math.round(c.coordinates.lng * 1000) / 1000
+            };
+            if (created) out.created = true;
+            if (completed) out.completed = true;
+            return out;
+        });
 
-                if (!response.ok) {
-                    let errorMsg = "An error occurred";
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || errorMsg;
-                    } catch(e) {}
-                    
-                    setSummaryText(`*The AI model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.* \n\n<details><summary>Developer Info</summary>${typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg}</details>`);
-                    setIsGeneratingSummary(false);
-                    return;
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder("utf-8");
-                let summaryBuffer = "";
-                let done = false;
-
-                while (!done) {
-                    const { value, done: readerDone } = await reader.read();
-                    done = readerDone;
-                    if (value) {
-                        summaryBuffer += decoder.decode(value, { stream: true });
-                        setSummaryText(summaryBuffer); 
-                    }
-                }
-
-                setIsGeneratingSummary(false);
-                return; // Break successful generation
-            } catch (e) {
-                // If network fetch fails completely
-                if (attempts < maxAttempts) {
-                    setSummaryText(`*Network issue detected. Retrying... (Attempt ${attempts + 1}/${maxAttempts})*`);
-                    await new Promise(r => setTimeout(r, 2000));
-                    continue;
-                }
-                setSummaryText(`**Error generating summary:** ${e.message}`);
-                setIsGeneratingSummary(false);
-                return;
-            }
-        }
+        return {
+            cardsData,
+            periodLabel: filterLabelText,
+            diffDays: Math.round(diffDays),
+            customPromptContext: settings?.statistics?.customAIPrompt || ''
+        };
     };
+
+    const handleGenerateSummary = (force = false) => generateSummary(buildSummaryPayload(), { force });
 
     return (
         <div className="statistics-view" style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-primary)' }}>
@@ -713,7 +654,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                     <button 
                                         id="stats-generate-summary"
                                         className="button-primary" 
-                                        onClick={handleGenerateSummary} 
+                                        onClick={() => handleGenerateSummary(false)}
                                         disabled={isGeneratingSummary}
                                         style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '0.9em' }}
                                     >
@@ -727,8 +668,20 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                 <div 
                                     className="markdown-content ai-summary-content" 
                                     style={{ fontSize: '1.05em', lineHeight: '1.6', color: 'var(--text-primary)' }}
-                                    dangerouslySetInnerHTML={{ __html: marked(summaryText) }} 
+                                    dangerouslySetInnerHTML={{ __html: summaryHtml }}
                                 />
+                            )}
+                            {summaryText && !isGeneratingSummary && (summarySource === 'browser' || summarySource === 'server') && (
+                                <div style={{ marginTop: '8px', fontSize: '0.8em', color: 'var(--text-secondary)' }}>
+                                    Cached summary for this data.{' '}
+                                    <button
+                                        className="button-link"
+                                        onClick={() => handleGenerateSummary(true)}
+                                        style={{ fontSize: '1em', textDecoration: 'underline', color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                    >
+                                        Regenerate
+                                    </button>
+                                </div>
                             )}
                         </div>
 
