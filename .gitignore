@@ -1,0 +1,12 @@
+# Dependencies (installed by npm ci / Vercel)
+node_modules/
+
+# Build output (Vercel builds it on every deploy)
+dist/
+
+# Local env and Vercel CLI files
+.env*
+.vercel/
+
+# OS / editor
+.DS_Store
