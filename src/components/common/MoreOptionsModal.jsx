@@ -1,10 +1,11 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 const MoreOptionsModal = ({ onClose, onExport, onImport, onReset, boardName, selectedBoardId }) => {
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <span className="modal-close" onClick={onClose} style={{ float: 'right', fontSize: '1.5em', cursor: 'pointer' }}>&times;</span>
+                <button type="button" className="modal-close icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
                 <h3>More Options</h3>
                 <div className="modal-actions">
                     <button

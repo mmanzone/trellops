@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { trelloFetch } from '../api/trello';
 import { STORAGE_KEYS, DEFAULT_LAYOUT, TIME_FILTERS } from '../utils/constants';
 import {
@@ -622,7 +623,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                     {onStopSlideshow && (
                         <button
                             onClick={onStopSlideshow}
-                            style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                            className="button-danger"
                         >
                             Stop Slideshow
                         </button>
@@ -638,19 +639,17 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                         <div className="desktop-only" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                             {enableMapView && (
                                 <div style={{ position: 'relative' }}>
-                                    <div style={{ display: 'flex' }}>
+                                    <div className="split-button">
                                         <button id="nav-map-button" className="button-secondary" onClick={onShowMap || (() => window.open('/map', '_blank'))}>
                                             Map View
                                         </button>
-                                        <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowMapDropdown(!showMapDropdown)}>
-                                            ▼
-                                        </button>
+                                        <button className="button-secondary dropdown-arrow" aria-label="More options" onClick={() => setShowMapDropdown(!showMapDropdown)}><ChevronDown size={16} /></button>
                                     </div>
                                     {showMapDropdown && (
-                                        <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '10px', minWidth: '250px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-                                            <div className="menu-item" style={{ marginBottom: '8px', padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
+                                        <div className="context-menu">
+                                            <div className="menu-item" onClick={() => { window.open('/map', '_blank'); setShowMapDropdown(false); }}>Open in New Tab</div>
                                             {onStartSlideshow && !onStopSlideshow && (
-                                                <div className="menu-item" style={{ padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { onStartSlideshow(); setShowMapDropdown(false); }}>Start Slideshow ({settings?.slideshowInterval || 10}s)</div>
+                                                <div className="menu-item" onClick={() => { onStartSlideshow(); setShowMapDropdown(false); }}>Start Slideshow ({settings?.slideshowInterval || 10}s)</div>
                                             )}
                                         </div>
                                     )}
@@ -659,16 +658,14 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
                             {settings?.enableTaskView && (
                                 <div style={{ position: 'relative' }}>
-                                    <div style={{ display: 'flex' }}>
+                                    <div className="split-button">
                                         <button className="button-secondary" onClick={onShowTasks || (() => window.open('/tasks', '_blank'))}>
                                             Tasks View
                                         </button>
-                                        <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                            ▼
-                                        </button>
+                                        <button className="button-secondary dropdown-arrow" aria-label="More options" onClick={() => setShowTaskDropdown(!showTaskDropdown)}><ChevronDown size={16} /></button>
                                     </div>
                                     {showTaskDropdown && (
-                                        <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                        <div className="context-menu">
                                             <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
                                         </div>
                                     )}

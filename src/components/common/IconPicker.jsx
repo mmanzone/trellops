@@ -60,38 +60,21 @@ export const ICONS = {
 };
 
 
-const IconPicker = ({ selectedIcon, onChange, color = "#444" }) => {
+const IconPicker = ({ selectedIcon, onChange, color = "currentColor" }) => {
     return (
-        <div className="icon-picker-grid" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(36px, 1fr))',
-            gap: '8px',
-            padding: '8px',
-            border: '1px solid var(--border-color)',
-            borderRadius: '6px',
-            marginTop: '8px',
-            maxHeight: '160px',
-            overflowY: 'auto'
-        }}>
+        <div className="icon-picker-grid" role="listbox" aria-label="Marker icon">
             {Object.keys(ICONS).map(iconName => (
                 <div
                     key={iconName}
                     title={iconName}
+                    role="option"
+                    aria-selected={selectedIcon === iconName}
                     onClick={() => onChange(iconName)}
-                    style={{
-                        padding: '6px',
-                        cursor: 'pointer',
-                        borderRadius: '4px',
-                        border: selectedIcon === iconName ? '2px solid #579aff' : '1px solid transparent',
-                        backgroundColor: selectedIcon === iconName ? 'rgba(87, 154, 255, 0.1)' : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}
+                    className={`icon-picker-item${selectedIcon === iconName ? ' is-selected' : ''}`}
                 >
                     <svg
-                        width="24"
-                        height="24"
+                        width="22"
+                        height="22"
                         viewBox="0 0 24 24"
                         fill={color}
                         dangerouslySetInnerHTML={{ __html: ICONS[iconName] }}

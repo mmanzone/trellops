@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { trelloFetch } from '../../api/trello';
 import { useDarkMode } from '../../context/DarkModeContext';
 import { getLabelTextColor } from '../../utils/helpers';
@@ -41,7 +42,7 @@ const CardDetailsModal = ({ listId, listName, color, token, onClose, sectionsLay
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <span className="modal-close" onClick={onClose} style={{ float: 'right', fontSize: '1.5em', cursor: 'pointer' }}>&times;</span>
+                <button type="button" className="modal-close icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
                 <h3 style={{ color: color, borderColor: color }}>{CardsTerm} in: {listName} ({cards.length})</h3>
 
                 {loading && <p>Loading {CardsTerm.toLowerCase()}...</p>}

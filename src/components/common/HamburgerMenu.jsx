@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Menu } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const HamburgerMenu = ({ children }) => {
@@ -63,7 +64,7 @@ const HamburgerMenu = ({ children }) => {
                 onClick={toggleMenu}
                 aria-label="Menu"
             >
-                ☰
+                <Menu size={20} />
             </button>
             {isOpen && createPortal(
                 <div

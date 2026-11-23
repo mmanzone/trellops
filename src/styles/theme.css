@@ -10,23 +10,32 @@
  * should come from here so all pages match in light and dark mode.
  */
 :root {
-    /* Surfaces and text */
-    --bg-primary: #f7f8fa;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #f1f3f5;
-    --bg-canvas: var(--bg-primary);
-    --overlay-subtle: rgba(255, 255, 255, 0.6);
-    --text-color: #222222;
-    --text-primary: var(--text-color);
-    --text-secondary: #555555;
-    --text-muted: #888888;
-    --border-color: #e0e0e0;
-    --shadow-color: rgba(0, 0, 0, 0.05);
-    --label-border-color: #555555;
+    /* Type: the same pair as the public site (see site.css) */
+    --font-display: "Bricolage Grotesque", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-text: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-    /* Neutral (default) buttons */
-    --primary-color: #ced7de;
-    --primary-hover-color: #b0b9c0;
+    /* Surfaces and text: warm paper and ink, matching the public site */
+    --bg-primary: #f6f5f1;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f1efe9;
+    --bg-canvas: var(--bg-primary);
+    --bg-hover: #f3f1ec;
+    --overlay-subtle: rgba(255, 255, 255, 0.6);
+    --text-color: #15171c;
+    --text-primary: var(--text-color);
+    --text-secondary: #474d58;
+    --text-muted: #767c88;
+    --border-color: #e6e3dc;
+    --border-strong: #d4d0c7;
+    --shadow-color: rgba(21, 23, 28, 0.06);
+    --shadow-sm: 0 1px 2px rgba(21, 23, 28, 0.05);
+    --shadow-md: 0 1px 2px rgba(21, 23, 28, 0.04), 0 4px 14px rgba(21, 23, 28, 0.06);
+    --shadow-lg: 0 2px 6px rgba(21, 23, 28, 0.06), 0 14px 36px rgba(21, 23, 28, 0.12);
+    --label-border-color: #474d58;
+
+    /* Neutral (default) buttons: white with a hairline border */
+    --primary-color: #ffffff;
+    --primary-hover-color: #f3f1ec;
 
     /* Accent: Trello blue, used for primary actions, links, active tabs */
     --accent-color: #0079bf;
@@ -36,51 +45,66 @@
     --accent-light: #e4f0f6;
     --accent-border: #a9d0e8;
     --accent-text: #055a8c;
+    --focus-ring: 0 0 0 3px rgba(0, 121, 191, 0.22);
 
     /* Status */
-    --danger-color: #dc3545;
-    --danger-hover-color: #c82333;
-    --danger-bg: #fff5f5;
-    --danger-border: #ffc9c9;
-    --danger-text: #c92a2a;
-    --success-color: #2f9e44;
+    --danger-color: #c9372c;
+    --danger-hover-color: #ae2e24;
+    --danger-bg: #fdf1ef;
+    --danger-border: #f3c4bd;
+    --danger-text: #ae2e24;
+    --success-color: #1f845a;
+    --success-bg: #effaf4;
+    --success-border: #b6e2cb;
 
     /* Shape and size */
-    --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
-    --radius-xl: 12px;
-    --control-height: 34px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+    --control-height: 36px;
+
+    color-scheme: light;
 }
 
 [data-theme="dark"] {
-    --bg-primary: #1c1c1e;
-    --bg-secondary: #2c2c2e;
-    --bg-tertiary: #363638;
+    --bg-primary: #111316;
+    --bg-secondary: #1a1d21;
+    --bg-tertiary: #22262b;
+    --bg-hover: #262a30;
     --overlay-subtle: rgba(0, 0, 0, 0.2);
-    --text-color: #e0e0e0;
-    --text-secondary: #aaaaaa;
-    --text-muted: #8a8a8e;
-    --border-color: #444;
-    --shadow-color: rgba(0, 0, 0, 0.2);
-    --label-border-color: #ffffff;
+    --text-color: #e9eaed;
+    --text-secondary: #a4a9b3;
+    --text-muted: #7c828d;
+    --border-color: #2d3238;
+    --border-strong: #3b4149;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.35), 0 14px 36px rgba(0, 0, 0, 0.45);
+    --label-border-color: #e9eaed;
 
-    --primary-color: #5a646b;
-    --primary-hover-color: #707980;
+    --primary-color: #1f2328;
+    --primary-hover-color: #2a2f35;
 
     --accent-color: #4aa3df;
     --accent-hover-color: #6bb6e8;
     --accent-contrast: #0b1f2e;
-    --accent-light: #1d3646;
-    --accent-border: #2f5a75;
+    --accent-light: #15283a;
+    --accent-border: #24496a;
     --accent-text: #9fd0f0;
+    --focus-ring: 0 0 0 3px rgba(74, 163, 223, 0.3);
 
-    --danger-color: #dc3545;
-    --danger-hover-color: #e06c75;
-    --danger-bg: #3a1e21;
-    --danger-border: #6b2b31;
-    --danger-text: #ff8787;
-    --success-color: #51cf66;
+    --danger-color: #e5534b;
+    --danger-hover-color: #f0736b;
+    --danger-bg: #2c1a1a;
+    --danger-border: #5c2b29;
+    --danger-text: #ff9a92;
+    --success-color: #4cc38a;
+    --success-bg: #14261d;
+    --success-border: #24563d;
+
+    color-scheme: dark;
 }
 
 @keyframes spin {

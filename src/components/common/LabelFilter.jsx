@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 const LabelFilter = ({ title, labels, selectedLabelIds, onChange, labelLogic, onLabelLogicChange }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -32,163 +33,80 @@ const LabelFilter = ({ title, labels, selectedLabelIds, onChange, labelLogic, on
         }
     };
 
+    const hasSelection = !isAll && selectedLabelIds.size > 0;
+
     return (
-        <div style={{ position: 'relative', display: 'inline-block', marginLeft: '10px' }} ref={dropdownRef}>
+        <div className="filter-dropdown" style={{ marginLeft: '10px' }} ref={dropdownRef}>
             <button
-                className="settings-button"
+                type="button"
+                className={`filter-trigger${isOpen ? ' is-open' : ''}${hasSelection ? ' is-filtered' : ''}`}
                 onClick={() => setIsOpen(!isOpen)}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    fontSize: '0.9em',
-                    backgroundColor: 'var(--bg-secondary)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-color)'
-                }}
+                aria-expanded={isOpen}
+                aria-haspopup="true"
             >
-                {title || 'Labels'}
-                {!isAll && selectedLabelIds.size > 0 && (
-                    <span style={{
-                        background: 'var(--accent-color)',
-                        color: 'white',
-                        borderRadius: '10px',
-                        padding: '0 6px',
-                        fontSize: '0.8em'
-                    }}>
-                        {selectedLabelIds.size}
-                    </span>
-                )}
-                {!isAll && selectedLabelIds.size === 0 && (
-                    <span style={{ fontSize: '0.8em', color: 'var(--text-secondary)' }}>(None)</span>
-                )}
-                <span style={{ fontSize: '0.8em' }}>▼</span>
+                <span className="filter-trigger-label">{title || 'Labels'}</span>
+                {hasSelection && <span className="count-badge">{selectedLabelIds.size}</span>}
+                {!isAll && selectedLabelIds.size === 0 && <span className="filter-trigger-note">(None)</span>}
+                <ChevronDown size={16} className="filter-trigger-chevron" aria-hidden="true" />
             </button>
 
             {isOpen && (
-                <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '5px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    boxShadow: '0 4px 12px var(--shadow-color)',
-                    zIndex: 1000,
-                    width: '320px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: '500px'
-                }}>
-                    <div style={{
-                        padding: '10px',
-                        borderBottom: '1px solid var(--border-color)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '0.9em',
-                        fontWeight: 'bold',
-                        color: 'var(--text-primary)'
-                    }}>
+                <div className="filter-popover" style={{ width: '320px' }}>
+                    <div className="filter-popover-head">
                         <span>Filter by {title || 'Labels'}</span>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button
-                                onClick={() => onChange(null)} // Select All
-                                style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: 'var(--accent-color)',
-                                    cursor: 'pointer',
-                                    fontSize: '0.9em',
-                                    textDecoration: 'underline'
-                                }}
-                            >
-                                All
-                            </button>
-                            <button
-                                onClick={() => onChange(new Set())} // Select None
-                                style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    fontSize: '0.9em',
-                                    textDecoration: 'underline'
-                                }}
-                            >
-                                None
-                            </button>
+                        <div className="filter-popover-links">
+                            <button type="button" className="link-button" onClick={() => onChange(null)}>All</button>
+                            <button type="button" className="link-button link-button-muted" onClick={() => onChange(new Set())}>None</button>
                         </div>
                     </div>
 
                     {/* Logic Toggle */}
-                    <div style={{ padding: '8px 10px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', fontSize: '0.85em', color: 'var(--text-secondary)' }}>
-                        <div style={{ display: 'flex', gap: '15px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <div className="filter-popover-logic">
+                        <div className="segmented" role="radiogroup" aria-label="Match">
+                            <label className={labelLogic === 'OR' ? 'is-active' : ''}>
                                 <input
                                     type="radio"
                                     name="labelLogic"
                                     value="OR"
                                     checked={labelLogic === 'OR'}
                                     onChange={() => onLabelLogicChange('OR')}
-                                    style={{ marginRight: '5px' }}
                                 />
                                 Match any
                             </label>
-                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                            <label className={labelLogic === 'AND' ? 'is-active' : ''}>
                                 <input
                                     type="radio"
                                     name="labelLogic"
                                     value="AND"
                                     checked={labelLogic === 'AND'}
                                     onChange={() => onLabelLogicChange('AND')}
-                                    style={{ marginRight: '5px' }}
                                 />
                                 Match all
                             </label>
                         </div>
                     </div>
 
-                    <div style={{ overflowY: 'auto', padding: '10px', flex: 1 }}>
+                    <div className="filter-popover-list">
                         {labels.map(label => {
-                            // If isAll, check everything.
-                            // If not, check if in set.
+                            // If isAll, check everything. If not, check if in set.
                             const isChecked = isAll || selectedLabelIds.has(label.id);
 
                             return (
-                                <label key={label.id} style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'flex-start',
-                                    padding: '6px 0',
-                                    cursor: 'pointer',
-                                    color: 'var(--text-primary)'
-                                }}>
+                                <label key={label.id} className="filter-option">
                                     <input
                                         type="checkbox"
                                         checked={isChecked}
                                         onChange={() => toggleLabel(label.id)}
-                                        style={{ marginRight: '10px' }}
                                     />
-                                    <span style={{
-                                        display: 'inline-block',
-                                        width: '12px',
-                                        height: '12px',
-                                        borderRadius: '50%',
-                                        backgroundColor: label.color || '#ccc',
-                                        marginRight: '8px'
-                                    }}></span>
-                                    <span style={{ fontSize: '0.9em' }}>{label.name || (label.color ? label.color : 'No Name')}</span>
+                                    <span className="label-dot" style={{ backgroundColor: label.color || '#b3bac5' }}></span>
+                                    <span className="filter-option-text">{label.name || (label.color ? label.color : 'No Name')}</span>
                                 </label>
                             );
                         })}
                     </div>
                 </div>
-            )
-            }
-        </div >
+            )}
+        </div>
     );
 };
 

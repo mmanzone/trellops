@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { ChevronDown, Clock, Check, UserRound } from 'lucide-react';
 import { fetchAllTasksData } from '../api/trello';
 import DigitalClock from './common/DigitalClock';
 import LabelFilter from './common/LabelFilter';
@@ -324,17 +325,16 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             value={sortBy}
                             onChange={e => setSortBy(e.target.value)}
                             className="time-filter-select" // Reuse for shrinking
-                            style={{ borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
                         >
                             <option value="board">Sort: Board</option>
                             <option value="due">Sort: Due</option>
                         </select>
 
                         {/* Checkboxes - hide on very small screens? or wrap? */}
-                        <div className="desktop-only" style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '0.9em' }}>
-                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} style={{ marginRight: '4px' }} /> Assigned to me</label>
-                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} style={{ marginRight: '4px' }} /> Member of</label>
-                            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}><input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} style={{ marginRight: '4px' }} /> Done</label>
+                        <div className="desktop-only chip-group">
+                            <label className={`chip-toggle${filterAssigned ? ' is-on' : ''}`}><input type="checkbox" checked={filterAssigned} onChange={e => setFilterAssigned(e.target.checked)} /> Assigned to me</label>
+                            <label className={`chip-toggle${filterMember ? ' is-on' : ''}`}><input type="checkbox" checked={filterMember} onChange={e => setFilterMember(e.target.checked)} /> Member of</label>
+                            <label className={`chip-toggle${filterComplete ? ' is-on' : ''}`}><input type="checkbox" checked={filterComplete} onChange={e => setFilterComplete(e.target.checked)} /> Done</label>
                         </div>
                     </div>
 
@@ -392,34 +392,34 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
             </div>
 
             {/* CONTENT */}
-            <div className="task-content" style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '80px', background: 'var(--bg-canvas)', position: 'relative', zIndex: 1 }}>
+            <div className="task-content">
                 {/* ... content ... */}
                 {Object.keys(groupedData).length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#888', marginTop: '50px' }}>No tasks found matching filters.</div>
+                    <div className="empty-state">No tasks found matching filters.</div>
                 ) : (
                     Object.entries(groupedData).map(([orgId, orgData]) => (
-                        <div key={orgId} className="workspace-section" style={{ marginBottom: '40px' }}>
-                            <h2 style={{ borderBottom: '2px solid var(--border-color, #ccc)', paddingBottom: '10px', marginBottom: '20px', color: 'var(--text-primary)' }}>{orgData.name}</h2>
+                        <div key={orgId} className="workspace-section">
+                            <h2 className="workspace-title">{orgData.name}</h2>
                             {/* ... */}
-                            <div className="boards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', alignItems: 'start' }}>
+                            <div className="boards-grid">
                                 {Object.entries(orgData.boards).map(([boardId, boardData]) => (
-                                    <div key={boardId} className="board-card" style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '15px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', maxHeight: '600px' }}>
-                                        <h3 style={{ marginTop: 0, fontSize: '1.1em', marginBottom: '15px', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-color, #eee)', paddingBottom: '8px' }}>
-                                            {boardData.name} <span style={{ fontSize: '0.8em', fontWeight: 'normal', color: 'var(--text-secondary)' }}>({boardData.tasks.length})</span>
+                                    <div key={boardId} className="board-card">
+                                        <h3 className="board-card-title">
+                                            {boardData.name} <span className="board-card-count">{boardData.tasks.length}</span>
                                         </h3>
-                                        <div className="tasks-list-vertical" style={{ display: 'flex', flexDirection: 'column', gap: '15px', overflowY: 'auto', paddingRight: '5px' }}>
+                                        <div className="tasks-list-vertical">
                                             {boardData.tasks.map(task => (
-                                                <div key={task.type === 'card' ? `card-${task.cardId}` : task.id} className="task-card" style={{ background: 'var(--bg-primary)', padding: '12px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', borderLeft: task.checkItems && task.checkItems.length > 0 ? '4px solid #0079bf' : '4px solid #ff9f1a', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column' }}>
+                                                <div key={task.type === 'card' ? `card-${task.cardId}` : task.id} className={`task-card ${task.checkItems && task.checkItems.length > 0 ? 'task-card-checklist' : 'task-card-member'}`}>
                                                     {/* Card details */}
                                                     <div style={{ marginBottom: '8px' }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                            <a href={task.cardUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: '600', fontSize: '1em', lineHeight: '1.3', wordBreak: 'break-word' }}>{task.cardName}</a>
-                                                            {task.isMember && <span title="Member" style={{ fontSize: '0.9em', marginLeft: '5px', opacity: 0.7 }}>👤</span>}
+                                                            <a href={task.cardUrl} target="_blank" rel="noopener noreferrer" className="task-card-name">{task.cardName}</a>
+                                                            {task.isMember && <span title="Member" className="task-card-member-icon"><UserRound size={15} aria-label="Member" /></span>}
                                                         </div>
-                                                        {task.labels && task.labels.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>{task.labels.map(l => <span key={l.id} style={{ fontSize: '0.7em', padding: '2px 6px', borderRadius: '3px', backgroundColor: l.color ? getLabelColor(l.color) : '#ccc', color: l.color ? '#fff' : '#000', fontWeight: '500' }}>{l.name}</span>)}</div>}
-                                                        {task.due && <div style={{ fontSize: '0.85em', marginTop: '8px', color: new Date(task.due) < new Date() && !task.isCompleted ? '#eb5a46' : '#5ba4cf', display: 'flex', alignItems: 'center' }}><span style={{ marginRight: '4px' }}>🕒</span>{new Date(task.due).toLocaleDateString()} {new Date(task.due).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {task.isCompleted && <span style={{ marginLeft: '5px', color: 'green' }}>✓ Done</span>}</div>}
+                                                        {task.labels && task.labels.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>{task.labels.map(l => <span key={l.id} className="task-label" style={{ backgroundColor: l.color ? getLabelColor(l.color) : '#b3bac5', color: l.color ? '#fff' : '#15171c' }}>{l.name}</span>)}</div>}
+                                                        {task.due && <div className={`task-due${new Date(task.due) < new Date() && !task.isCompleted ? ' is-overdue' : ''}`}><Clock size={14} aria-hidden="true" />{new Date(task.due).toLocaleDateString()} {new Date(task.due).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} {task.isCompleted && <span className="task-done"><Check size={14} aria-hidden="true" /> Done</span>}</div>}
                                                     </div>
-                                                    {task.checkItems && task.checkItems.length > 0 && <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid var(--border-color, #eee)' }}><div style={{ fontSize: '0.75em', color: 'var(--text-secondary)', marginBottom: '5px', textTransform: 'uppercase', fontWeight: 'bold' }}>Your Tasks:</div>{task.checkItems.map(item => <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '4px 0', paddingLeft: '10px', borderLeft: '2px solid #ddd', fontSize: '0.9em', marginBottom: '4px' }}><div style={{ width: '16px', height: '16px', borderRadius: '3px', border: '1px solid #ccc', marginRight: '8px', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: item.state === 'complete' ? '#5ba4cf' : 'transparent', flexShrink: 0 }}>{item.state === 'complete' && <span style={{ color: 'white', fontSize: '11px' }}>✓</span>}</div><span style={{ color: item.state === 'complete' ? '#888' : 'var(--text-primary)', textDecoration: item.state === 'complete' ? 'line-through' : 'none', lineHeight: '1.4' }}>{item.name}</span></div>)}</div>}
+                                                    {task.checkItems && task.checkItems.length > 0 && <div className="task-checklist"><div className="task-checklist-title">Your Tasks</div>{task.checkItems.map(item => <div key={item.id} className={`task-check-item${item.state === 'complete' ? ' is-complete' : ''}`}><span className="task-check-box">{item.state === 'complete' && <Check size={12} strokeWidth={3} aria-hidden="true" />}</span><span className="task-check-text">{item.name}</span></div>)}</div>}
                                                 </div>
                                             ))}
                                         </div>
@@ -441,11 +441,11 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
 
                     <div className="desktop-only" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                         <div style={{ position: 'relative' }}>
-                            <div style={{ display: 'flex' }}>
+                            <div className="split-button">
                                 <button className="button-secondary" onClick={() => onMainView ? onMainView() : onClose()}>Dashboard View</button>
-                                <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', padding: '0 5px', borderLeft: 'none' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>▼</button>
+                                <button className="button-secondary dropdown-arrow" aria-label="More options" onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}><ChevronDown size={16} /></button>
                             </div>
-                            {showDashboardDropdown && <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}><div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div></div>}
+                            {showDashboardDropdown && <div className="context-menu"><div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div></div>}
                         </div>
                         <button className="button-secondary" onClick={onShowSettings}>Settings</button>
                         <button className="button-secondary" onClick={onLogout}>Log Out</button>
@@ -502,79 +502,38 @@ const MultiSelectFilter = ({ label, options, selectedIds, onChange, className })
         }
     };
 
+    const hasSelection = !isAll && selectedIds.size > 0;
+
     return (
-        <div style={{ position: 'relative', display: 'inline-block' }} ref={dropdownRef} className={className}>
+        <div className={`filter-dropdown${className ? ' ' + className : ''}`} ref={dropdownRef}>
             <button
-                className="settings-button"
+                type="button"
+                className={`filter-trigger${isOpen ? ' is-open' : ''}${hasSelection ? ' is-filtered' : ''}`}
                 onClick={() => setIsOpen(!isOpen)}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    fontSize: '0.9em',
-                    backgroundColor: 'var(--bg-secondary)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-color)',
-                    maxWidth: '100%',
-                    justifyContent: 'space-between'
-                }}
+                aria-expanded={isOpen}
+                aria-haspopup="true"
             >
-                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{label}</span>
-                {!isAll && selectedIds.size > 0 && (
-                    <span style={{
-                        background: 'var(--accent-color)',
-                        color: 'white',
-                        borderRadius: '10px',
-                        padding: '0 6px',
-                        fontSize: '0.8em',
-                        marginLeft: '4px'
-                    }}>
-                        {selectedIds.size}
-                    </span>
-                )}
-                <span style={{ fontSize: '0.8em', marginLeft: '4px' }}>▼</span>
+                <span className="filter-trigger-label">{label}</span>
+                {hasSelection && <span className="count-badge">{selectedIds.size}</span>}
+                <ChevronDown size={16} className="filter-trigger-chevron" aria-hidden="true" />
             </button>
 
             {isOpen && (
-                <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '5px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    boxShadow: '0 4px 12px var(--shadow-color)',
-                    zIndex: 1000,
-                    minWidth: '200px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: '400px'
-                }}>
-                    <div style={{
-                        padding: '8px',
-                        borderBottom: '1px solid var(--border-color)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        fontSize: '0.85em',
-                        fontWeight: 'bold',
-                        color: 'var(--text-primary)'
-                    }}>
+                <div className="filter-popover" style={{ minWidth: '220px', maxHeight: '400px' }}>
+                    <div className="filter-popover-head">
                         <span>{label}</span>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={() => onChange(null)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline' }}>All</button>
-                            <button onClick={() => onChange(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', textDecoration: 'underline' }}>None</button>
+                        <div className="filter-popover-links">
+                            <button type="button" className="link-button" onClick={() => onChange(null)}>All</button>
+                            <button type="button" className="link-button link-button-muted" onClick={() => onChange(new Set())}>None</button>
                         </div>
                     </div>
-                    <div style={{ overflowY: 'auto', padding: '8px', flex: 1 }}>
+                    <div className="filter-popover-list">
                         {options.map(opt => {
                             const isChecked = isAll || selectedIds.has(opt.id);
                             return (
-                                <label key={opt.id} style={{ display: 'flex', alignItems: 'center', padding: '4px 0', cursor: 'pointer', color: 'var(--text-primary)', fontSize: '0.9em' }}>
-                                    <input type="checkbox" checked={isChecked} onChange={() => toggleOption(opt.id)} style={{ marginRight: '8px' }} />
-                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opt.name}</span>
+                                <label key={opt.id} className="filter-option">
+                                    <input type="checkbox" checked={isChecked} onChange={() => toggleOption(opt.id)} />
+                                    <span className="filter-option-text">{opt.name}</span>
                                 </label>
                             );
                         })}
