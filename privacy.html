@@ -4,218 +4,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trellops - Privacy Disclaimer</title>
-    <style>
-        :root {
-            --bg-primary: #121212;
-            --bg-secondary: #1e1e1e;
-            --text-color: #e0e0e0;
-            --accent: #00c6ff;
-            --border: #333;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-color);
-            line-height: 1.6;
-            margin: 0;
-            padding: 40px;
-        }
-
-        nav {
-            margin-bottom: 40px;
-        }
-
-        nav a {
-            color: var(--accent);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        header {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        h1 {
-            color: #ffffff;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            color: #aaa;
-            font-size: 1.2em;
-        }
-
-        hr {
-            border: 0;
-            border-top: 1px solid var(--border);
-            margin: 40px 0;
-        }
-
-        section {
-            max-width: 800px;
-            margin: 0 auto 40px;
-            background: var(--bg-secondary);
-            padding: 30px;
-            border-radius: 12px;
-        }
-
-        h2 {
-            color: #ffffff;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 15px;
-            margin-top: 0;
-        }
-
-        h3 {
-            color: #fff;
-            margin-top: 25px;
-            margin-bottom: 10px;
-        }
-
-        ul,
-        ol {
-            padding-left: 20px;
-        }
-
-        li {
-            margin-bottom: 10px;
-        }
-
-        a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        footer {
-            margin-top: 60px;
-            text-align: center;
-            color: #666;
-            font-size: 0.9em;
-            border-top: 1px solid var(--border);
-            padding-top: 20px;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 20px;
-            }
-
-            section {
-                padding: 20px;
-            }
-
-            h1 {
-                font-size: 2em;
-            }
-        }
-    </style>
+    <title>Trellops Privacy</title>
+    <meta name="description" content="How Trellops handles your data: local-first storage, read-only Trello access by default, and the services used for maps and AI summaries.">
+    <link rel="icon" type="image/png" href="/powerupicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Instrument+Sans:wght@400..700&display=swap">
+    <link rel="stylesheet" href="/src/styles/site.css">
 </head>
 
-<body>
-
-    <nav>
-        <a href="index.html">← Back to Trellops</a>
-    </nav>
-
-    <header>
-        <h1>Privacy Disclaimer</h1>
-        <p class="subtitle">Transparency is our priority. Here is how we handle your data.</p>
+<body class="site site-docs">
+    <a class="site-skip" href="#main">Skip to content</a>
+    <header class="site-header">
+        <div class="site-wrap">
+            <a class="site-brand" href="/"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2.5" fill="#0079bf"/><rect x="13" y="1" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="1" y="13" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="13" y="13" width="10" height="10" rx="2.5" fill="#15171c" opacity="0.28"/></svg>Trellops</a>
+            <nav class="site-nav" aria-label="Main">
+                <a class="site-nav-link" href="/#features">Features</a>
+                <a class="site-nav-link" href="help.html">User guide</a>
+                <a class="site-nav-link" href="privacy.html" aria-current="page">Privacy</a>
+                <a class="s-btn s-btn-primary s-btn-sm" href="/">Open Trellops</a>
+            </nav>
+        </div>
     </header>
 
-    <hr>
+    <main id="main">
+        <div class="docs-hero">
+            <div class="site-wrap">
+                <p class="site-eyebrow">Privacy</p>
+                <h1>How Trellops handles your data.</h1>
+                <p>Transparency first: what stays in your browser, what is shared and when.</p>
+            </div>
+        </div>
 
-    <section>
-        <h2>1. The "Local First" Philosophy</h2>
-        <p>Trellops is designed as a client-side application. This means that, for the vast majority of features,
-            <strong>your data never leaves your computer browser</strong>. We do not track your activity, sell your
-            data, or store your Trello card contents on our servers.
-        </p>
-    </section>
+        <div class="site-wrap docs-layout">
+            <nav class="docs-toc" aria-label="On this page">
+                <p>On this page</p>
+                <ol>
+                    <li><a href="#at-a-glance">At a glance</a></li>
+                    <li><a href="#local-first">Local first</a></li>
+                    <li><a href="#data-storage">Data storage</a></li>
+                    <li><a href="#permissions">Trello permissions</a></li>
+                    <li><a href="#third-parties">Third-party services</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ol>
+            </nav>
 
-    <section>
-        <h2>2. Data Storage</h2>
-        <p>We store your dashboard configuration (such as block names, tile colours, and layout settings) in your
-            browser's <strong>Local Storage</strong>. This ensures your dashboard is ready whenever you open Trellops.
-        </p>
+            <article class="docs-body">
 
-        <h3>Exception: Sharing Configurations</h3>
-        <p>If you explicitly choose to use the <strong>"Share Configuration via Link"</strong> feature, we must briefly
-            store a "skeleton" of your layout on our secure server to make the link work for your colleagues. This data
-            includes:</p>
-        <ul>
-            <li>Trello Board IDs</li>
-            <li>Block Names and Layout order</li>
-            <li>Home Address coordinates (if set)</li>
-        </ul>
-        <p><strong>Note:</strong> We do <em>not</em> store any personal card data, card descriptions, or user personal
-            information (PII) in this process.</p>
-    </section>
+                <section id="at-a-glance">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>At a glance</h2>
+                    <p>Trellops is built to show your Trello data, not to collect it. Here is the short version; the details follow.</p>
+                    <div class="docs-summary">
+                        <div>
+                            <h3><span class="yes"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>Stays in your browser</h3>
+                            <ul>
+                                <li>Your dashboard layout, colours and settings</li>
+                                <li>Cached map locations</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3><span class="info"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span>Leaves your browser only when you ask</h3>
+                            <ul>
+                                <li>A layout skeleton, when you share a link</li>
+                                <li>Addresses, sent to Google Maps for lookup</li>
+                                <li>Card contents, sent to Google’s Gemini when you request an AI summary</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
 
-    <section>
-        <h2>3. Trello Permissions (Read vs. Write)</h2>
-        <p>When you log in, Trellops requests access to your Trello boards. We strictly limit this access based on the
-            features you use.</p>
+                <section id="local-first">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="12" x="3" y="4" rx="2"/><path d="M2 20h20"/></svg></span>The “local first” approach</h2>
+                    <p>Trellops is a client-side application. For almost every feature, <strong>your data never leaves your browser</strong>. We do not track your activity, sell your data, or store your Trello card contents on our servers.</p>
+                </section>
 
-        <h3>Default: Read-Only Access</h3>
-        <p>By default, Trellops only requests <strong>READ</strong> permissions. We download your lists and cards solely
-            to display them on your dashboard. We cannot modify, delete, or create data.</p>
+                <section id="data-storage">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/></svg></span>Data storage</h2>
+                    <p>Your dashboard configuration (such as block names, tile colours and layout settings) is stored in your browser’s <strong>local storage</strong>, so your dashboard is ready whenever you open Trellops.</p>
 
-        <h3>Optional: Write Access</h3>
-        <p>If you wish to use advanced Map features, Trellops requires <strong>WRITE</strong> permissions. You will be
-            prompted to authorise this only if you attempt to:</p>
-        <ol>
-            <li><strong>Move a Card on the Map:</strong> Dragging a card from one location/list to another on the Map
-                View.</li>
-            <li><strong>Save Coordinates:</strong> Updating a Trello card to permanently save the latitude/longitude
-                decoded from its address (this speeds up future loading).</li>
-        </ol>
-    </section>
+                    <h3>Exception: sharing a configuration</h3>
+                    <p>If you choose to use <strong>“Share configuration via link”</strong>, we briefly store a skeleton of your layout on our server so the link works for your colleagues. This includes:</p>
+                    <ul>
+                        <li>Trello board IDs</li>
+                        <li>Block names and layout order</li>
+                        <li>Home address coordinates, if set</li>
+                    </ul>
+                    <div class="docs-callout is-info" role="note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><div>We do <strong>not</strong> store card data, card descriptions or personal information (PII) as part of sharing.</div></div>
+                </section>
 
-    <section>
-        <h2>4. Third-Party Services</h2>
-        <p>To provide advanced features, Trellops uses the following third-party services:</p>
-        <ul>
-            <li><strong>Google Maps Platform:</strong> If your cards contain addresses in the description field
-                (rather than coordinates), we send that address text to Google Maps to convert it into map coordinates
-                (Geocoding). Please refer to the <a href="https://policies.google.com/privacy" target="_blank">Google
-                    Privacy Policy</a> for more details.</li>
-            <li><strong>Google Cloud (Gemini API):</strong> When using the AI Summaries feature in the Statistics view, the contents of the cards within your selected time scope (including descriptions, comments, and members) are securely transmitted to Google Cloud's Gemini models for processing and summarization. For more information on how Google handles data sent to their API, please refer to the <a href="https://ai.google.dev/gemini-api/terms" target="_blank">Google API Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank">Privacy Policy</a>.</li>
-        </ul>
-    </section>
+                <section id="permissions">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>Trello permissions: read and write</h2>
+                    <p>When you sign in, Trellops asks for access to your Trello boards. That access is limited to the features you use.</p>
 
-    <section>
-        <h2>5. Contact</h2>
-        <p>If you have questions about this policy or your data, please contact us via our support channels.</p>
-    </section>
+                    <h3>Default: read-only</h3>
+                    <p>By default Trellops only asks for <strong>read</strong> permission. Lists and cards are downloaded only to show them on your dashboard. Trellops cannot change, delete or create anything.</p>
 
-    <footer>
-        <p>&copy; 2026 Trellops. All rights reserved.</p>
+                    <h3>Optional: write access</h3>
+                    <p>Some Map features need <strong>write</strong> permission. You are asked for it only when you try to:</p>
+                    <ol>
+                        <li><strong>Move a card on the map:</strong> drag a card from one list to another in the Map view.</li>
+                        <li><strong>Save coordinates:</strong> store the latitude and longitude found from a card’s address on the card itself, which speeds up future loads.</li>
+                    </ol>
+                </section>
+
+                <section id="third-parties">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></span>Third-party services</h2>
+                    <p>Some features rely on these services:</p>
+                    <ul>
+                        <li><strong>Google Maps Platform:</strong> If a card has an address in its description (rather than coordinates), that address text is sent to Google Maps to turn it into map coordinates (geocoding). See the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>.</li>
+                        <li><strong>Google Cloud (Gemini API):</strong> When you use AI summaries on the Statistics page, the contents of the cards in the selected period (including descriptions, comments and members) are sent securely to Google’s Gemini models to produce the summary. See the <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Google API Terms of Service</a> and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</li>
+                    </ul>
+                </section>
+
+                <section id="contact">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>Contact</h2>
+                    <p>If you have questions about this policy or your data, please contact us through our support channels.</p>
+                </section>
+            </article>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-wrap">
+            <a class="site-brand" href="/"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2.5" fill="#0079bf"/><rect x="13" y="1" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="1" y="13" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="13" y="13" width="10" height="10" rx="2.5" fill="#15171c" opacity="0.28"/></svg>Trellops</a>
+            <nav aria-label="Footer">
+                <a href="help.html">User guide</a>
+                <a href="privacy.html">Privacy</a>
+                <a href="releases.html">Release notes</a>
+            </nav>
+            <small>&copy; 2026 Trellops. Version 4.6, November 2026.</small>
+        </div>
     </footer>
 
     <script>
+        // Preview deployments get a banner so they are never mistaken for production.
         if (window.location.hostname !== 'trellops.xyz') {
             var banner = document.createElement('div');
+            banner.className = 'site-preview';
             banner.innerText = 'PREVIEW ENVIRONMENT';
-            banner.style.width = '100%';
-            banner.style.backgroundColor = '#003366';
-            banner.style.color = '#ffffff';
-            banner.style.textAlign = 'center';
-            banner.style.padding = '4px 0';
-            banner.style.fontSize = '12px';
-            banner.style.fontWeight = 'bold';
-            banner.style.letterSpacing = '1px';
-            banner.style.position = 'relative';
-            banner.style.zIndex = '9999';
             document.body.insertBefore(banner, document.body.firstChild);
         }
+
+        // Highlight the section being read in the table of contents.
+        (function () {
+            var links = Array.prototype.slice.call(document.querySelectorAll('.docs-toc a'));
+            if (!('IntersectionObserver' in window) || !links.length) return;
+            var byId = {};
+            links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+            var io = new IntersectionObserver(function (entries) {
+                entries.forEach(function (e) {
+                    if (!e.isIntersecting) return;
+                    links.forEach(function (a) { a.classList.remove('is-active'); });
+                    var a = byId[e.target.id];
+                    if (a) a.classList.add('is-active');
+                });
+            }, { rootMargin: '-90px 0px -65% 0px' });
+            document.querySelectorAll('.docs-body section[id]').forEach(function (s) { io.observe(s); });
+        })();
     </script>
 </body>
 
