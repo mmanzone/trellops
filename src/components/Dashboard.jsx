@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { trelloFetch } from '../api/trello';
 import { STORAGE_KEYS, DEFAULT_LAYOUT, TIME_FILTERS } from '../utils/constants';
 import {
@@ -11,7 +11,8 @@ import { getTerminology } from '../utils/terminology';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
-import MapView from './MapView'; // For Slideshow
+// MapView is only needed for the slideshow, so it's loaded on demand.
+const MapView = lazy(() => import('./MapView'));
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import HamburgerMenu from './common/HamburgerMenu';
 import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
@@ -507,7 +508,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* RENDER BLOCKS OR SLIDESHOW CONTENT */}
             {slideshowContent === 'map' ? (
                 <div style={{ flex: 1, position: 'relative', width: '100%', overflow: 'hidden' }}>
-                    <MapView isEmbedded={true} user={user} settings={settings} />
+                    <Suspense fallback={null}><MapView isEmbedded={true} user={user} settings={settings} /></Suspense>
                 </div>
             ) : (
                 <DashboardContent

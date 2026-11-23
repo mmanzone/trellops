@@ -209,6 +209,22 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         if (labelInfo.length > 50) labelInfo = ` - Labels: ${selectedLabelIds.size} selected`;
     }
 
+    // --- CHART LIBRARY ---
+    // Chart.js and its data-labels plugin are bundled but loaded only when the
+    // Stats page opens, instead of blocking every page from a CDN.
+    const [Chart, setChart] = useState(null);
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all([import('chart.js/auto'), import('chartjs-plugin-datalabels')])
+            .then(([chartModule, labelsModule]) => {
+                const ChartJS = chartModule.default;
+                ChartJS.register(labelsModule.default);
+                if (!cancelled) setChart(() => ChartJS);
+            })
+            .catch(err => console.error('Failed to load Chart.js', err));
+        return () => { cancelled = true; };
+    }, []);
+
     // --- CHART RENDERING ---
     useEffect(() => {
         if (loading || cards.length === 0) return;
@@ -217,11 +233,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         if (lineChartInstance.current) lineChartInstance.current.destroy();
         if (pieChartInstance.current) pieChartInstance.current.destroy();
 
-        if (!window.Chart) return;
-
-        if (window.ChartDataLabels) {
-            try { window.Chart.register(window.ChartDataLabels); } catch (e) { }
-        }
+        if (!Chart) return; // Chart.js still loading
 
         try {
 
@@ -323,7 +335,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
 
             const ctxLine = lineChartRef.current.getContext('2d');
-            lineChartInstance.current = new window.Chart(ctxLine, {
+            lineChartInstance.current = new Chart(ctxLine, {
                 type: 'line',
                 data: {
                     labels: sortedKeys,
@@ -399,7 +411,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             });
 
             const ctxPie = pieChartRef.current.getContext('2d');
-            pieChartInstance.current = new window.Chart(ctxPie, {
+            pieChartInstance.current = new Chart(ctxPie, {
                 type: 'pie',
                 data: {
                     labels: Object.keys(labelCombinations),
@@ -441,13 +453,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             console.error("Chart error:", err);
         }
 
-    }, [cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
+    }, [Chart, cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
 
     // --- HANDLERS ---
-    const handleExport = (elementId, name) => {
-        if (!window.html2canvas) { alert("Export library not loaded."); return; }
+    const handleExport = async (elementId, name) => {
+        // Loaded on demand: only needed when someone exports a chart.
+        const { default: html2canvas } = await import('html2canvas');
         const el = elementId ? document.getElementById(elementId) : document.querySelector('.dashboard-grid');
-        window.html2canvas(el).then(canvas => {
+        html2canvas(el).then(canvas => {
             const link = document.createElement('a');
             link.download = `${boardName}-stats-${name || 'all'}.png`;
             link.href = canvas.toDataURL();
@@ -611,7 +624,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     </div>
                 </div>
             </div>
-            <div className="container" style={{ flex: 1, paddingBottom: '80px' }}>
+            <div className="container" style={{ flex: 1, paddingBottom: '80px', width: '100%', boxSizing: 'border-box' }}>
 
                 {loading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', fontSize: '1.2em', color: '#666' }}>

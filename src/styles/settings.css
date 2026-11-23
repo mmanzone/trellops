@@ -7,9 +7,6 @@
     color: var(--text-color);
 }
 
-.settings-row {
-    margin-bottom: 20px;
-}
 
 .board-select {
     padding: 8px 12px;
@@ -22,14 +19,6 @@
     max-width: 400px;
 }
 
-.admin-section {
-    background: var(--bg-secondary);
-    padding: 20px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-color);
-    margin-bottom: 24px;
-    box-shadow: 0 1px 3px var(--shadow-color);
-}
 
 /* Blocks List Drag & Drop */
 .blocks-list {
@@ -49,11 +38,6 @@
     gap: 10px;
 }
 
-.block-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
 
 .drag-handle {
     cursor: grab;
@@ -129,68 +113,15 @@
 }
 
 /* Switch */
-.switch {
-    position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 24px;
-}
 
-.switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
 
-.slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--border-color);
-    transition: .4s;
-}
 
-.slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: .4s;
-}
 
-input:checked+.slider {
-    background-color: var(--accent-color);
-}
 
-input:focus+.slider {
-    box-shadow: 0 0 1px var(--accent-color);
-}
 
-input:checked+.slider:before {
-    transform: translateX(24px);
-}
 
-.slider.round {
-    border-radius: 24px;
-}
 
-.slider.round:before {
-    border-radius: 50%;
-}
 
-.actions-container {
-    margin-top: 30px;
-    display: flex;
-    gap: 15px;
-    border-top: 1px solid var(--border-color);
-    padding-top: 20px;
-}
 
 /* .save-layout-button, .button-secondary and .error are defined once in index.css */
 
