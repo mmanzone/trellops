@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useDarkMode } from '../../context/DarkModeContext';
 
 const LabelFilter = ({ title, labels, selectedLabelIds, onChange, labelLogic, onLabelLogicChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
-    const { theme } = useDarkMode();
 
     // selectedLabelIds: Set<string> | null. 
     // If null, it means "All Selected".
@@ -45,7 +43,7 @@ const LabelFilter = ({ title, labels, selectedLabelIds, onChange, labelLogic, on
                     gap: '6px',
                     padding: '6px 12px',
                     fontSize: '0.9em',
-                    backgroundColor: theme === 'dark' ? 'var(--bg-secondary)' : '#ffffff',
+                    backgroundColor: 'var(--bg-secondary)',
                     color: 'var(--text-primary)',
                     border: '1px solid var(--border-color)'
                 }}

@@ -25,7 +25,15 @@ h4 {
     margin-top: 0;
 }
 
-/* --- Buttons --- */
+/* --- Buttons ---
+ * One system for every page. Variants:
+ *   (default)          neutral grey button
+ *   .button-primary    accent (main action on a screen, e.g. Save)
+ *   .button-secondary  outlined, used for footer/navigation actions
+ *   .button-danger     destructive actions
+ *   .theme-toggle-button  square icon button (theme, screen lock)
+ * All share the same height and corner radius.
+ */
 button,
 .settings-button,
 .logout-button,
@@ -34,19 +42,20 @@ button,
 label.settings-button {
     background-color: var(--primary-color);
     color: var(--text-color);
-    border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
+    border: 1px solid transparent;
+    padding: 6px 14px;
+    border-radius: var(--radius-md);
     font-size: 0.9em;
     font-weight: 500;
+    font-family: inherit;
     cursor: pointer;
-    transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     text-align: center;
-    height: 34px;
-    /* Consistent height */
+    height: var(--control-height);
     box-sizing: border-box;
 }
 
@@ -62,9 +71,36 @@ label.settings-button:hover {
 
 button:disabled,
 .settings-button:disabled {
-    background-color: #cccccc;
+    opacity: 0.55;
     cursor: not-allowed;
     transform: none;
+}
+
+button:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+.button-primary,
+.save-layout-button {
+    background-color: var(--accent-color);
+    color: var(--accent-contrast);
+    font-weight: 600;
+}
+
+.button-primary:hover,
+.save-layout-button:hover {
+    background-color: var(--accent-hover-color);
+}
+
+.button-secondary {
+    background-color: var(--bg-secondary);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.button-secondary:hover {
+    background-color: var(--bg-tertiary);
 }
 
 .button-danger {
@@ -76,25 +112,44 @@ button:disabled,
     background-color: var(--danger-hover-color);
 }
 
-.error {
-    background-color: #dc3545;
-    /* A standard danger red */
-    color: white;
-    padding: 15px;
-    border-radius: 8px;
-    margin: 15px 0;
-    font-weight: 500;
-    border: 1px solid #c82333;
-}
-
-.button-secondary {
+.theme-toggle-button {
     background-color: var(--bg-secondary);
     color: var(--text-color);
     border: 1px solid var(--border-color);
+    width: var(--control-height);
+    padding: 0;
+    flex-shrink: 0;
 }
 
-.button-secondary:hover {
-    background-color: var(--bg-primary);
+.theme-toggle-button:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.error {
+    background-color: var(--danger-bg);
+    color: var(--danger-text);
+    padding: 12px 15px;
+    border-radius: var(--radius-lg);
+    margin: 15px 0;
+    font-weight: 500;
+    border: 1px solid var(--danger-border);
+}
+
+/* --- Form controls follow the theme --- */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="email"],
+input[type="url"],
+input[type="search"],
+input:not([type]),
+select,
+textarea {
+    background-color: var(--bg-secondary);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
 }
 
 /* --- Header/Navigation --- */
@@ -150,7 +205,7 @@ button:disabled,
     font-size: 1rem;
     color: var(--text-color);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     transition: background-color 0.2s;
 }
 
@@ -170,7 +225,7 @@ button:disabled,
     /* subtle blue */
     text-decoration: none;
     padding: 4px 6px;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     display: inline-block;
     font-weight: 500;
 }
@@ -188,19 +243,15 @@ button:disabled,
 }
 
 /* NEW: Time Filter & Theme Toggle */
-.time-filter-select,
-.theme-toggle-button {
-    padding: 8px 12px;
+.time-filter-select {
+    padding: 0 12px;
+    height: var(--control-height);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background-color: var(--bg-secondary);
     color: var(--text-color);
     font-size: 0.9em;
     margin-left: 10px;
-}
-
-.theme-toggle-button {
-    cursor: pointer;
 }
 
 /* NEW: Fixed Footer Action Bar */
@@ -270,7 +321,7 @@ button:disabled,
 /* --- Tile Styles --- */
 .dashboard-tile {
     min-height: 110px;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -315,7 +366,7 @@ button:disabled,
 .form-card {
     background-color: var(--bg-secondary);
     padding: 40px;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     box-shadow: 0 4px 15px var(--shadow-color);
     max-width: 95%;
     margin: 20px auto;
@@ -342,7 +393,7 @@ button:disabled,
     padding: 10px;
     margin-top: 5px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     font-size: 1em;
     box-sizing: border-box;
     background-color: var(--bg-primary);
@@ -356,7 +407,7 @@ button:disabled,
     padding: 8px;
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     justify-content: space-between;
 }
 
@@ -418,7 +469,7 @@ button:disabled,
 .layout-block-box {
     background: var(--bg-secondary);
     padding: 20px;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);
 }
 
@@ -430,7 +481,7 @@ button:disabled,
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
 }
 
 /* --- Modal Display --- */
@@ -450,7 +501,7 @@ button:disabled,
 .modal-content {
     background: var(--bg-secondary);
     padding: 30px;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     max-width: 500px;
     width: 90%;
     max-height: 90vh;
@@ -469,7 +520,7 @@ button:disabled,
     font-size: 0.75em;
     font-weight: 500;
     padding: 3px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     margin-right: 5px;
     border: 1px solid var(--label-border-color);
 }
@@ -490,7 +541,7 @@ button:disabled,
 
 .admin-section {
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     padding: 30px;
     margin-bottom: 30px;
     background-color: var(--bg-secondary);
@@ -601,7 +652,7 @@ button:disabled,
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: var(--border-color);
     -webkit-transition: .4s;
     transition: .4s;
 }
@@ -619,11 +670,11 @@ button:disabled,
 }
 
 input:checked+.slider {
-    background-color: #2196F3;
+    background-color: var(--accent-color);
 }
 
 input:focus+.slider {
-    box-shadow: 0 0 1px #2196F3;
+    box-shadow: 0 0 1px var(--accent-color);
 }
 
 input:checked+.slider:before {
@@ -685,7 +736,7 @@ input:checked+.slider:before {
     color: #121212;
     font-size: 1.2em;
     padding: 15px 30px;
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     text-decoration: none;
     font-weight: 600;
     transition: background-color 0.3s, transform 0.2s;
@@ -752,7 +803,7 @@ input:checked+.slider:before {
 .feature-item {
     background-color: #1e1e1e;
     padding: 30px;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
 }
 
 .feature-item h4 {
@@ -1101,7 +1152,7 @@ input:checked+.slider:before {
     max-width: 350px;
     background: #1e1e1e;
     padding: 30px;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     text-align: center;
     transition: transform 0.2s;
 }
@@ -1132,7 +1183,7 @@ input:checked+.slider:before {
     max-width: 800px;
     margin: 0 auto;
     background: #181818;
-    border-radius: 12px;
+    border-radius: var(--radius-xl);
     margin-bottom: 60px;
 }
 
@@ -1175,7 +1226,7 @@ footer {
     color: #0079bf;
     font-size: 1.1em;
     padding: 12px 30px;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     font-weight: 600;
     margin-bottom: 20px;
     border: none;
@@ -1237,7 +1288,7 @@ footer a:hover {
 .hamburger-dropdown {
     background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     padding: 15px;
     min-width: 250px;
@@ -1270,7 +1321,7 @@ footer a:hover {
     text-decoration: none;
     padding: 8px 16px;
     transition: color 0.2s, background-color 0.2s;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     width: 100%;
     text-align: center;
     font-weight: 500;

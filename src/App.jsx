@@ -388,6 +388,8 @@ const App = () => {
                     onShowSettings={() => { setPreviousView('stats'); setView('settings'); setSettingsTab('statistics'); }}
                     onGoToDashboard={() => setView('dashboard')}
                     onLogout={handleLogout}
+                    keepScreenOn={keepScreenOn}
+                    onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
                 />
             );
         }

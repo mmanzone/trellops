@@ -35,7 +35,7 @@ const ShareConfigModal = ({ config, onClose, boardName }) => {
                         type="text"
                         readOnly
                         value={shareUrl}
-                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                         onClick={(e) => e.target.select()}
                     />
                     <button onClick={handleCopy} className="action-button">
@@ -1060,7 +1060,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     {/* BOARD SELECTOR (GLOBAL) */}
                     <div className="admin-section" style={{ marginBottom: '20px' }}>
                         <h3>Choose your Trello Board</h3>
-                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                        <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px' }}>
                             Boards are pulled directly from your Trello account, across all workspaces.
                         </p>
                         <div id="board-selection-container">
@@ -1144,14 +1144,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
 
             {pendingImport && (
-                <div className="info-banner" style={{ background: '#e3f2fd', color: '#0d47a1', padding: '15px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #90caf9', marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="info-banner" style={{ background: 'var(--accent-light)', color: 'var(--accent-text)', padding: '15px', marginBottom: '15px', borderRadius: '4px', border: '1px solid var(--accent-border)', marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <strong>Configuration Loaded:</strong> Shared settings available for board <strong>{pendingImport.boardName || pendingImport.boardId}</strong>.
                         <div style={{ fontSize: '0.9em', marginTop: '4px' }}>Unsaved changes will be lost if you apply this configuration.</div>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={applyImportedConfig} style={{ background: '#1976d2', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Apply</button>
-                        <button onClick={dismissImport} style={{ background: 'transparent', color: '#0d47a1', border: '1px solid #0d47a1', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Dismiss</button>
+                        <button onClick={applyImportedConfig} style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)', border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 'bold' }}>Apply</button>
+                        <button onClick={dismissImport} style={{ background: 'transparent', color: 'var(--accent-text)', border: '1px solid var(--accent-text)', padding: '6px 12px', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>Dismiss</button>
                     </div>
                 </div>
             )}
@@ -1161,7 +1161,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             <DragDropContext onDragEnd={onDragEnd}>
                 {/* BOARD SETTINGS ONLY SHOW IF VIEWMODE IS DEFAULT */}
                 {viewMode === 'default' && (
-                    <div style={{ display: 'flex', borderBottom: '1px solid #ddd', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
                         {/* TAB CONTENT: DASHBOARD */}
                         {activeTab === 'dashboard' && (
                             <div className="tab-content">
@@ -1172,7 +1172,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         {/* SECTION 1: BLOCKS */}
                                         <div className="admin-section" id="section-2">
                                             <h3>1. Manage your Trellops blocks</h3>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px' }}>
                                                 A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demand on the dashboard.
                                             </p>
                                             <Droppable droppableId="blocks-list" type="BLOCK">
@@ -1184,9 +1184,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                     <div
                                                                         ref={provided.innerRef}
                                                                         {...provided.draggableProps}
-                                                                        style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: '#fff', padding: '8px', border: '1px solid #eee', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                                        style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', ...provided.draggableProps.style }}
                                                                     >
-                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: 'var(--text-muted)', marginRight: '5px' }}>::</div>
                                                                         <input
                                                                             type="text"
                                                                             value={block.name}
@@ -1214,13 +1214,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         {/* SECTION 2: ASSIGN TILES (Renumbered) */}
                                         <div className="admin-section" id="section-3">
                                             <h3>2. Assign tiles to your blocks</h3>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px' }}>
+                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px' }}>
                                                 Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
                                             </p>
 
                                             <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
                                                 {/* UNASSIGNED */}
-                                                <div id="unassigned-lists-container" style={{ flex: 1, background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                                <div id="unassigned-lists-container" style={{ flex: 1, background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                                     <h4>Available Lists</h4>
                                                     <Droppable droppableId="unassigned" type="LIST">
                                                         {(provided) => (
@@ -1232,7 +1232,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                 ref={provided.innerRef}
                                                                                 {...provided.draggableProps}
                                                                                 {...provided.dragHandleProps}
-                                                                                style={{ padding: '8px', margin: '4px 0', background: 'white', border: '1px solid #ddd', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                                                style={{ padding: '8px', margin: '4px 0', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', ...provided.draggableProps.style }}
                                                                             >
                                                                                 {list.name}
                                                                             </div>
@@ -1248,11 +1248,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 {/* BLOCKS TARGETS */}
                                                 <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
                                                     {blocks.map(block => (
-                                                        <div key={block.id} style={{ background: '#e7f5ff', padding: '10px', borderRadius: '6px', border: '1px solid #a5d8ff' }}>
+                                                        <div key={block.id} style={{ background: 'var(--accent-light)', padding: '10px', borderRadius: '6px', border: '1px solid var(--accent-border)' }}>
                                                             <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
 
                                                             {/* Block Options Inside Section 3 */}
-                                                            <div style={{ background: 'rgba(255,255,255,0.5)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
+                                                            <div style={{ background: 'var(--overlay-subtle)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
                                                                 <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
                                                                     <div
                                                                         style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
@@ -1287,7 +1287,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                             ref={provided.innerRef}
                                                                                             {...provided.draggableProps}
                                                                                             {...provided.dragHandleProps}
-                                                                                            style={{ padding: '8px', margin: '4px 0', background: 'white', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', ...provided.draggableProps.style }}
+                                                                                            style={{ padding: '8px', margin: '4px 0', background: 'var(--bg-secondary)', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', ...provided.draggableProps.style }}
                                                                                         >
                                                                                             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
 
@@ -1296,7 +1296,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                                     width: '20%',
                                                                                                     textAlign: 'right',
                                                                                                     fontSize: '0.85em',
-                                                                                                    color: '#666',
+                                                                                                    color: 'var(--text-secondary)',
                                                                                                     fontStyle: 'italic',
                                                                                                     overflow: 'hidden',
                                                                                                     textOverflow: 'ellipsis',
@@ -1332,7 +1332,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
                                     </>
                                 ) : (
-                                    <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure blocks</div>
+                                    <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure blocks</div>
                                 )}
                             </div>
                         )}
@@ -1345,7 +1345,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         {selectedBoard ? (
                             <div className="admin-section" id="section-5">
                                 <h3>Map View Settings for {selectedBoard.name}</h3>
-                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                     Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
                                 </p>
                                 <div id="map-enable-toggle" className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableMapView(!enableMapView)}>
@@ -1355,7 +1355,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                 {enableMapView && (
                                     <div style={{ marginTop: '15px' }}>
-                                        <div style={{ marginBottom: '15px', background: '#f8f9fa', padding: '10px', borderRadius: '4px', border: '1px solid #eee' }}>
+                                        <div style={{ marginBottom: '15px', background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Geocoding behavior:</label>
 
                                             {/* Option 1: Always Read (Visual Confirmation) */}
@@ -1385,10 +1385,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 />
                                                 <span style={{ marginLeft: '8px' }}>
                                                     If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
-                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                    <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                                                         Note: this will use Google Maps Geocoding API, and will store the coordinates locally on your browser cache
                                                     </span>
-                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
+                                                    <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
                                                         Note: Cards without a description will be skipped.
                                                     </span>
                                                 </span>
@@ -1406,7 +1406,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     />
                                                     <span style={{ marginLeft: '8px' }}>
                                                         Update the Trello card coordinates using the decoded address from Google Maps (beta).<br />
-                                                        <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                        <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
                                                             It is recommended to only have one dashboard enabled with this feature for each Trello board
                                                         </span>
                                                     </span>
@@ -1414,12 +1414,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                 {/* Permission Upsell Banner */}
                                                 {updateTrelloCoordinates && !hasWritePermission && (
-                                                    <div style={{ marginTop: '10px', padding: '10px', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9em' }}>
+                                                    <div style={{ marginTop: '10px', padding: '10px', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: '4px', color: 'var(--accent-text)', fontSize: '0.9em' }}>
                                                         <strong>Permission Required:</strong> To update card coordinates, you must grant Trello "Write" access.<br />
                                                         <span style={{ fontSize: '0.9em', marginTop: '5px', display: 'block' }}>The location cache on your computer will be reset for the cards to be decoded again.</span>
                                                         <button
                                                             onClick={() => trelloAuth.login('read,write')}
-                                                            style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: '#1976d2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                                            style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: 'var(--accent-color)', color: 'var(--accent-contrast)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                                         >
                                                             Authorize Write Access (Re-Login)
                                                         </button>
@@ -1437,12 +1437,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                         {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}
                                         <h4>Block Map Options</h4>
-                                        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                        <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                             Choose which blocks appear on the map and customize their markers.
                                         </p>
                                         <div id="map-block-options" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
                                             {blocks.map(block => (
-                                                <div key={block.id} style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', border: '1px solid #dee2e6' }}>
+                                                <div key={block.id} style={{ background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <h4 style={{ margin: 0 }}>{block.name}</h4>
                                                         <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleUpdateBlockProp(block.id, 'includeOnMap', !block.includeOnMap)}>
@@ -1452,7 +1452,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     </div>
 
                                                     {block.includeOnMap && (
-                                                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                                                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
                                                             <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Icon:</label>
                                                             <div style={{ width: '100%' }}>
                                                                 <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
@@ -1463,9 +1463,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             ))}
                                         </div>
 
-                                        <div id="map-marker-rules" className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                        <div id="map-marker-rules" className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
                                             <h3>Marker Variants</h3>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                                 Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
                                             </p>
 
@@ -1479,9 +1479,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                         ref={provided.innerRef}
                                                                         {...provided.draggableProps}
                                                                         className="rule-item"
-                                                                        style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', marginBottom: '5px', border: '1px solid #eee', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                                        style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '10px', marginBottom: '5px', border: '1px solid var(--border-color)', flexWrap: 'wrap', ...provided.draggableProps.style }}
                                                                     >
-                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: '#ccc', marginRight: '5px' }}>::</div>
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: 'var(--text-muted)', marginRight: '5px' }}>::</div>
                                                                         <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
                                                                             <option value="">-- Label --</option>
                                                                             {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
@@ -1513,7 +1513,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
 
                                         {/* STREET VIEW SETTING */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableStreetView(!enableStreetView)}>
                                                 <ToggleSwitch
                                                     checked={enableStreetView}
@@ -1521,7 +1521,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 />
                                                 <span style={{ marginLeft: '10px' }}>
                                                     <strong>Show street view</strong><br />
-                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                    <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                                                         Enable to add a link to a Google Street View of the address that will open in a new window
                                                     </span>
                                                 </span>
@@ -1529,7 +1529,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
 
                                         {/* MOVING CARDS SETTING */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableCardMove(!enableCardMove)}>
                                                 <ToggleSwitch
                                                     checked={enableCardMove}
@@ -1542,18 +1542,18 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 />
                                                 <span style={{ marginLeft: '10px' }}>
                                                     <strong>Enable card move from the map view</strong><br />
-                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                    <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                                                         Display a dropdown allowing to move a card to another list from the visible block directly from a marker on the map. This requires "write" access to your Trello board for Trellops to move the cards on your behalf
                                                     </span>
                                                 </span>
                                             </div>
 
                                             {enableCardMove && !hasWritePermission && (
-                                                <div style={{ marginTop: '10px', padding: '10px', background: '#e3f2fd', border: '1px solid #90caf9', borderRadius: '4px', color: '#0d47a1', fontSize: '0.9em' }}>
+                                                <div style={{ marginTop: '10px', padding: '10px', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: '4px', color: 'var(--accent-text)', fontSize: '0.9em' }}>
                                                     <strong>Permission Required:</strong> To move cards, you must grant Trello "Write" access.<br />
                                                     <button
                                                         onClick={() => trelloAuth.login('read,write')}
-                                                        style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: '#1976d2', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                                        style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: 'var(--accent-color)', color: 'var(--accent-contrast)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                                                     >
                                                         Authorize Write Access (Re-Login)
                                                     </button>
@@ -1568,7 +1568,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
 
                                         {/* HOME LOCATION SETTING */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableHomeLocation(!enableHomeLocation)}>
                                                 <ToggleSwitch
                                                     checked={enableHomeLocation}
@@ -1576,7 +1576,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 />
                                                 <span style={{ marginLeft: '10px' }}>
                                                     <strong>Set home location</strong><br />
-                                                    <span style={{ fontSize: '0.9em', color: '#666' }}>
+                                                    <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                                                         Set a home address that will be permanently displayed on the map for this board.
                                                     </span>
                                                 </span>
@@ -1593,10 +1593,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                 value={homeAddress}
                                                                 onChange={handleHomeAddressChange}
                                                                 placeholder="Start typing your address..."
-                                                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                                                             />
                                                             {isSearching && (
-                                                                <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#888', fontSize: '0.8em' }}>
+                                                                <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: '0.8em' }}>
                                                                     Searching...
                                                                 </div>
                                                             )}
@@ -1607,8 +1607,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                     left: 0,
                                                                     right: 0,
                                                                     zIndex: 1000,
-                                                                    background: 'white',
-                                                                    border: '1px solid #ccc',
+                                                                    background: 'var(--bg-secondary)',
+                                                                    border: '1px solid var(--border-color)',
                                                                     borderRadius: '4px',
                                                                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                                                                     maxHeight: '200px',
@@ -1623,7 +1623,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                 cursor: 'pointer',
                                                                                 borderBottom: idx < searchResults.length - 1 ? '1px solid #eee' : 'none',
                                                                                 fontSize: '0.9em',
-                                                                                color: 'black'
+                                                                                color: 'var(--text-color)'
                                                                             }}
                                                                             onMouseEnter={e => e.target.style.background = '#f5f5f5'}
                                                                             onMouseLeave={e => e.target.style.background = 'white'}
@@ -1651,9 +1651,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
                                         {/* RESET CACHE SECTION */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
                                             <h3>Reset coordinates cache</h3>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                                 Use this button to remove all card coordinates on your local computer. This is to be used for troubleshooting purposes and will trigger a re-fetch using Nominatim
                                             </p>
                                             <button
@@ -1680,7 +1680,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 )}
                             </div>
                         ) : (
-                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure map settings</div>
+                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure map settings</div>
                         )}
                     </div>
                 )
@@ -1692,7 +1692,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         {selectedBoard ? (
                             <div className="admin-section" id="section-stats">
                                 <h3>Statistics View Settings for {selectedBoard.name}</h3>
-                                <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                     Configure the historical data analysis view.
                                 </p>
 
@@ -1710,8 +1710,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                         <div id="stats-included-lists" style={{ marginBottom: '15px' }}>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Lists to include in reports:</label>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-5px' }}>Uncheck to exclude specific lists (e.g. "Done" or "Backlog") from statistics.</p>
-                                            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px', background: 'white' }}>
+                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-5px' }}>Uncheck to exclude specific lists (e.g. "Done" or "Backlog") from statistics.</p>
+                                            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px', background: 'var(--bg-secondary)' }}>
                                                 {(() => {
                                                     const layout = getPersistentLayout(user.id, selectedBoardId) || DEFAULT_LAYOUT;
                                                     // Group lists by Block
@@ -1732,11 +1732,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         grouped['Other Lists'] = otherLists;
                                                     }
 
-                                                    if (Object.keys(grouped).length === 0) return <div style={{ fontStyle: 'italic', color: '#888' }}>No lists found.</div>;
+                                                    if (Object.keys(grouped).length === 0) return <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>No lists found.</div>;
 
                                                     return Object.entries(grouped).map(([blockName, lists]) => (
                                                         <div key={blockName} style={{ marginBottom: '10px' }}>
-                                                            <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#444', marginBottom: '5px', borderBottom: '1px solid #eee' }}>{blockName}</div>
+                                                            <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: 'var(--text-secondary)', marginBottom: '5px', borderBottom: '1px solid var(--border-color)' }}>{blockName}</div>
                                                             {lists.map(list => (
                                                                 <div key={list.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', marginLeft: '10px' }}>
                                                                     <input
@@ -1770,28 +1770,28 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             </div>
                                             <button
                                                 className="button-link"
-                                                style={{ fontSize: '0.8em', padding: '5px 0', background: 'none', border: 'none', color: '#0079bf', cursor: 'pointer', textDecoration: 'underline' }}
+                                                style={{ fontSize: '0.8em', padding: '5px 0', background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline' }}
                                                 onClick={() => setStatsIncludedLists([])}
                                             >
                                                 Select All (Clear Filter)
                                             </button>
                                         </div>
 
-                                        <div style={{ marginTop: '20px', padding: '15px', background: '#f0f4f8', borderRadius: '6px', border: '1px solid #cce' }}>
+                                        <div style={{ marginTop: '20px', padding: '15px', background: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--accent-border)' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                                                 <Sparkles size={18} color="#0052cc" />
                                                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <label style={{ fontWeight: 'bold', margin: 0, color: '#0052cc' }}>Custom AI Prompt (Optional)</label>
-                                                    <span style={{ marginLeft: '10px', fontSize: '0.7em', padding: '2px 6px', backgroundColor: '#0052cc', color: 'white', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Beta</span>
+                                                    <label style={{ fontWeight: 'bold', margin: 0, color: 'var(--accent-color)' }}>Custom AI Prompt (Optional)</label>
+                                                    <span style={{ marginLeft: '10px', fontSize: '0.7em', padding: '2px 6px', backgroundColor: 'var(--accent-color)', color: 'var(--accent-contrast)', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Beta</span>
                                                 </div>
                                             </div>
-                                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0', marginBottom: '10px' }}>Provide additional context or specific instructions to the AI when generating a summary for this board. This context will be added to the core system instructions.</p>
+                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '0', marginBottom: '10px' }}>Provide additional context or specific instructions to the AI when generating a summary for this board. This context will be added to the core system instructions.</p>
                                             <textarea 
                                                 id="stats-ai-prompt"
                                                 value={statsCustomPrompt} 
                                                 onChange={(e) => setStatsCustomPrompt(e.target.value)}
                                                 placeholder="E.g., Write the summary as a pirate..."
-                                                style={{ width: '100%', minHeight: '80px', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', resize: 'vertical' }}
+                                                style={{ width: '100%', minHeight: '80px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', resize: 'vertical' }}
                                             />
                                             <button 
                                                 className="button-secondary" 
@@ -1810,7 +1810,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 )}
                             </div>
                         ) : (
-                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
+                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure settings</div>
                         )}
                     </div>
                 )}
@@ -1822,21 +1822,21 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 <>
                                     <div className="admin-section" id="section-4">
                                         <h3>Other Settings for {selectedBoard.name}</h3>
-                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                    <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                         These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
                                     </p>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                         <div>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Refresh Interval</label>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }} />
-                                                <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}>
+                                                <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }} />
+                                                <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                                     <option value="seconds">Seconds</option>
                                                     <option value="minutes">Minutes</option>
                                                     <option value="hours">Hours</option>
                                                 </select>
                                             </div>
-                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>How often the data is retrieved from Trello.</p>
+                                            <p style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginTop: '5px' }}>How often the data is retrieved from Trello.</p>
                                         </div>
                                         <div>
                                             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Slideshow Interval (Seconds)</label>
@@ -1847,12 +1847,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 onChange={e => {
                                                     setSlideshowInterval(e.target.value);
                                                 }}
-                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                                             />
                                             {slideshowInterval < 10 && (
                                                 <span style={{ color: 'red', marginLeft: '10px', fontSize: '0.9em' }}>Minimum 10 seconds required</span>
                                             )}
-                                            <p style={{ fontSize: '0.8em', color: '#666', marginTop: '5px' }}>
+                                            <p style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginTop: '5px' }}>
                                                 Slideshow mode will cycle between the Dashboard and Map views at regular intervals, minimum 10 seconds. Start the slideshow using the arrows next to the Dashboard or Map button in the footer.
                                             </p>
                                         </div>
@@ -1863,7 +1863,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
                                                     <span>Show Clock</span>
                                                     {showClock && (
-                                                        <span style={{ marginLeft: '15px', color: '#555', fontFamily: 'monospace', background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                                                        <span style={{ marginLeft: '15px', color: 'var(--text-secondary)', fontFamily: 'monospace', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                                                             {new Date().toLocaleTimeString()}
                                                         </span>
                                                     )}
@@ -1882,7 +1882,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     </div>
                                                     <div style={{ marginLeft: '10px' }}>
                                                         <label htmlFor="ignoreNoDescCards" style={{ cursor: 'pointer' }}>Ignore Cards without Description</label>
-                                                        <span style={{ display: 'block', fontSize: '0.85em', color: '#666', fontWeight: 'normal', marginTop: '2px' }}>
+                                                        <span style={{ display: 'block', fontSize: '0.85em', color: 'var(--text-secondary)', fontWeight: 'normal', marginTop: '2px' }}>
                                                             If enabled, cards with empty descriptions will not be counted in dashboard or placed on the map.
                                                             (First card description usage is unaffected).
                                                         </span>
@@ -1911,9 +1911,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                             value={ignoreKeywords} 
                                                             onChange={e => setIgnoreKeywords(e.target.value)} 
                                                             placeholder="Enter keywords separated by commas (e.g. archive, done)" 
-                                                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                                                         />
-                                                        <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>
+                                                        <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>
                                                             Cards containing any of these keywords in their title will be ignored.
                                                         </span>
                                                     </div>
@@ -1923,9 +1923,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     </div>
                                 </div>
                                 
-                                <div className="admin-section" id="section-naming" style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                <div className="admin-section" id="section-naming" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
                                     <h3>Naming configuration</h3>
-                                    <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                                    <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                         Customize the terminology used across your Dashboard, Map, and Statistics views. By default, it will use "Card", "List", and "Board". Leave empty to use defaults.
                                     </p>
                                     
@@ -1937,7 +1937,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 value={namingCard} 
                                                 onChange={e => setNamingCard(e.target.value)} 
                                                 placeholder="e.g. Task, Job, Ticket"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginTop: '5px' }}
+                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                         
@@ -1948,7 +1948,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 value={namingList} 
                                                 onChange={e => setNamingList(e.target.value)} 
                                                 placeholder="e.g. Phase, Stage, Status"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginTop: '5px' }}
+                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                         
@@ -1959,7 +1959,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 value={namingBoard} 
                                                 onChange={e => setNamingBoard(e.target.value)} 
                                                 placeholder="e.g. Project, Sprint, Portfolio"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginTop: '5px' }}
+                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                         
@@ -1970,14 +1970,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 value={namingLabel} 
                                                 onChange={e => setNamingLabel(e.target.value)} 
                                                 placeholder="e.g. Tag, Category, Group"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginTop: '5px' }}
+                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                     </div>
                                 </div>
                                 </>
                             ) : (
-                                <div style={{ marginTop: '20px', fontStyle: 'italic', color: '#666' }}>Select a board to configure settings</div>
+                                <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure settings</div>
                             )}
 
                             <div className="danger-zone" style={{ marginTop: '40px', paddingTop: '10px' }}>
@@ -1995,7 +1995,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         padding: '10px'
                                     }}
                                 >
-                                    <h4 style={{ color: 'black', margin: 0 }}>⚠️ Global settings reset</h4>
+                                    <h4 style={{ color: 'var(--text-color)', margin: 0 }}>⚠️ Global settings reset</h4>
                                     <span style={{ fontSize: '1.2em', color: '#d32f2f' }}>{showResetSection ? '▼' : '▶'}</span>
                                 </div>
 
@@ -2094,11 +2094,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             {/* MANAGE TASKS LINK (Default Mode Only) */}
             {
                 viewMode === 'default' && (
-                    <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                    <div style={{ marginTop: '30px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                                 <strong>Looking for Task View settings?</strong>
-                                <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: '#666' }}>
+                                <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
                                     Use the dedicated page to configure your global task dashboard.
                                 </p>
                             </div>
@@ -2135,7 +2135,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         </div>
 
                         <div style={{ paddingTop: '10px' }}>
-                            <p style={{ fontSize: '0.9em', color: '#666', marginTop: '-10px', marginBottom: '15px' }}>
+                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
                                 This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
                             </p>
                             <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
@@ -2152,11 +2152,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     {/* Workspace Selection */}
                                     <div className="setting-group" style={{ marginBottom: '20px' }}>
                                         <label className="setting-label">Workspaces to Include</label>
-                                        <div style={{ fontSize: '0.85em', color: '#666', marginBottom: '5px' }}>
+                                        <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                                             Select which workspaces to show tasks from. At least one workspace must be selected.
                                         </div>
-                                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', padding: '10px', borderRadius: '4px' }}>
-                                            {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: '#888' }}>Loading workspaces...</div> :
+                                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px' }}>
+                                            {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>Loading workspaces...</div> :
                                                 userOrgs.map(org => (
                                                     <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
                                                         <input
@@ -2193,18 +2193,18 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 min="1"
                                                 value={taskViewRefreshInterval.value}
                                                 onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
-                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                                             />
                                             <select
                                                 value={taskViewRefreshInterval.unit}
                                                 onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
-                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                                             >
                                                 <option value="minutes">Minutes</option>
                                                 <option value="hours">Hours</option>
                                             </select>
                                         </div>
-                                        <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
+                                        <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', marginTop: '5px' }}>
                                             Minimum 1 minute.
                                         </div>
                                     </div>
@@ -2220,13 +2220,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 )
             }
 
-            <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: '#aaaaaa', fontWeight: 'bold' }}>
+            <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
                 v4.5.{__BUILD_ID__ || 1000} - April 2026
             </div>
             <div style={{ textAlign: 'center', marginBottom: '30px', fontSize: '0.85em', fontWeight: 'bold' }}>
-                <a href="/help.html" target="_blank" style={{ color: '#888888', textDecoration: 'underline', marginRight: '15px' }}>User Guide</a>
-                <a href="/privacy.html" target="_blank" style={{ color: '#888888', textDecoration: 'underline', marginRight: '15px' }}>Privacy Policy</a>
-                <a href="/releases.html" target="_blank" style={{ color: '#888888', textDecoration: 'underline' }}>Release Notes</a>
+                <a href="/help.html" target="_blank" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', marginRight: '15px' }}>User Guide</a>
+                <a href="/privacy.html" target="_blank" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', marginRight: '15px' }}>Privacy Policy</a>
+                <a href="/releases.html" target="_blank" style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}>Release Notes</a>
             </div>
 
             {

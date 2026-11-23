@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchAllTasksData } from '../api/trello';
-import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import LabelFilter from './common/LabelFilter';
 import '../styles/index.css';
 import '../styles/map.css';
 import { formatDynamicCountdown } from '../utils/helpers';
 import HamburgerMenu from './common/HamburgerMenu';
+import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
 
 // SVG Icons for Map Header style compatibility if needed
 // Assuming they are available via CSS or we use emojis as placeholders for now to match MapView
@@ -35,7 +35,6 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
     const [sortBy, setSortBy] = useState('board'); // 'board', 'due'
 
     // Theme
-    const { theme, toggleTheme } = useDarkMode();
 
     // Settings
     const taskViewWorkspaces = settings?.taskViewWorkspaces || [];
@@ -302,9 +301,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
         <div className="map-container">
             {/* HEADER - Strict MapView Style */}
             <div className="map-header">
-                <div className="map-header-title-area">
-                    <h1>Tasks for {user.fullName || user.username}</h1>
-                </div>
+                <PageTitle>Tasks for {user.fullName || user.username}</PageTitle>
 
                 <div className="map-header-actions" style={{ flexGrow: 1, justifyContent: 'flex-end', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     {/* FILTERS - visible/shrinkable */}
@@ -314,7 +311,6 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             options={Array.from(new Set(processedTasks.map(t => t.orgId))).map(orgId => ({ id: orgId, name: processedTasks.find(t => t.orgId === orgId)?.orgName || 'Unknown' })).sort(safeSort)}
                             selectedIds={selectedWorkspaceIds}
                             onChange={(ids) => { setSelectedWorkspaceIds(ids); setSelectedBoardIds(null); }}
-                            className="time-filter-select" // Reuse for size
                         />
 
                         <MultiSelectFilter
@@ -322,7 +318,6 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             options={Array.from(new Set(processedTasks.filter(t => selectedWorkspaceIds === null || selectedWorkspaceIds.has(t.orgId)).map(t => t.boardId))).map(boardId => ({ id: boardId, name: processedTasks.find(t => t.boardId === boardId)?.boardName || 'Unknown' })).sort(safeSort)}
                             selectedIds={selectedBoardIds}
                             onChange={setSelectedBoardIds}
-                            className="time-filter-select"
                         />
 
                         <select
@@ -344,9 +339,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                     </div>
 
                     <div className="desktop-only">
-                        <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ flexShrink: 0 }}>
-                            {theme === 'dark' ? '☀️' : '🌙'}
-                        </button>
+                        <ThemeToggleButton style={{ marginLeft: '10px' }} />
                     </div>
 
                     {/* MOBILE HAMBURGER MENU */}
@@ -385,20 +378,13 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                                 </button>
 
                                 <button className="menu-link" onClick={onLogout}>
-                                    Logout
+                                    Log Out
                                 </button>
                             </div>
 
                             {/* Theme Toggle at Bottom */}
                             <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                <button
-                                    className="theme-toggle-button"
-                                    onClick={() => toggleTheme()}
-                                    title="Toggle Theme"
-                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
-                                >
-                                    {theme === 'dark' ? '☀️' : '🌙'}
-                                </button>
+                                <ThemeToggleButton />
                             </div>
                         </HamburgerMenu>
                     </div>
@@ -462,7 +448,7 @@ const TaskView = ({ user, settings, onClose, onShowSettings, onLogout, onShowMap
                             {showDashboardDropdown && <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}><div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div></div>}
                         </div>
                         <button className="button-secondary" onClick={onShowSettings}>Settings</button>
-                        <button className="button-secondary" onClick={onLogout}>Logout</button>
+                        <button className="button-secondary" onClick={onLogout}>Log Out</button>
                     </div>
                 </div>
             </div>
@@ -490,7 +476,6 @@ const getLabelColor = (colorName) => {
 
 // Generic Multi-Select Component (Internal)
 const MultiSelectFilter = ({ label, options, selectedIds, onChange, className }) => {
-    const { theme } = useDarkMode();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const isAll = selectedIds === null || selectedIds === undefined;
@@ -528,7 +513,7 @@ const MultiSelectFilter = ({ label, options, selectedIds, onChange, className })
                     gap: '6px',
                     padding: '6px 12px',
                     fontSize: '0.9em',
-                    backgroundColor: theme === 'dark' ? 'var(--bg-secondary)' : '#ffffff',
+                    backgroundColor: 'var(--bg-secondary)',
                     color: 'var(--text-primary)',
                     border: '1px solid var(--border-color)',
                     maxWidth: '100%',

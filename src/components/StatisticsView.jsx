@@ -2,19 +2,18 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { trelloFetch } from '../api/trello';
 import { TIME_FILTERS, STORAGE_KEYS } from '../utils/constants';
 import LabelFilter from './common/LabelFilter';
-import { useDarkMode } from '../context/DarkModeContext';
-import { Sun, Moon, Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import DigitalClock from './common/DigitalClock';
 import HamburgerMenu from './common/HamburgerMenu';
+import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
 import { renderMarkdown } from '../utils/markdown';
 import { getTerminology } from '../utils/terminology';
 import { useAISummary } from '../hooks/useAISummary';
 
-const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
+const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout, keepScreenOn, onToggleScreenLock }) => {
     const [cards, setCards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const { theme, toggleTheme } = useDarkMode();
     
     // Naming config
     const terms = getTerminology(settings);
@@ -502,16 +501,17 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         };
     };
 
+    const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
+
     const handleGenerateSummary = (force = false) => generateSummary(buildSummaryPayload(), { force });
 
     return (
         <div className="statistics-view" style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-primary)' }}>
             <div className="map-header">
-                <div className="header-title-area" style={{ display: 'flex', alignItems: 'center' }}>
-                    <DigitalClock boardId={boardId} />
-                    <h1 style={{ marginLeft: '20px' }}>{boardName} - Statistics</h1>
-                </div>
-                <div className="header-actions" style={{ display: 'flex', alignItems: 'center' }}>
+                <PageTitle clock={showClock && <DigitalClock boardId={boardId} />}>
+                    {boardName} <span className="page-title-suffix">Statistics</span>
+                </PageTitle>
+                <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
                     {/* Desktop Actions - Hidden on Mobile */}
                     <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <LabelFilter
@@ -542,14 +542,8 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                             </div>
                         )}
 
-                        <button
-                            className="theme-toggle-button"
-                            onClick={() => toggleTheme()}
-                            title="Toggle Theme"
-                            style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none', marginLeft: '10px' }}
-                        >
-                            {theme === 'dark' ? '☀️' : '🌙'}
-                        </button>
+                        <ScreenLockButton keepScreenOn={keepScreenOn} onToggle={onToggleScreenLock} />
+                        <ThemeToggleButton />
                     </div>
 
                     <div className="mobile-only">
@@ -605,20 +599,13 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                     Settings
                                 </button>
                                 <button className="menu-link" onClick={onLogout}>
-                                    Logout
+                                    Log Out
                                 </button>
                             </div>
 
                             {/* Theme Toggle at Bottom */}
                             <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                <button
-                                    className="theme-toggle-button"
-                                    onClick={() => toggleTheme()}
-                                    title="Toggle Theme"
-                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
-                                >
-                                    {theme === 'dark' ? '☀️' : '🌙'}
-                                </button>
+                                <ThemeToggleButton />
                             </div>
                         </HamburgerMenu>
                     </div>
@@ -695,7 +682,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                         <option value="cumulative_hour">Per Hour (Cumulative)</option>
                                         <option value="month">By Month</option>
                                     </select>
-                                    <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                                    <button className="button-secondary" onClick={() => handleExport('card-line-chart', 'timeline')}>Export</button>
                                 </div>
                             </div>
                             <div style={{ flex: 1, position: 'relative' }}>
@@ -706,7 +693,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                         <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                                 <h3>{LabelsTerm} Breakdown - {filterLabelText}</h3>
-                                <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                                <button className="button-secondary" onClick={() => handleExport('card-pie-chart', 'labels')}>Export</button>
                             </div>
                             <div style={{ flex: 1, position: 'relative' }}>
                                 <canvas ref={pieChartRef}></canvas>
