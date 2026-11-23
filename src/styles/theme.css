@@ -5,32 +5,82 @@
 /* ------------------------------------------------ */
 /* --- Modern & Minimalist Theme --- */
 /* ------------------------------------------------ */
+/*
+ * Design tokens. Every colour, radius and control size used by the app
+ * should come from here so all pages match in light and dark mode.
+ */
 :root {
+    /* Surfaces and text */
     --bg-primary: #f7f8fa;
     --bg-secondary: #ffffff;
+    --bg-tertiary: #f1f3f5;
+    --bg-canvas: var(--bg-primary);
+    --overlay-subtle: rgba(255, 255, 255, 0.6);
     --text-color: #222222;
+    --text-primary: var(--text-color);
     --text-secondary: #555555;
+    --text-muted: #888888;
     --border-color: #e0e0e0;
-    --primary-color: #ced7de;
-    --primary-hover-color: #b0b9c0;
-    --danger-color: #dc3545;
-    --danger-hover-color: #c82333;
     --shadow-color: rgba(0, 0, 0, 0.05);
     --label-border-color: #555555;
+
+    /* Neutral (default) buttons */
+    --primary-color: #ced7de;
+    --primary-hover-color: #b0b9c0;
+
+    /* Accent: Trello blue, used for primary actions, links, active tabs */
+    --accent-color: #0079bf;
+    --accent: var(--accent-color);
+    --accent-hover-color: #026aa7;
+    --accent-contrast: #ffffff;
+    --accent-light: #e4f0f6;
+    --accent-border: #a9d0e8;
+    --accent-text: #055a8c;
+
+    /* Status */
+    --danger-color: #dc3545;
+    --danger-hover-color: #c82333;
+    --danger-bg: #fff5f5;
+    --danger-border: #ffc9c9;
+    --danger-text: #c92a2a;
+    --success-color: #2f9e44;
+
+    /* Shape and size */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --control-height: 34px;
 }
 
 [data-theme="dark"] {
     --bg-primary: #1c1c1e;
     --bg-secondary: #2c2c2e;
+    --bg-tertiary: #363638;
+    --overlay-subtle: rgba(0, 0, 0, 0.2);
     --text-color: #e0e0e0;
     --text-secondary: #aaaaaa;
+    --text-muted: #8a8a8e;
     --border-color: #444;
-    --primary-color: #5a646b;
-    --primary-hover-color: #707980;
-    --danger-color: #dc3545;
-    --danger-hover-color: #e06c75;
     --shadow-color: rgba(0, 0, 0, 0.2);
     --label-border-color: #ffffff;
+
+    --primary-color: #5a646b;
+    --primary-hover-color: #707980;
+
+    --accent-color: #4aa3df;
+    --accent-hover-color: #6bb6e8;
+    --accent-contrast: #0b1f2e;
+    --accent-light: #1d3646;
+    --accent-border: #2f5a75;
+    --accent-text: #9fd0f0;
+
+    --danger-color: #dc3545;
+    --danger-hover-color: #e06c75;
+    --danger-bg: #3a1e21;
+    --danger-border: #6b2b31;
+    --danger-text: #ff8787;
+    --success-color: #51cf66;
 }
 
 @keyframes spin {

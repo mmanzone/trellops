@@ -2,19 +2,18 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { trelloFetch } from '../api/trello';
 import { TIME_FILTERS, STORAGE_KEYS } from '../utils/constants';
 import LabelFilter from './common/LabelFilter';
-import { useDarkMode } from '../context/DarkModeContext';
-import { Sun, Moon, Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import DigitalClock from './common/DigitalClock';
 import HamburgerMenu from './common/HamburgerMenu';
+import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
 import { renderMarkdown } from '../utils/markdown';
 import { getTerminology } from '../utils/terminology';
 import { useAISummary } from '../hooks/useAISummary';
 
-const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout }) => {
+const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLogout, keepScreenOn, onToggleScreenLock }) => {
     const [cards, setCards] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const { theme, toggleTheme } = useDarkMode();
     
     // Naming config
     const terms = getTerminology(settings);
@@ -210,6 +209,22 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         if (labelInfo.length > 50) labelInfo = ` - Labels: ${selectedLabelIds.size} selected`;
     }
 
+    // --- CHART LIBRARY ---
+    // Chart.js and its data-labels plugin are bundled but loaded only when the
+    // Stats page opens, instead of blocking every page from a CDN.
+    const [Chart, setChart] = useState(null);
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all([import('chart.js/auto'), import('chartjs-plugin-datalabels')])
+            .then(([chartModule, labelsModule]) => {
+                const ChartJS = chartModule.default;
+                ChartJS.register(labelsModule.default);
+                if (!cancelled) setChart(() => ChartJS);
+            })
+            .catch(err => console.error('Failed to load Chart.js', err));
+        return () => { cancelled = true; };
+    }, []);
+
     // --- CHART RENDERING ---
     useEffect(() => {
         if (loading || cards.length === 0) return;
@@ -218,11 +233,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         if (lineChartInstance.current) lineChartInstance.current.destroy();
         if (pieChartInstance.current) pieChartInstance.current.destroy();
 
-        if (!window.Chart) return;
-
-        if (window.ChartDataLabels) {
-            try { window.Chart.register(window.ChartDataLabels); } catch (e) { }
-        }
+        if (!Chart) return; // Chart.js still loading
 
         try {
 
@@ -324,7 +335,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
 
 
             const ctxLine = lineChartRef.current.getContext('2d');
-            lineChartInstance.current = new window.Chart(ctxLine, {
+            lineChartInstance.current = new Chart(ctxLine, {
                 type: 'line',
                 data: {
                     labels: sortedKeys,
@@ -400,7 +411,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             });
 
             const ctxPie = pieChartRef.current.getContext('2d');
-            pieChartInstance.current = new window.Chart(ctxPie, {
+            pieChartInstance.current = new Chart(ctxPie, {
                 type: 'pie',
                 data: {
                     labels: Object.keys(labelCombinations),
@@ -442,13 +453,14 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             console.error("Chart error:", err);
         }
 
-    }, [cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
+    }, [Chart, cards, createdFilter, granularity, selectedLabelIds, labelLogic, customRange]); // Dependencies
 
     // --- HANDLERS ---
-    const handleExport = (elementId, name) => {
-        if (!window.html2canvas) { alert("Export library not loaded."); return; }
+    const handleExport = async (elementId, name) => {
+        // Loaded on demand: only needed when someone exports a chart.
+        const { default: html2canvas } = await import('html2canvas');
         const el = elementId ? document.getElementById(elementId) : document.querySelector('.dashboard-grid');
-        window.html2canvas(el).then(canvas => {
+        html2canvas(el).then(canvas => {
             const link = document.createElement('a');
             link.download = `${boardName}-stats-${name || 'all'}.png`;
             link.href = canvas.toDataURL();
@@ -502,16 +514,17 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
         };
     };
 
+    const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
+
     const handleGenerateSummary = (force = false) => generateSummary(buildSummaryPayload(), { force });
 
     return (
         <div className="statistics-view" style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-primary)' }}>
             <div className="map-header">
-                <div className="header-title-area" style={{ display: 'flex', alignItems: 'center' }}>
-                    <DigitalClock boardId={boardId} />
-                    <h1 style={{ marginLeft: '20px' }}>{boardName} - Statistics</h1>
-                </div>
-                <div className="header-actions" style={{ display: 'flex', alignItems: 'center' }}>
+                <PageTitle clock={showClock && <DigitalClock boardId={boardId} />}>
+                    {boardName} <span className="page-title-suffix">Statistics</span>
+                </PageTitle>
+                <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
                     {/* Desktop Actions - Hidden on Mobile */}
                     <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <LabelFilter
@@ -542,14 +555,8 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                             </div>
                         )}
 
-                        <button
-                            className="theme-toggle-button"
-                            onClick={() => toggleTheme()}
-                            title="Toggle Theme"
-                            style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none', marginLeft: '10px' }}
-                        >
-                            {theme === 'dark' ? '☀️' : '🌙'}
-                        </button>
+                        <ScreenLockButton keepScreenOn={keepScreenOn} onToggle={onToggleScreenLock} />
+                        <ThemeToggleButton />
                     </div>
 
                     <div className="mobile-only">
@@ -605,26 +612,19 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                     Settings
                                 </button>
                                 <button className="menu-link" onClick={onLogout}>
-                                    Logout
+                                    Log Out
                                 </button>
                             </div>
 
                             {/* Theme Toggle at Bottom */}
                             <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                <button
-                                    className="theme-toggle-button"
-                                    onClick={() => toggleTheme()}
-                                    title="Toggle Theme"
-                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
-                                >
-                                    {theme === 'dark' ? '☀️' : '🌙'}
-                                </button>
+                                <ThemeToggleButton />
                             </div>
                         </HamburgerMenu>
                     </div>
                 </div>
             </div>
-            <div className="container" style={{ flex: 1, paddingBottom: '80px' }}>
+            <div className="container" style={{ flex: 1, paddingBottom: '80px', width: '100%', boxSizing: 'border-box' }}>
 
                 {loading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', fontSize: '1.2em', color: '#666' }}>
@@ -695,7 +695,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                         <option value="cumulative_hour">Per Hour (Cumulative)</option>
                                         <option value="month">By Month</option>
                                     </select>
-                                    <button onClick={() => handleExport('card-line-chart', 'timeline')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                                    <button className="button-secondary" onClick={() => handleExport('card-line-chart', 'timeline')}>Export</button>
                                 </div>
                             </div>
                             <div style={{ flex: 1, position: 'relative' }}>
@@ -706,7 +706,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                         <div className="form-card" id="card-pie-chart" style={{ width: '100%', minHeight: '500px', display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                                 <h3>{LabelsTerm} Breakdown - {filterLabelText}</h3>
-                                <button onClick={() => handleExport('card-pie-chart', 'labels')} style={{ fontSize: '0.8em', padding: '2px 5px' }}>Export</button>
+                                <button className="button-secondary" onClick={() => handleExport('card-pie-chart', 'labels')}>Export</button>
                             </div>
                             <div style={{ flex: 1, position: 'relative' }}>
                                 <canvas ref={pieChartRef}></canvas>

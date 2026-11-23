@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { trelloFetch } from '/src/api/trello';
 import { getPersistentLayout } from '/src/utils/persistence';
-import { useDarkMode } from '/src/context/DarkModeContext';
 import { STORAGE_KEYS } from '/src/utils/constants';
 import { convertIntervalToSeconds, getLabelTextColor, formatDynamicCountdown } from '/src/utils/helpers';
 import DigitalClock from './common/DigitalClock';
@@ -13,6 +12,7 @@ import { renderMarkdown } from '../utils/markdown';
 import { getTerminology } from '/src/utils/terminology';
 import Dashboard from './Dashboard'; // For Slideshow
 import HamburgerMenu from './common/HamburgerMenu';
+import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
 import '/src/styles/map.css';
 
 // --- CUSTOM MAP STYLES ---
@@ -463,8 +463,6 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
     // --- NEW: Track Previous Card Count for Fit Bounds ---
     const prevValidCardCount = useRef(0);
-
-    const { theme, toggleTheme } = useDarkMode();
     const mapRef = useRef(null);
     const googleMapRef = useRef(null);
     const markersRef = useRef({});
@@ -1260,12 +1258,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         <div className="map-view-container">
             {/* Header */}
             <div className="map-header">
-                <div className="map-header-title-area">
-                    {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>
-                        {boardName}
-                    </h1>
-                </div>
+                <PageTitle clock={showClock && <DigitalClock boardId={boardId} />}>
+                    {boardName}
+                </PageTitle>
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
                     {!mapLoaded && <span className="spinner"></span>}
 
@@ -1294,29 +1289,9 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             </>
                         )}
 
-                        <button className="theme-toggle-button" onClick={onToggleScreenLock} style={{ marginLeft: '10px' }} title={keepScreenOn ? "Prevent screen from turning off" : "Allow screen to turn off"}>
-                            {keepScreenOn ? (
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                                    <line x1="8" y1="21" x2="16" y2="21" />
-                                    <line x1="12" y1="17" x2="12" y2="21" />
-                                </svg>
-                            ) : (
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                                    <line x1="8" y1="21" x2="16" y2="21" />
-                                    <line x1="12" y1="17" x2="12" y2="21" />
-                                    <line x1="1" y1="1" x2="23" y2="23" style={{ stroke: 'currentColor' }} />
-                                </svg>
-                            )}
-                        </button>
+                        <ScreenLockButton keepScreenOn={keepScreenOn} onToggle={onToggleScreenLock} />
 
-                        <button
-                            className="theme-toggle-button"
-                            onClick={() => toggleTheme()}
-                        >
-                            {theme === 'dark' ? '☀️' : '🌙'}
-                        </button>
+                        <ThemeToggleButton />
                     </div>
 
                     {/* MOBILE HAMBURGER MENU */}
@@ -1362,21 +1337,14 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                             Settings
                                         </button>
                                         <button className="menu-link" onClick={onLogout}>
-                                            Logout
+                                            Log Out
                                         </button>
                                     </>
                                 )}
                             </div>
                             {/* Theme Toggle at Bottom */}
                             <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                <button
-                                    className="theme-toggle-button"
-                                    onClick={() => toggleTheme()}
-                                    title="Toggle Theme"
-                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
-                                >
-                                    {theme === 'dark' ? '☀️' : '🌙'}
-                                </button>
+                                <ThemeToggleButton />
                             </div>
                         </HamburgerMenu>
                     </div>
@@ -1507,7 +1475,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                             </div>
 
                             <button id="footer-settings-button" className="button-secondary" onClick={() => onShowSettings('board')}>Settings</button>
-                            <button className="button-secondary" onClick={onLogout}>Logout</button>
+                            <button className="button-secondary" onClick={onLogout}>Log Out</button>
                         </div>
                     )}
                 </div>

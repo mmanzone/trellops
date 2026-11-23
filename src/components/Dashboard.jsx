@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { trelloFetch } from '../api/trello';
 import { STORAGE_KEYS, DEFAULT_LAYOUT, TIME_FILTERS } from '../utils/constants';
 import {
@@ -8,13 +8,14 @@ import {
     convertIntervalToSeconds, getOrGenerateRandomColor, formatDynamicCountdown
 } from '../utils/helpers';
 import { getTerminology } from '../utils/terminology';
-import { useDarkMode } from '../context/DarkModeContext';
 import DigitalClock from './common/DigitalClock';
 import CardDetailsModal from './common/CardDetailsModal';
 import LabelFilter from './common/LabelFilter';
-import MapView from './MapView'; // For Slideshow
+// MapView is only needed for the slideshow, so it's loaded on demand.
+const MapView = lazy(() => import('./MapView'));
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import HamburgerMenu from './common/HamburgerMenu';
+import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
 import '../styles/map.css';
 
 const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
@@ -42,9 +43,6 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
     const timerRef = useRef(null);
     const [showMapDropdown, setShowMapDropdown] = useState(false);
     const [showTaskDropdown, setShowTaskDropdown] = useState(false);
-
-    // Get theme context for toggle button
-    const { theme, toggleTheme } = useDarkMode();
 
     // Update enableMapView when selected board changes
     useEffect(() => {
@@ -356,7 +354,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             <div className="container">
                 <div className="header">
                     <h1>Trellops Dashboard</h1>
-                    <button className="logout-button" onClick={onLogout}>Logout</button>
+                    <button className="logout-button" onClick={onLogout}>Log Out</button>
                 </div>
                 <p style={{ textAlign: 'center', marginTop: '50px' }}>
                     No Trello {BoardTerm} configured. Please go to settings to set up your first dashboard.
@@ -394,12 +392,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
         <div className="map-view-container">
             {/* HEADER - Updated to match MapView style EXACTLY */}
             <div className="map-header">
-                <div className="map-header-title-area">
-                    {showClock && <DigitalClock boardId={boardId} />}
-                    <h1 style={{ marginLeft: showClock ? '15px' : '0' }}>
-                        {boardName} <span style={{ marginLeft: '15px' }}>{filterLabel}</span>
-                    </h1>
-                </div>
+                <PageTitle clock={showClock && <DigitalClock boardId={boardId} />}>
+                    {boardName} <span className="page-title-suffix">{filterLabel}</span>
+                </PageTitle>
 
                 <div className="map-header-actions" style={{ display: 'flex', alignItems: 'center' }}>
 
@@ -432,26 +427,9 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                             </>
                         )}
 
-                        <button className="theme-toggle-button" onClick={onToggleScreenLock} style={{ marginLeft: '10px' }} title={keepScreenOn ? "Prevent screen from turning off" : "Allow screen to turn off"}>
-                            {keepScreenOn ? (
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                                    <line x1="8" y1="21" x2="16" y2="21" />
-                                    <line x1="12" y1="17" x2="12" y2="21" />
-                                </svg>
-                            ) : (
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                                    <line x1="8" y1="21" x2="16" y2="21" />
-                                    <line x1="12" y1="17" x2="12" y2="21" />
-                                    <line x1="1" y1="1" x2="23" y2="23" style={{ stroke: 'currentColor' }} />
-                                </svg>
-                            )}
-                        </button>
+                        <ScreenLockButton keepScreenOn={keepScreenOn} onToggle={onToggleScreenLock} style={{ marginLeft: '10px' }} />
 
-                        <button className="theme-toggle-button" onClick={() => toggleTheme()} style={{ marginLeft: '10px' }}>
-                            {theme === 'dark' ? '☀️' : '🌙'}
-                        </button>
+                        <ThemeToggleButton style={{ marginLeft: '10px' }} />
                     </div>
 
                     {/* MOBILE HAMBURGER MENU */}
@@ -514,20 +492,13 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                                 </button>
 
                                 <button className="menu-link" onClick={onLogout}>
-                                    Logout
+                                    Log Out
                                 </button>
                             </div>
 
                             {/* Theme Toggle at Bottom */}
                             <div className="hamburger-section" style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                <button
-                                    className="theme-toggle-button"
-                                    onClick={() => toggleTheme()}
-                                    title="Toggle Theme"
-                                    style={{ background: 'transparent', fontSize: '1.5em', cursor: 'pointer', border: 'none' }}
-                                >
-                                    {theme === 'dark' ? '☀️' : '🌙'}
-                                </button>
+                                <ThemeToggleButton />
                             </div>
                         </HamburgerMenu>
                     </div>
@@ -537,7 +508,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* RENDER BLOCKS OR SLIDESHOW CONTENT */}
             {slideshowContent === 'map' ? (
                 <div style={{ flex: 1, position: 'relative', width: '100%', overflow: 'hidden' }}>
-                    <MapView isEmbedded={true} user={user} settings={settings} />
+                    <Suspense fallback={null}><MapView isEmbedded={true} user={user} settings={settings} /></Suspense>
                 </div>
             ) : (
                 <DashboardContent
@@ -659,7 +630,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
                 </div>
 
                 <div className="map-footer-right" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <button className="button-secondary" onClick={() => { setCountdown(effectiveSeconds); fetchData(true); }}>
+                    <button className="button-secondary" onClick={handleRefresh}>
                         Refresh {formatDynamicCountdown(countdown)}
                     </button>
 

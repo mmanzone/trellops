@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { trelloAuth, trelloFetch } from './api/trello';
 import { STORAGE_KEYS } from './utils/constants';
 import { getUserData, setUserData, getCurrentUser, setCurrentUser } from './utils/persistence';
 import { DarkModeProvider } from './context/DarkModeContext';
 import LandingPage from './components/common/LandingPage';
 import Dashboard from './components/Dashboard';
-import SettingsScreen from './components/SettingsScreen';
-import MapView from './components/MapView';
-import TaskView from './components/TaskView';
-import StatisticsView from './components/StatisticsView';
+// Views other than the dashboard are loaded on demand, so the wall-screen
+// dashboard doesn't download Settings (drag-and-drop), Stats (charts, AI SDK),
+// the map or tasks code until someone opens them.
+const SettingsScreen = lazy(() => import('./components/SettingsScreen'));
+const MapView = lazy(() => import('./components/MapView'));
+const TaskView = lazy(() => import('./components/TaskView'));
+const StatisticsView = lazy(() => import('./components/StatisticsView'));
 import useWakeLock from './hooks/useWakeLock';
 import { decodeBase64Utf8 } from './utils/helpers';
 
@@ -388,6 +391,8 @@ const App = () => {
                     onShowSettings={() => { setPreviousView('stats'); setView('settings'); setSettingsTab('statistics'); }}
                     onGoToDashboard={() => setView('dashboard')}
                     onLogout={handleLogout}
+                    keepScreenOn={keepScreenOn}
+                    onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
                 />
             );
         }
@@ -488,9 +493,9 @@ const App = () => {
     };
 
     return (
-        <>
+        <Suspense fallback={<div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
             {renderView()}
-        </>
+        </Suspense>
     );
 };
 
