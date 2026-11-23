@@ -10,6 +10,7 @@ import MapView from './components/MapView';
 import TaskView from './components/TaskView';
 import StatisticsView from './components/StatisticsView';
 import useWakeLock from './hooks/useWakeLock';
+import { decodeBase64Utf8 } from './utils/helpers';
 
 const App = () => {
     const [user, setUser] = useState(null);
@@ -24,6 +25,7 @@ const App = () => {
     const [slideshowActive, setSlideshowActive] = useState(false);
     const [slideshowView, setSlideshowView] = useState(null); // 'dashboard' or 'map'
 
+    const [retryToken, setRetryToken] = useState(null); // Set when startup failed for a non-auth reason
     const [keepScreenOn, setKeepScreenOn] = useState(false);
     const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
@@ -96,6 +98,17 @@ const App = () => {
             setView('settings');
         }
     }, [view]);
+
+    // Retry startup after a network error
+    useEffect(() => {
+        if (!retryToken) return;
+        const timer = setTimeout(() => {
+            const token = retryToken;
+            setRetryToken(null);
+            handleLoginSuccess(token);
+        }, 30000);
+        return () => clearTimeout(timer);
+    }, [retryToken]);
 
     // Slideshow Effect
     useEffect(() => {
@@ -202,7 +215,7 @@ const App = () => {
             const pendingConfig = localStorage.getItem('PENDING_SHARE_CONFIG');
             if (pendingConfig) {
                 try {
-                    const decoded = decodeURIComponent(escape(atob(pendingConfig)));
+                    const decoded = decodeBase64Utf8(pendingConfig);
                     const config = JSON.parse(decoded);
                     setImportConfig(config);
                     setView('settings');
@@ -215,9 +228,18 @@ const App = () => {
             }
         } catch (e) {
             console.error("Login validation failed:", e);
-            setError("Failed to validate Trello session. Please log in again.");
-            setCurrentUser(null);
-            setView('landing');
+            if (e.status === 401) {
+                // Token revoked or expired: the user has to sign in again.
+                setError("Your Trello session has expired. Please log in again.");
+                setRetryToken(null);
+                setCurrentUser(null);
+                setView('landing');
+            } else {
+                // Network blip or Trello outage: keep the session and retry, so a
+                // wall display recovers on its own instead of sitting on the login page.
+                setError("Couldn't reach Trello. Retrying automatically in 30 seconds...");
+                setRetryToken(token);
+            }
         } finally {
             setLoading(false);
         }
@@ -283,7 +305,11 @@ const App = () => {
             <div className="container">
                 <div className="error" style={{ textAlign: 'center', marginTop: '50px' }}>{error}</div>
                 <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                    <button className="settings-button" onClick={() => { setError(''); setView('landing'); }}>Go to Login</button>
+                    {retryToken ? (
+                        <button className="settings-button" onClick={() => { const token = retryToken; setRetryToken(null); handleLoginSuccess(token); }}>Retry now</button>
+                    ) : (
+                        <button className="settings-button" onClick={() => { setError(''); setView('landing'); }}>Go to Login</button>
+                    )}
                 </div>
             </div>
         );

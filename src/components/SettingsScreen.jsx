@@ -8,13 +8,14 @@ import { getPersistentLayout } from '../utils/persistence';
 import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { encodeBase64Utf8 } from '../utils/helpers';
 import '../styles/settings.css';
 
 const ShareConfigModal = ({ config, onClose, boardName }) => {
     const [copied, setCopied] = useState(false);
     // Encode config to Base64 to be URL safe (UTF-8 safe)
     const configString = JSON.stringify(config);
-    const encoded = btoa(unescape(encodeURIComponent(configString)));
+    const encoded = encodeBase64Utf8(configString);
     const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?config=${encodeURIComponent(encoded)}`;
 
     const handleCopy = () => {

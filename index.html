@@ -7,6 +7,19 @@
     <title>Trellops - Trello Operational Dashboard</title>
     <link rel="icon" type="image/png" href="/powerupicon.png">
     <meta name="description" content="Operational dashboard for Trello boards.">
+    <script>
+        // Apply the saved theme before the first paint, so dark mode users don't
+        // see a white flash while React loads. Mirrors DarkModeContext.
+        (function () {
+            try {
+                var t = localStorage.getItem('dashboardTheme') || 'system';
+                if (t === 'system') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', t);
+            } catch (e) { }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.cdnfonts.com">
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/digital-7-mono">
 </head>
 
 <body>
