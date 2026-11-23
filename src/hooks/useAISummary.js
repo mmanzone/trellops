@@ -61,7 +61,11 @@ const friendlyError = (err) => {
     try {
         detail = JSON.parse(detail).error || detail;
     } catch { /* not JSON */ }
-    return `*The AI model could not produce a summary right now. This is usually temporary, please try again shortly.*\n\n<details><summary>Developer Info</summary>${detail}</details>`;
+    const billing = /credit|billing|quota|insufficient|funds|payment|exhausted/i.test(detail);
+    const headline = billing
+        ? 'The AI provider account has run out of credit or quota. An admin needs to top it up before summaries can be generated.'
+        : 'The AI model could not produce a summary right now. This is usually temporary, please try again shortly.';
+    return `*${headline}*\n\n<details><summary>Developer Info</summary>${detail}</details>`;
 };
 
 export const useAISummary = () => {
