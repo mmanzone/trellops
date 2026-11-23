@@ -69,6 +69,37 @@
     <h1>Release Notes</h1>
 
     <section>
+        <h2>November 2026 (v4.6)</h2>
+        <ul class="main-list">
+            <li><strong>New features</strong>
+                <ul class="sub-list">
+                    <li><strong>Faster AI summaries:</strong> AI summaries on the Statistics page now appear noticeably faster, and asking again for the same period shows the result instantly. If a summary can't be generated, you now see a clear message instead of an empty box.</li>
+                    <li><strong>Keep the screen on from Statistics:</strong> The "Prevent Screen Off" toggle is now also on the Statistics page, so it can run on a wall screen just like the Dashboard and Map.</li>
+                </ul>
+            </li>
+            <li><strong>Improvement</strong>
+                <ul class="sub-list">
+                    <li><strong>Faster loading:</strong> The Dashboard now downloads about a third of the data it used to before it appears. Charts, Settings and the Map load only when you open them, so wall screens start up and reload much more quickly.</li>
+                    <li><strong>A consistent look on every page:</strong> Buttons, icons, colours and headers now match across the Dashboard, Map, Statistics, Tasks and Settings, in both light and dark mode.</li>
+                    <li><strong>Dark mode for Settings:</strong> The Settings page now fully supports dark mode, with no more bright white panels.</li>
+                    <li><strong>No more white flash:</strong> If you use dark mode, pages now open dark straight away.</li>
+                    <li><strong>Fewer Trello requests:</strong> The Dashboard asks Trello for data half as often, pauses refreshing while its browser tab is hidden, and slows down automatically if Trello asks it to. This means fewer "rate limit" interruptions on busy boards.</li>
+                    <li><strong>Wall screens recover on their own:</strong> If the network drops while a screen is reloading, Trellops keeps you signed in and retries automatically instead of returning to the login page.</li>
+                    <li><strong>Back and Forward buttons:</strong> Your browser's Back and Forward buttons now move between the Dashboard, Map, Statistics and Settings as you'd expect.</li>
+                </ul>
+            </li>
+            <li><strong>Bug fix</strong>
+                <ul class="sub-list">
+                    <li>Time filters such as "This week" and "This month" now stay up to date on screens left open for days, and include cards created after the page was opened.</li>
+                    <li>"Last month" now includes the whole last day of the month.</li>
+                    <li>Statistics charts no longer overflow the page.</li>
+                    <li>Security improvements to how card descriptions and AI summaries are displayed.</li>
+                </ul>
+            </li>
+        </ul>
+    </section>
+
+    <section>
         <h2>April 2026</h2>
         <ul class="main-list">
             <li><strong>New features</strong>

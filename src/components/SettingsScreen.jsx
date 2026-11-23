@@ -2221,7 +2221,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             }
 
             <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                v4.5.{__BUILD_ID__ || 1000} - April 2026
+                v4.6.{__BUILD_ID__ || 1000} - November 2026
             </div>
             <div style={{ textAlign: 'center', marginBottom: '30px', fontSize: '0.85em', fontWeight: 'bold' }}>
                 <a href="/help.html" target="_blank" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', marginRight: '15px' }}>User Guide</a>
