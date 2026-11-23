@@ -21,13 +21,15 @@ export const DEFAULT_LAYOUT = [{ id: 'all', name: 'Default', listIds: [], ignore
 
 export const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const now = new Date();
-
+// Calendar ranges are computed when they're read, not once at page load, so a
+// dashboard or Stats screen left open for days rolls over to the new
+// week/month and includes cards created after the page opened.
 const calcCalendarFilter = (key) => {
+    const now = new Date();
     let start, end;
     if (key === 'last_month') {
         start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        end = new Date(now.getFullYear(), now.getMonth(), 0);
+        end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999); // include the whole last day
         const monthName = MONTH_NAMES[start.getMonth()];
         return { start, end, label: `Last month (${monthName} ${start.getFullYear()})`, titleSuffix: `${monthName} ${start.getFullYear()}` };
     } else if (key === 'this_month') {
@@ -74,6 +76,14 @@ const calcCalendarFilter = (key) => {
     }
 };
 
+const calendarFilter = (key) => ({
+    type: 'calendar',
+    get start() { return calcCalendarFilter(key).start; },
+    get end() { return calcCalendarFilter(key).end; },
+    get label() { return calcCalendarFilter(key).label; },
+    get titleSuffix() { return calcCalendarFilter(key).titleSuffix; },
+});
+
 export const TIME_FILTERS = {
     'all': { label: 'All Time', minutes: 0, titleSuffix: 'All Time', type: 'absolute' },
     '24h': { label: 'Last 24h', minutes: 60 * 24, titleSuffix: 'Last 24h', type: 'relative' },
@@ -81,13 +91,13 @@ export const TIME_FILTERS = {
     '72h': { label: 'Last 72h', minutes: 60 * 72, titleSuffix: 'Last 72h', type: 'relative' },
     '7d': { label: 'Last 7 days', minutes: 60 * 24 * 7, titleSuffix: 'Last 7 Days', type: 'relative' },
 
-    'this_week': { ...calcCalendarFilter('this_week'), type: 'calendar' },
-    'last_week': { ...calcCalendarFilter('last_week'), type: 'calendar' },
+    'this_week': calendarFilter('this_week'),
+    'last_week': calendarFilter('last_week'),
 
     'last_30d': { label: 'Last 30 days', minutes: 60 * 24 * 30, titleSuffix: 'Last 30 Days', type: 'relative' },
-    'this_month': { ...calcCalendarFilter('this_month'), type: 'calendar' },
-    'last_month': { ...calcCalendarFilter('last_month'), type: 'calendar' },
-    'last_3m': { ...calcCalendarFilter('last_3m'), type: 'calendar' },
-    'ytd': { ...calcCalendarFilter('ytd'), type: 'calendar' },
-    'last_year': { ...calcCalendarFilter('last_year'), type: 'calendar' },
+    'this_month': calendarFilter('this_month'),
+    'last_month': calendarFilter('last_month'),
+    'last_3m': calendarFilter('last_3m'),
+    'ytd': calendarFilter('ytd'),
+    'last_year': calendarFilter('last_year'),
 };

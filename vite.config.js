@@ -12,11 +12,11 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        help: resolve(__dirname, 'help.html'),
-        privacy: resolve(__dirname, 'privacy.html'),
-        tour: resolve(__dirname, 'tour.html'),
-        releases: resolve(__dirname, 'releases.html'),
+        main: resolve(import.meta.dirname, 'index.html'),
+        help: resolve(import.meta.dirname, 'help.html'),
+        privacy: resolve(import.meta.dirname, 'privacy.html'),
+        tour: resolve(import.meta.dirname, 'tour.html'),
+        releases: resolve(import.meta.dirname, 'releases.html'),
       }
     }
   }

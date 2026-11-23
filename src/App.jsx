@@ -99,10 +99,28 @@ const App = () => {
             localStorage.removeItem('openSettingsOnLoad');
             setPreviousView('dashboard');
             setView('settings');
+            window.history.replaceState({}, '', '/settings');
         }
     }, [view]);
 
-    // Retry startup after a network error
+    // Browser Back/Forward: every navigation pushes a URL, so map the URL back
+    // to its view when the user moves through history.
+    useEffect(() => {
+        const handlePopState = () => {
+            if (!user) return; // Not signed in: stay on the landing page
+            const path = window.location.pathname;
+            if (path === '/map') setView('map');
+            else if (path === '/tasks') setView('tasks');
+            else if (path === '/tasks/settings') setView('tasks-settings');
+            else if (path === '/stats') setView('stats');
+            else if (path === '/settings') setView('settings');
+            else setView(settings?.boardId ? 'dashboard' : 'settings');
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [user, settings]);
+
+        // Retry startup after a network error
     useEffect(() => {
         if (!retryToken) return;
         const timer = setTimeout(() => {
@@ -222,6 +240,7 @@ const App = () => {
                     const config = JSON.parse(decoded);
                     setImportConfig(config);
                     setView('settings');
+                    window.history.replaceState({}, '', '/settings');
                     setPreviousView('dashboard');
                     localStorage.removeItem('PENDING_SHARE_CONFIG');
                     console.log("Loaded pending shared configuration");
@@ -378,7 +397,7 @@ const App = () => {
                         window.history.pushState({}, '', '/map');
                     }}
                     onLogout={handleLogout}
-                    onGoToStats={() => { setPreviousView('settings'); setView('stats'); }}
+                    onGoToStats={() => { setPreviousView('tasks'); setView('stats'); window.history.pushState({}, '', '/stats'); }}
                 />
             );
         }
@@ -388,8 +407,8 @@ const App = () => {
                 <StatisticsView
                     user={user}
                     settings={settings}
-                    onShowSettings={() => { setPreviousView('stats'); setView('settings'); setSettingsTab('statistics'); }}
-                    onGoToDashboard={() => setView('dashboard')}
+                    onShowSettings={() => { setPreviousView('stats'); setView('settings'); setSettingsTab('statistics'); window.history.pushState({}, '', '/settings'); }}
+                    onGoToDashboard={() => { setView('dashboard'); window.history.pushState({}, '', '/dashboard'); }}
                     onLogout={handleLogout}
                     keepScreenOn={keepScreenOn}
                     onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
