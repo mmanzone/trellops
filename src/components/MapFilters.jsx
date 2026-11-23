@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronUp } from 'lucide-react';
 import { ICONS } from './common/IconPicker';
 
 const MapFilters = ({
@@ -108,7 +109,7 @@ const MapFilters = ({
         <div className="map-filters-overlay expanded">
             <div className="filters-header" onClick={() => setIsExpanded(false)}>
                 <h3>Filters</h3>
-                <span className="close-filters">▼</span>
+                <span className="close-filters"><ChevronUp size={18} /></span>
             </div>
 
             <div className="filters-content">
@@ -207,7 +208,7 @@ const MapFilters = ({
 
                 {/* HOME LOCATION SECTION */}
                 {homeLocation && (
-                    <div className="filter-section" style={{ borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                    <div className="filter-section filter-section-divided">
                         <div className="filter-row">
                             <label>
                                 <input

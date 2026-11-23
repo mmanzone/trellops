@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ChevronDown, X } from 'lucide-react';
 import { createRoot } from 'react-dom/client';
 import { trelloFetch } from '/src/api/trello';
 import { getPersistentLayout } from '/src/utils/persistence';
@@ -241,55 +242,39 @@ const GeocodingErrorToast = ({ error, onDismiss, onApply, onIgnore }) => {
         : 'No description';
 
     return (
-        <div className="status-message error-toast" style={{ borderColor: '#ff6b6b', width: '350px', flexDirection: 'column', alignItems: 'flex-start', padding: '12px', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', marginBottom: '10px', animation: 'slideIn 0.3s ease-out', pointerEvents: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ color: '#c92a2a', fontWeight: 'bold', fontSize: '0.95em' }}>Geocoding Error</span>
+        <div className="status-message error-toast">
+            <div className="error-toast-head">
+                <div className="error-toast-titles">
+                    <span className="error-toast-kicker">Geocoding Error</span>
                     {error.cardUrl ? (
-                        <a href={error.cardUrl} target="_blank" rel="noreferrer" style={{ color: '#0057d9', fontWeight: 'bold', textDecoration: 'none', fontSize: '1em' }}>
+                        <a href={error.cardUrl} target="_blank" rel="noreferrer" className="error-toast-card">
                             {error.cardName || 'View Card'}
                         </a>
                     ) : (
-                        <span style={{ fontWeight: 'bold' }}>{error.cardName || 'Unknown Card'}</span>
+                        <span className="error-toast-card">{error.cardName || 'Unknown Card'}</span>
                     )}
                 </div>
-                <button onClick={() => onDismiss(error.cardId)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5em', lineHeight: '1', color: '#888' }}>&times;</button>
+                <button type="button" className="icon-button" onClick={() => onDismiss(error.cardId)} aria-label="Dismiss"><X size={16} /></button>
             </div>
 
-            <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.03)', padding: '6px', borderRadius: '4px', width: '100%', marginTop: '4px' }}>
+            <div className="error-toast-desc">
                 {descriptionPreview}
             </div>
 
-            <div style={{ fontSize: '0.9em', color: '#c92a2a', marginTop: '4px' }}>Failed Address: {error.failedAddress}</div>
+            <div className="error-toast-failed">Failed Address: {error.failedAddress}</div>
 
-            <div style={{ width: '100%', marginTop: '8px', display: 'flex', gap: '8px' }}>
-                <button
-                    onClick={() => onIgnore(error.cardId)}
-                    style={{
-                        flex: 1,
-                        padding: '6px',
-                        background: '#f8f9fa',
-                        border: '1px solid #ced4da',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '0.85em',
-                        color: '#495057'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#e9ecef'}
-                    onMouseLeave={e => e.currentTarget.style.background = '#f8f9fa'}
-                >
-                    Do not show on map
-                </button>
-            </div>
+            <button type="button" className="button-secondary error-toast-ignore" onClick={() => onIgnore(error.cardId)}>
+                Do not show on map
+            </button>
 
-            <div style={{ width: '100%', marginTop: '8px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
-                <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>Manual Fix (Search):</label>
+            <div className="error-toast-fix">
+                <label className="error-toast-label">Manual Fix (Search):</label>
                 <div style={{ position: 'relative' }}>
-                    <input type="text" value={manualAddress} onChange={handleManualAddressChange} placeholder="Search address..." style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    <input type="text" value={manualAddress} onChange={handleManualAddressChange} placeholder="Search address..." style={{ width: '100%' }} />
                     {searchResults.length > 0 && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 3000, background: 'white', border: '1px solid #ccc', borderRadius: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', maxHeight: '150px', overflowY: 'auto', color: 'black' }}>
+                        <div className="autocomplete-list">
                             {searchResults.map((p) => (
-                                <div key={p.place_id} onClick={() => handleSelectResult(p)} style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: '0.9em' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0f0f0'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}>{p.description}</div>
+                                <div key={p.place_id} className="autocomplete-item" onClick={() => handleSelectResult(p)}>{p.description}</div>
                             ))}
                         </div>
                     )}
@@ -1220,22 +1205,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 </div>
                 {/* Fit Map Button (Custom Overlay) */}
                 <div
-                    style={{
-                        position: 'absolute',
-                        top: '5px',
-                        right: '20px',
-                        zIndex: 800,
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                        padding: '8px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#333'
-                    }}
-                    onClick={fitMapBounds}
+                            className="map-fit-button"
+                            onClick={fitMapBounds}
                     title="Fit Map to Markers"
                 >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1246,7 +1217,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                         <line x1="12" y1="22" x2="12" y2="18" />
                     </svg>
                 </div>
-                <div style={{ flexGrow: 1, position: 'relative', background: '#e0e0e0', height: '100%' }}>
+                <div style={{ flexGrow: 1, position: 'relative', background: 'var(--bg-tertiary)', color: 'var(--text-muted)', height: '100%' }}>
                     <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
                     {!mapLoaded && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>Loading Google Maps...</div>}
                 </div>
@@ -1367,21 +1338,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     <>
                         {/* Fit Map Button (Custom Overlay - Absolute to this relative container) */}
                         <div
-                            style={{
-                                position: 'absolute',
-                                top: '5px',
-                                right: '20px',
-                                zIndex: 800,
-                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                                padding: '8px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#333'
-                            }}
+                            className="map-fit-button"
                             onClick={fitMapBounds}
                             title="Fit Map to Markers"
                         >
@@ -1402,7 +1359,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                                 homeLocation={homeLocation} showHomeLocation={showHomeLocation} onToggleHome={() => setShowHomeLocation(!showHomeLocation)}
                             />
                         </div>
-                        <div style={{ flexGrow: 1, position: 'relative', background: '#e0e0e0' }}>
+                        <div style={{ flexGrow: 1, position: 'relative', background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
                             <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
                             {!mapLoaded && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>Loading Google Maps...</div>}
                         </div>
@@ -1412,7 +1369,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
 
             <div className="map-footer">
                 <div className="map-footer-left">
-                    <div style={{ fontSize: '0.8em', color: '#888' }}>Powered by Google Maps & Trello</div>
+                    <div className="footer-note">Powered by Google Maps & Trello</div>
                 </div>
 
                 {/* CENTER: Stop Slideshow */}
@@ -1420,7 +1377,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
                         <button
                             onClick={onStopSlideshow}
-                            style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                            className="button-danger"
                         >
                             Stop Slideshow
                         </button>
@@ -1428,7 +1385,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                 )}
                 <div className="map-footer-right">
                     {!onStopSlideshow && (
-                        <span className="desktop-only" style={{ marginRight: '20px', fontWeight: '500', color: 'var(--text-color)' }}>
+                        <span className="desktop-only footer-status">
                             {status || 'Ready'} {geocodingQueue.length > 0 && <span>(Geocoding {geocodingQueue.length}...)</span>}
                         </span>
                     )}
@@ -1440,35 +1397,31 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
                     {!onStopSlideshow && (
                         <div className="desktop-only" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                             <div style={{ position: 'relative' }}>
-                                <div style={{ display: 'flex' }}>
+                                <div className="split-button">
                                     <button className="button-secondary" onClick={() => onClose()}>
                                         Dashboard View
                                     </button>
-                                    <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}>
-                                        ▼
-                                    </button>
+                                    <button className="button-secondary dropdown-arrow" aria-label="More options" onClick={() => setShowDashboardDropdown(!showDashboardDropdown)}><ChevronDown size={16} /></button>
                                 </div>
                                 {showDashboardDropdown && (
-                                    <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '10px', minWidth: '250px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-                                        <div className="menu-item" style={{ marginBottom: '8px', padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
+                                    <div className="context-menu">
+                                        <div className="menu-item" onClick={() => { window.open('/dashboard', '_blank'); setShowDashboardDropdown(false); }}>Open in New Tab</div>
                                         {onStartSlideshow && !onStopSlideshow && (
-                                            <div className="menu-item" style={{ padding: '4px', cursor: 'pointer', borderRadius: '4px' }} onClick={() => { onStartSlideshow(); setShowDashboardDropdown(false); }}>Start Slideshow ({settings?.slideshowInterval || 10}s)</div>
+                                            <div className="menu-item" onClick={() => { onStartSlideshow(); setShowDashboardDropdown(false); }}>Start Slideshow ({settings?.slideshowInterval || 10}s)</div>
                                         )}
                                     </div>
                                 )}
                             </div>
 
                             <div style={{ position: 'relative' }}>
-                                <div style={{ display: 'flex' }}>
+                                <div className="split-button">
                                     <button className="button-secondary" onClick={() => onShowTasks()}>
                                         Tasks View
                                     </button>
-                                    <button className="button-secondary dropdown-arrow" style={{ marginLeft: '-1px', borderLeft: 'none', padding: '0 5px' }} onClick={() => setShowTaskDropdown(!showTaskDropdown)}>
-                                        ▼
-                                    </button>
+                                    <button className="button-secondary dropdown-arrow" aria-label="More options" onClick={() => setShowTaskDropdown(!showTaskDropdown)}><ChevronDown size={16} /></button>
                                 </div>
                                 {showTaskDropdown && (
-                                    <div className="context-menu" style={{ position: 'absolute', bottom: '100%', left: 0, background: 'var(--bg-primary)', border: '1px solid #ccc', borderRadius: '4px', padding: '5px', minWidth: '150px' }}>
+                                    <div className="context-menu">
                                         <div className="menu-item" onClick={() => { window.open('/tasks', '_blank'); setShowTaskDropdown(false); }}>Open in New Tab</div>
                                     </div>
                                 )}

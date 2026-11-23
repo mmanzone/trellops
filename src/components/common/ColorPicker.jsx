@@ -12,29 +12,16 @@ export const COLORS = [
 
 const ColorPicker = ({ selectedColor, onChange }) => {
     return (
-        <div className="color-picker-flex" style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '8px',
-            marginTop: '8px'
-        }}>
+        <div className="color-picker-flex" role="listbox" aria-label="Marker colour">
             {COLORS.map(c => (
                 <div
                     key={c.name}
                     title={c.label}
+                    role="option"
+                    aria-selected={selectedColor === c.name}
                     onClick={() => onChange(c.name)}
-                    style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        backgroundColor: c.hex,
-                        cursor: 'pointer',
-                        border: selectedColor === c.name ? '3px solid #000' : '1px solid rgba(0,0,0,0.1)',
-                        boxShadow: selectedColor === c.name ? '0 0 0 2px #fff inset' : 'none',
-                        transition: 'transform 0.1s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1.0)'}
+                    className={`color-picker-swatch${selectedColor === c.name ? ' is-selected' : ''}`}
+                    style={{ backgroundColor: c.hex }}
                 />
             ))}
         </div>

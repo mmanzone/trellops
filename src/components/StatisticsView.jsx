@@ -627,7 +627,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
             <div className="container" style={{ flex: 1, paddingBottom: '80px', width: '100%', boxSizing: 'border-box' }}>
 
                 {loading ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', fontSize: '1.2em', color: '#666' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', fontSize: '1.1em', color: 'var(--text-secondary)' }}>
                         Generating stats...
                     </div>
                 ) : (
@@ -640,7 +640,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                     <Sparkles size={20} />
                                     <h3 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center' }}>
                                         AI Summary for the period
-                                        <span style={{ marginLeft: '10px', fontSize: '0.65em', padding: '2px 8px', backgroundColor: '#0052cc', color: 'white', borderRadius: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Beta</span>
+                                        <span className="beta-badge">Beta</span>
                                     </h3>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -656,7 +656,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                         className="button-primary" 
                                         onClick={() => handleGenerateSummary(false)}
                                         disabled={isGeneratingSummary}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '0.9em' }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                                     >
                                         {isGeneratingSummary ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />}
                                         {isGeneratingSummary ? 'Generating...' : 'Generate Summary'}
@@ -689,7 +689,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                                 <h3 style={{ textTransform: 'capitalize' }}>{CardsTerm} Created / Completed</h3>
                                 <div style={{ display: 'flex', gap: '5px' }}>
-                                    <select value={granularity} onChange={e => setGranularity(e.target.value)} style={{ padding: '2px', fontSize: '0.9em' }}>
+                                    <select value={granularity} onChange={e => setGranularity(e.target.value)}>
                                         <option value="day">By Day</option>
                                         <option value="hour">By Hour</option>
                                         <option value="cumulative_hour">Per Hour (Cumulative)</option>

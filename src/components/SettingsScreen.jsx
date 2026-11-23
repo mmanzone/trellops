@@ -7,7 +7,7 @@ import ColorPicker from './common/ColorPicker';
 import { getPersistentLayout } from '../utils/persistence';
 import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, TriangleAlert, ChevronDown, ChevronRight, LayoutGrid, Map as MapIcon, ChartColumn, SlidersHorizontal, Check, Info } from 'lucide-react';
 import { encodeBase64Utf8 } from '../utils/helpers';
 import '../styles/settings.css';
 
@@ -35,22 +35,14 @@ const ShareConfigModal = ({ config, onClose, boardName }) => {
                         type="text"
                         readOnly
                         value={shareUrl}
-                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                        style={{ flex: 1 }}
                         onClick={(e) => e.target.select()}
                     />
-                    <button onClick={handleCopy} className="action-button">
+                    <button onClick={handleCopy} className="button-primary">
                         {copied ? 'Copied!' : 'Copy'}
                     </button>
                 </div>
-                <div style={{
-                    marginTop: '15px',
-                    padding: '10px',
-                    background: '#fff3cd',
-                    border: '1px solid #ffeeba',
-                    borderRadius: '4px',
-                    color: '#856404',
-                    fontSize: '0.9em'
-                }}>
+                <div className="notice notice-warning">
                     <strong>Note:</strong> The recipient of this link must have a Trello account and access to the board <strong>{boardName || 'specified'}</strong> to be able to display it. Features requiring extended write permissions will have to be granted by the recipients of this link.
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
@@ -1052,15 +1044,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     );
 
     return (
-        <div className="settings-container" style={{ maxWidth: '80%', width: '80%' }}>
+        <div className="settings-container settings-page">
             {viewMode === 'default' && (
                 <>
-                    <h2>Dashboard Settings</h2>
+                    <h2 className="settings-page-title">Dashboard Settings</h2>
 
                     {/* BOARD SELECTOR (GLOBAL) */}
-                    <div className="admin-section" style={{ marginBottom: '20px' }}>
+                    <div className="admin-section board-picker">
                         <h3>Choose your Trello Board</h3>
-                        <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px' }}>
+                        <p className="section-hint">
                             Boards are pulled directly from your Trello account, across all workspaces.
                         </p>
                         <div id="board-selection-container">
@@ -1107,12 +1099,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     </div>
 
                     {/* TABS HEADER */}
-                    <div className="settings-tabs">
+                    <div className="settings-tabs" role="tablist">
                         <button
                             className={`tab-button ${activeTab === 'dashboard' ? 'active' : ''}`}
                             onClick={() => setActiveTab('dashboard')}
                         >
-                            Dashboard View Settings
+                            <LayoutGrid size={16} aria-hidden="true" /> Dashboard View Settings
                         </button>
                         <button
                             id="settings-tab-map"
@@ -1122,36 +1114,36 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 checkPermissions();
                             }}
                         >
-                            Map View Settings
+                            <MapIcon size={16} aria-hidden="true" /> Map View Settings
                         </button>
                         <button
                             className={`tab-button ${activeTab === 'statistics' ? 'active' : ''}`}
                             onClick={() => setActiveTab('statistics')}
                         >
-                            Statistics Settings
+                            <ChartColumn size={16} aria-hidden="true" /> Statistics Settings
                         </button>
                         <button
                             id="settings-tab-other"
                             className={`tab-button ${activeTab === 'other' ? 'active' : ''}`}
                             onClick={() => setActiveTab('other')}
                         >
-                            Other Board settings
+                            <SlidersHorizontal size={16} aria-hidden="true" /> Other Board settings
                         </button>
                     </div>
                 </>
             )}
 
-            {error && <div className="error-banner" style={{ background: '#ffebee', color: '#c62828', padding: '10px', marginBottom: '15px', borderRadius: '4px', border: '1px solid #ffcdd2', marginTop: '10px' }}>{error}</div>}
+            {error && <div className="error-banner notice notice-danger">{error}</div>}
 
             {pendingImport && (
-                <div className="info-banner" style={{ background: 'var(--accent-light)', color: 'var(--accent-text)', padding: '15px', marginBottom: '15px', borderRadius: '4px', border: '1px solid var(--accent-border)', marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="info-banner notice notice-info notice-row">
                     <div>
                         <strong>Configuration Loaded:</strong> Shared settings available for board <strong>{pendingImport.boardName || pendingImport.boardId}</strong>.
                         <div style={{ fontSize: '0.9em', marginTop: '4px' }}>Unsaved changes will be lost if you apply this configuration.</div>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={applyImportedConfig} style={{ background: 'var(--accent-color)', color: 'var(--accent-contrast)', border: 'none', padding: '6px 12px', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 'bold' }}>Apply</button>
-                        <button onClick={dismissImport} style={{ background: 'transparent', color: 'var(--accent-text)', border: '1px solid var(--accent-text)', padding: '6px 12px', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>Dismiss</button>
+                        <button className="button-primary" onClick={applyImportedConfig}>Apply</button>
+                        <button className="button-secondary" onClick={dismissImport}>Dismiss</button>
                     </div>
                 </div>
             )}
@@ -1161,7 +1153,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             <DragDropContext onDragEnd={onDragEnd}>
                 {/* BOARD SETTINGS ONLY SHOW IF VIEWMODE IS DEFAULT */}
                 {viewMode === 'default' && (
-                    <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
+                    <div className="settings-tab-panel">
                         {/* TAB CONTENT: DASHBOARD */}
                         {activeTab === 'dashboard' && (
                             <div className="tab-content">
@@ -1172,7 +1164,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         {/* SECTION 1: BLOCKS */}
                                         <div className="admin-section" id="section-2">
                                             <h3>1. Manage your Trellops blocks</h3>
-                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px' }}>
+                                            <p className="section-hint">
                                                 A block is a group of tiles representing each Trello list (or column). You will be able to assign one or multiple tiles to each block. Blocks can be shown or hidden on demand on the dashboard.
                                             </p>
                                             <Droppable droppableId="blocks-list" type="BLOCK">
@@ -1184,9 +1176,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                     <div
                                                                         ref={provided.innerRef}
                                                                         {...provided.draggableProps}
-                                                                        style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                                        className="block-row"
+                                                                        style={provided.draggableProps.style}
                                                                     >
-                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: 'var(--text-muted)', marginRight: '5px' }}>::</div>
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" aria-label="Drag to reorder"><GripVertical size={18} /></div>
                                                                         <input
                                                                             type="text"
                                                                             value={block.name}
@@ -1194,11 +1187,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                             className="block-name-input"
                                                                         />
                                                                         <button
+                                                                            type="button"
+                                                                            className="icon-button icon-button-danger"
                                                                             onClick={() => handleRemoveBlock(block.id)}
-                                                                            style={{ color: 'red', marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', fontWeight: 'bold' }}
                                                                             title="Remove Block"
+                                                                            aria-label="Remove Block"
                                                                         >
-                                                                            X
+                                                                            <Trash2 size={17} />
                                                                         </button>
                                                                     </div>
                                                                 )}
@@ -1208,23 +1203,23 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     </div>
                                                 )}
                                             </Droppable>
-                                            <button className="add-block-button" onClick={handleAddBlock} style={{ marginTop: '10px' }}>+ Add Block</button>
+                                            <button className="add-block-button" onClick={handleAddBlock}><Plus size={16} aria-hidden="true" /> Add Block</button>
                                         </div>
 
                                         {/* SECTION 2: ASSIGN TILES (Renumbered) */}
                                         <div className="admin-section" id="section-3">
                                             <h3>2. Assign tiles to your blocks</h3>
-                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px' }}>
+                                            <p className="section-hint">
                                                 Tiles show the total count of cards in each Trello list, automatically updating as the cards are created or moved. Choose from the Unassigned pool on the left, the lists you want to create as a tile in the respective block on the right. Then customise each tile position and colour.
                                             </p>
 
-                                            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', marginTop: '15px' }}>
+                                            <div className="tiles-layout">
                                                 {/* UNASSIGNED */}
-                                                <div id="unassigned-lists-container" style={{ flex: 1, background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                                                    <h4>Available Lists</h4>
+                                                <div id="unassigned-lists-container" className="tiles-pool">
+                                                    <h4 className="tiles-column-title">Available Lists</h4>
                                                     <Droppable droppableId="unassigned" type="LIST">
                                                         {(provided) => (
-                                                            <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '100px' }}>
+                                                            <div ref={provided.innerRef} {...provided.droppableProps} className="tiles-dropzone">
                                                                 {unassignedLists.map((list, index) => (
                                                                     <Draggable key={list.id} draggableId={list.id} index={index}>
                                                                         {(provided) => (
@@ -1232,7 +1227,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                 ref={provided.innerRef}
                                                                                 {...provided.draggableProps}
                                                                                 {...provided.dragHandleProps}
-                                                                                style={{ padding: '8px', margin: '4px 0', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', ...provided.draggableProps.style }}
+                                                                                className="tile-row tile-row-pool"
+                                                                                style={provided.draggableProps.style}
                                                                             >
                                                                                 {list.name}
                                                                             </div>
@@ -1246,16 +1242,16 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 </div>
 
                                                 {/* BLOCKS TARGETS */}
-                                                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                                <div className="tiles-blocks">
                                                     {blocks.map(block => (
-                                                        <div key={block.id} style={{ background: 'var(--accent-light)', padding: '10px', borderRadius: '6px', border: '1px solid var(--accent-border)' }}>
-                                                            <h4 style={{ margin: 0, marginBottom: '10px' }}>{block.name}</h4>
+                                                        <div key={block.id} className="tiles-block">
+                                                            <h4 className="tiles-column-title">{block.name}</h4>
 
                                                             {/* Block Options Inside Section 3 */}
-                                                            <div style={{ background: 'var(--overlay-subtle)', padding: '8px', borderRadius: '4px', marginBottom: '10px', fontSize: '0.85em' }}>
-                                                                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                                            <div className="tiles-block-options">
+                                                                <div className="tiles-block-options-row">
                                                                     <div
-                                                                        style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                                                                        className="toggle-row"
                                                                         onClick={() => handleUpdateBlockProp(block.id, 'ignoreFirstCard', !block.ignoreFirstCard)}
                                                                     >
                                                                         <ToggleSwitch checked={block.ignoreFirstCard} onChange={e => handleUpdateBlockProp(block.id, 'ignoreFirstCard', e.target.checked)} />
@@ -1263,7 +1259,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                     </div>
                                                                     {block.ignoreFirstCard && (
                                                                         <div
-                                                                            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                                                                            className="toggle-row"
                                                                             onClick={() => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', !block.displayFirstCardDescription)}
                                                                         >
                                                                             <ToggleSwitch checked={block.displayFirstCardDescription} onChange={e => handleUpdateBlockProp(block.id, 'displayFirstCardDescription', e.target.checked)} />
@@ -1275,7 +1271,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                             <Droppable droppableId={block.id} type="LIST">
                                                                 {(provided) => (
-                                                                    <div ref={provided.innerRef} {...provided.droppableProps} style={{ minHeight: '50px' }}>
+                                                                    <div ref={provided.innerRef} {...provided.droppableProps} className="tiles-dropzone tiles-dropzone-block">
                                                                         {block.listIds.map((listId, index) => {
                                                                             const list = allLists.find(l => l.id === listId);
                                                                             if (!list) return null;
@@ -1287,12 +1283,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                             ref={provided.innerRef}
                                                                                             {...provided.draggableProps}
                                                                                             {...provided.dragHandleProps}
-                                                                                            style={{ padding: '8px', margin: '4px 0', background: 'var(--bg-secondary)', borderLeft: `5px solid ${color}`, borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', ...provided.draggableProps.style }}
+                                                                                            className="tile-row"
+                                                                                            style={{ '--tile-color': color, ...provided.draggableProps.style }}
                                                                                         >
-                                                                                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{list.name}</span>
+                                                                                            <span className="tile-row-name">{list.name}</span>
 
                                                                                             {block.ignoreFirstCard && block.displayFirstCardDescription && list.cards && list.cards.length > 0 && (
-                                                                                                <span style={{
+                                                                                                <span className="tile-row-first" style={{
                                                                                                     width: '20%',
                                                                                                     textAlign: 'right',
                                                                                                     fontSize: '0.85em',
@@ -1311,7 +1308,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                                 type="color"
                                                                                                 value={color}
                                                                                                 onChange={e => setListColors({ ...listColors, [listId]: e.target.value })}
-                                                                                                style={{ width: '30px', height: '30px', padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+                                                                                                className="color-swatch-input"
                                                                                                 title="Tile Colour"
                                                                                             />
                                                                                         </div>
@@ -1332,7 +1329,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
                                     </>
                                 ) : (
-                                    <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure blocks</div>
+                                    <div className="empty-state">Select a board to configure blocks</div>
                                 )}
                             </div>
                         )}
@@ -1345,30 +1342,30 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         {selectedBoard ? (
                             <div className="admin-section" id="section-5">
                                 <h3>Map View Settings for {selectedBoard.name}</h3>
-                                <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                <p className="section-hint">
                                     Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
                                 </p>
-                                <div id="map-enable-toggle" className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableMapView(!enableMapView)}>
+                                <div id="map-enable-toggle" className="settings-row toggle-row toggle-row-main" onClick={() => setEnableMapView(!enableMapView)}>
                                     <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
                                     <span>Enable Map View</span>
                                 </div>
 
                                 {enableMapView && (
                                     <div style={{ marginTop: '15px' }}>
-                                        <div style={{ marginBottom: '15px', background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Geocoding behavior:</label>
+                                        <div className="subpanel">
+                                            <label className="subpanel-title">Geocoding behavior</label>
 
                                             {/* Option 1: Always Read (Visual Confirmation) */}
-                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', opacity: 0.7 }}>
+                                            <div className="toggle-row is-locked">
                                                 <ToggleSwitch checked={true} onChange={() => { }} />
-                                                <span style={{ marginLeft: '8px' }}>
+                                                <span className="toggle-text">
                                                     Read the coordinates from the Trello card "Location" field to display the card location
                                                 </span>
                                             </div>
 
                                             {/* Option 2: Enable Local Geocoding (Nominatim) */}
                                             <div
-                                                style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', cursor: 'pointer' }}
+                                                className="toggle-row"
                                                 onClick={() => {
                                                     const newVal = mapGeocodeMode === 'disabled' ? 'store' : 'disabled';
                                                     setMapGeocodeMode(newVal);
@@ -1383,30 +1380,30 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         if (newVal === 'disabled') setUpdateTrelloCoordinates(false);
                                                     }}
                                                 />
-                                                <span style={{ marginLeft: '8px' }}>
+                                                <span className="toggle-text">
                                                     If no coordinates are present in the card, parse the card description to decode the coordinates for the card. (experimental)<br />
-                                                    <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                                    <span className="field-hint">
                                                         Note: this will use Google Maps Geocoding API, and will store the coordinates locally on your browser cache
                                                     </span>
-                                                    <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic', display: 'block', marginTop: '4px' }}>
+                                                    <span className="field-hint">
                                                         Note: Cards without a description will be skipped.
                                                     </span>
                                                 </span>
                                             </div>
 
                                             {/* Option 3: Update Trello Cards (Nested with Upsell) */}
-                                            <div style={{ marginLeft: '25px', marginBottom: '15px' }}>
+                                            <div className="toggle-nested">
                                                 <div
-                                                    style={{ display: 'flex', alignItems: 'center', opacity: mapGeocodeMode === 'disabled' ? 0.5 : 1, pointerEvents: mapGeocodeMode === 'disabled' ? 'none' : 'auto', cursor: mapGeocodeMode === 'disabled' ? 'default' : 'pointer' }}
+                                                    className={`toggle-row${mapGeocodeMode === 'disabled' ? ' is-disabled' : ''}`}
                                                     onClick={() => setUpdateTrelloCoordinates(!updateTrelloCoordinates)}
                                                 >
                                                     <ToggleSwitch
                                                         checked={updateTrelloCoordinates}
                                                         onChange={e => setUpdateTrelloCoordinates(e.target.checked)}
                                                     />
-                                                    <span style={{ marginLeft: '8px' }}>
+                                                    <span className="toggle-text">
                                                         Update the Trello card coordinates using the decoded address from Google Maps (beta).<br />
-                                                        <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                                        <span className="field-hint">
                                                             It is recommended to only have one dashboard enabled with this feature for each Trello board
                                                         </span>
                                                     </span>
@@ -1414,13 +1411,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                 {/* Permission Upsell Banner */}
                                                 {updateTrelloCoordinates && !hasWritePermission && (
-                                                    <div style={{ marginTop: '10px', padding: '10px', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: '4px', color: 'var(--accent-text)', fontSize: '0.9em' }}>
+                                                    <div className="notice notice-info">
                                                         <strong>Permission Required:</strong> To update card coordinates, you must grant Trello "Write" access.<br />
-                                                        <span style={{ fontSize: '0.9em', marginTop: '5px', display: 'block' }}>The location cache on your computer will be reset for the cards to be decoded again.</span>
-                                                        <button
-                                                            onClick={() => trelloAuth.login('read,write')}
-                                                            style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: 'var(--accent-color)', color: 'var(--accent-contrast)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                                        >
+                                                        <span className="notice-sub">The location cache on your computer will be reset for the cards to be decoded again.</span>
+                                                        <button className="button-primary notice-action" onClick={() => trelloAuth.login('read,write')}>
                                                             Authorize Write Access (Re-Login)
                                                         </button>
                                                     </div>
@@ -1428,32 +1422,32 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                 {/* Success Indicator */}
                                                 {updateTrelloCoordinates && hasWritePermission && (
-                                                    <div style={{ marginTop: '5px', color: 'green', fontSize: '0.9em', display: 'flex', alignItems: 'center' }}>
-                                                        <span style={{ marginRight: '5px' }}>✅</span> Write permissions successfully granted.
+                                                    <div className="status-line status-success">
+                                                        <CircleCheck size={16} aria-hidden="true" /> Write permissions successfully granted.
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
 
                                         {/* DUPLICATED BLOCK LIST FOR MAP SETTINGS */}
-                                        <h4>Block Map Options</h4>
-                                        <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                        <h4 className="subsection-title">Block Map Options</h4>
+                                        <p className="section-hint">
                                             Choose which blocks appear on the map and customize their markers.
                                         </p>
-                                        <div id="map-block-options" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+                                        <div id="map-block-options" className="stack">
                                             {blocks.map(block => (
-                                                <div key={block.id} style={{ background: 'var(--bg-tertiary)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <h4 style={{ margin: 0 }}>{block.name}</h4>
-                                                        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleUpdateBlockProp(block.id, 'includeOnMap', !block.includeOnMap)}>
+                                                <div key={block.id} className="subpanel">
+                                                    <div className="subpanel-head">
+                                                        <h4>{block.name}</h4>
+                                                        <div className="toggle-row" onClick={() => handleUpdateBlockProp(block.id, 'includeOnMap', !block.includeOnMap)}>
                                                             <ToggleSwitch checked={block.includeOnMap} onChange={e => handleUpdateBlockProp(block.id, 'includeOnMap', e.target.checked)} />
                                                             <span>Show on map</span>
                                                         </div>
                                                     </div>
 
                                                     {block.includeOnMap && (
-                                                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                                                            <label style={{ fontSize: '0.85em', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Icon:</label>
+                                                        <div className="subpanel-body">
+                                                            <label className="field-label">Icon</label>
                                                             <div style={{ width: '100%' }}>
                                                                 <IconPicker selectedIcon={block.mapIcon} onChange={icon => handleUpdateBlockProp(block.id, 'mapIcon', icon)} />
                                                             </div>
@@ -1463,9 +1457,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             ))}
                                         </div>
 
-                                        <div id="map-marker-rules" className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                        <div id="map-marker-rules" className="admin-section">
                                             <h3>Marker Variants</h3>
-                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                            <p className="section-hint">
                                                 Choose alternative display options for cards based on their Trello label value. You can choose to display a marker with a different colour or icon. In case of conflicts, the rule higher in the list will be applied.
                                             </p>
 
@@ -1479,14 +1473,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                         ref={provided.innerRef}
                                                                         {...provided.draggableProps}
                                                                         className="rule-item"
-                                                                        style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '10px', marginBottom: '5px', border: '1px solid var(--border-color)', flexWrap: 'wrap', ...provided.draggableProps.style }}
+                                                                        style={provided.draggableProps.style}
                                                                     >
-                                                                        <div {...provided.dragHandleProps} className="drag-handle" style={{ color: 'var(--text-muted)', marginRight: '5px' }}>::</div>
+                                                                        <div {...provided.dragHandleProps} className="drag-handle" aria-label="Drag to reorder"><GripVertical size={18} /></div>
                                                                         <select value={rule.labelId} onChange={e => handleUpdateRule(rule.id, 'labelId', e.target.value)}>
                                                                             <option value="">-- Label --</option>
                                                                             {boardLabels.map(l => <option key={l.id} value={l.id}>{l.name || l.color}</option>)}
                                                                         </select>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <div className="radio-inline">
                                                                             <label><input type="radio" checked={rule.overrideType === 'color'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'color')} /> Color</label>
                                                                             <label><input type="radio" checked={rule.overrideType === 'icon'} onChange={() => handleUpdateRule(rule.id, 'overrideType', 'icon')} /> Icon</label>
                                                                         </div>
@@ -1500,7 +1494,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                             }
                                                                         </div>
 
-                                                                        <button onClick={() => removeRule(rule.id)} style={{ color: 'red', marginLeft: 'auto' }}>X</button>
+                                                                        <button type="button" className="icon-button icon-button-danger" onClick={() => removeRule(rule.id)} title="Remove rule" aria-label="Remove rule"><Trash2 size={17} /></button>
                                                                     </div>
                                                                 )}
                                                             </Draggable>
@@ -1509,19 +1503,19 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     </div>
                                                 )}
                                             </Droppable>
-                                            <button onClick={handleAddRule} style={{ marginTop: '10px' }}>+ Add Rule</button>
+                                            <button className="add-block-button" onClick={handleAddRule}><Plus size={16} aria-hidden="true" /> Add Rule</button>
                                         </div>
 
                                         {/* STREET VIEW SETTING */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableStreetView(!enableStreetView)}>
+                                        <div className="admin-section">
+                                            <div className="toggle-row" onClick={() => setEnableStreetView(!enableStreetView)}>
                                                 <ToggleSwitch
                                                     checked={enableStreetView}
                                                     onChange={e => setEnableStreetView(e.target.checked)}
                                                 />
-                                                <span style={{ marginLeft: '10px' }}>
+                                                <span className="toggle-text">
                                                     <strong>Show street view</strong><br />
-                                                    <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                                    <span className="field-hint">
                                                         Enable to add a link to a Google Street View of the address that will open in a new window
                                                     </span>
                                                 </span>
@@ -1529,8 +1523,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                         </div>
 
                                         {/* MOVING CARDS SETTING */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableCardMove(!enableCardMove)}>
+                                        <div className="admin-section">
+                                            <div className="toggle-row" onClick={() => setEnableCardMove(!enableCardMove)}>
                                                 <ToggleSwitch
                                                     checked={enableCardMove}
                                                     onChange={e => {
@@ -1540,93 +1534,70 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         setEnableCardMove(e.target.checked);
                                                     }}
                                                 />
-                                                <span style={{ marginLeft: '10px' }}>
+                                                <span className="toggle-text">
                                                     <strong>Enable card move from the map view</strong><br />
-                                                    <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                                    <span className="field-hint">
                                                         Display a dropdown allowing to move a card to another list from the visible block directly from a marker on the map. This requires "write" access to your Trello board for Trellops to move the cards on your behalf
                                                     </span>
                                                 </span>
                                             </div>
 
                                             {enableCardMove && !hasWritePermission && (
-                                                <div style={{ marginTop: '10px', padding: '10px', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: '4px', color: 'var(--accent-text)', fontSize: '0.9em' }}>
+                                                <div className="notice notice-info">
                                                     <strong>Permission Required:</strong> To move cards, you must grant Trello "Write" access.<br />
-                                                    <button
-                                                        onClick={() => trelloAuth.login('read,write')}
-                                                        style={{ display: 'block', marginTop: '8px', padding: '5px 10px', background: 'var(--accent-color)', color: 'var(--accent-contrast)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                                    >
+                                                    <button className="button-primary notice-action" onClick={() => trelloAuth.login('read,write')}>
                                                         Authorize Write Access (Re-Login)
                                                     </button>
                                                 </div>
                                             )}
 
                                             {enableCardMove && hasWritePermission && (
-                                                <div style={{ marginTop: '5px', color: 'green', fontSize: '0.9em', display: 'flex', alignItems: 'center' }}>
-                                                    <span style={{ marginRight: '5px' }}>✅</span> Write permissions successfully granted.
+                                                <div className="status-line status-success">
+                                                        <CircleCheck size={16} aria-hidden="true" /> Write permissions successfully granted.
                                                 </div>
                                             )}
                                         </div>
 
                                         {/* HOME LOCATION SETTING */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }} onClick={() => setEnableHomeLocation(!enableHomeLocation)}>
+                                        <div className="admin-section">
+                                            <div className="toggle-row" onClick={() => setEnableHomeLocation(!enableHomeLocation)}>
                                                 <ToggleSwitch
                                                     checked={enableHomeLocation}
                                                     onChange={e => setEnableHomeLocation(e.target.checked)}
                                                 />
-                                                <span style={{ marginLeft: '10px' }}>
+                                                <span className="toggle-text">
                                                     <strong>Set home location</strong><br />
-                                                    <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                                    <span className="field-hint">
                                                         Set a home address that will be permanently displayed on the map for this board.
                                                     </span>
                                                 </span>
                                             </div>
 
                                             {enableHomeLocation && (
-                                                <div style={{ marginLeft: '50px', marginTop: '10px' }}>
+                                                <div className="toggle-nested">
 
-                                                    <div style={{ marginBottom: '10px' }} ref={wrapperRef}>
-                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Home Address</label>
+                                                    <div className="field" ref={wrapperRef}>
+                                                        <label className="field-label">Home Address</label>
                                                         <div style={{ position: 'relative' }}>
                                                             <input
                                                                 type="text"
                                                                 value={homeAddress}
                                                                 onChange={handleHomeAddressChange}
                                                                 placeholder="Start typing your address..."
-                                                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                                                className="input-full"
                                                             />
                                                             {isSearching && (
-                                                                <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: '0.8em' }}>
+                                                                <div className="input-status">
                                                                     Searching...
                                                                 </div>
                                                             )}
                                                             {searchResults.length > 0 && (
-                                                                <div style={{
-                                                                    position: 'absolute',
-                                                                    top: '100%',
-                                                                    left: 0,
-                                                                    right: 0,
-                                                                    zIndex: 1000,
-                                                                    background: 'var(--bg-secondary)',
-                                                                    border: '1px solid var(--border-color)',
-                                                                    borderRadius: '4px',
-                                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                                    maxHeight: '200px',
-                                                                    overflowY: 'auto'
-                                                                }}>
+                                                                <div className="autocomplete-list">
                                                                     {searchResults.map((result, idx) => (
                                                                         <div
                                                                             key={idx}
                                                                             onClick={() => handleSelectResult(result)}
-                                                                            style={{
-                                                                                padding: '8px 12px',
-                                                                                cursor: 'pointer',
-                                                                                borderBottom: idx < searchResults.length - 1 ? '1px solid #eee' : 'none',
-                                                                                fontSize: '0.9em',
-                                                                                color: 'var(--text-color)'
-                                                                            }}
-                                                                            onMouseEnter={e => e.target.style.background = '#f5f5f5'}
-                                                                            onMouseLeave={e => e.target.style.background = 'white'}
+                                                                            className="autocomplete-item"
                                                                         >
                                                                             {result.description}
                                                                         </div>
@@ -1635,15 +1606,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                             )}
                                                         </div>
                                                         {homeCoordinates && !isSearching && searchResults.length === 0 && (
-                                                            <div style={{ fontSize: '0.85em', color: 'green', marginTop: '5px' }}>
+                                                            <div className="status-line status-success">
                                                                 Resolved: {homeCoordinates.display_name}
                                                             </div>
                                                         )}
                                                     </div>
 
-                                                    <div style={{ marginBottom: '10px' }}>
-                                                        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', fontSize: '0.9em' }}>Marker Icon</label>
-                                                        <IconPicker selectedIcon={homeIcon} onChange={setHomeIcon} color="#444" />
+                                                    <div className="field">
+                                                        <label className="field-label">Marker Icon</label>
+                                                        <IconPicker selectedIcon={homeIcon} onChange={setHomeIcon} />
                                                     </div>
                                                 </div>
                                             )}
@@ -1651,14 +1622,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
                                         {/* RESET CACHE SECTION */}
-                                        <div className="admin-section" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                        <div className="admin-section">
                                             <h3>Reset coordinates cache</h3>
-                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                            <p className="section-hint">
                                                 Use this button to remove all card coordinates on your local computer. This is to be used for troubleshooting purposes and will trigger a re-fetch using Nominatim
                                             </p>
                                             <button
-                                                className="button-secondary"
-                                                style={{ borderColor: '#d32f2f', color: '#d32f2f' }}
+                                                className="button-secondary button-danger-outline"
                                                 onClick={() => {
                                                     if (window.confirm("Are you sure you want to clear the local geocoding cache? This will force addresses to be re-fetched from Nominatim.")) {
                                                         try {
@@ -1680,7 +1650,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 )}
                             </div>
                         ) : (
-                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure map settings</div>
+                            <div className="empty-state">Select a board to configure map settings</div>
                         )}
                     </div>
                 )
@@ -1692,26 +1662,26 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         {selectedBoard ? (
                             <div className="admin-section" id="section-stats">
                                 <h3>Statistics View Settings for {selectedBoard.name}</h3>
-                                <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                <p className="section-hint">
                                     Configure the historical data analysis view.
                                 </p>
 
-                                <div id="stats-enable-toggle" className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableStats(!enableStats)}>
+                                <div id="stats-enable-toggle" className="settings-row toggle-row toggle-row-main" onClick={() => setEnableStats(!enableStats)}>
                                     <ToggleSwitch checked={enableStats} onChange={e => setEnableStats(e.target.checked)} />
                                     <span>Enable Statistics View</span>
                                 </div>
 
                                 {enableStats && (
-                                    <div style={{ marginTop: '15px', marginLeft: '20px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '15px' }} onClick={() => setStatsShowArchived(!statsShowArchived)}>
+                                    <div className="toggle-nested">
+                                        <div className="toggle-row" onClick={() => setStatsShowArchived(!statsShowArchived)}>
                                             <ToggleSwitch checked={statsShowArchived} onChange={e => setStatsShowArchived(e.target.checked)} />
                                             <span>Show output for Archived cards</span>
                                         </div>
 
-                                        <div id="stats-included-lists" style={{ marginBottom: '15px' }}>
-                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Lists to include in reports:</label>
-                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-5px' }}>Uncheck to exclude specific lists (e.g. "Done" or "Backlog") from statistics.</p>
-                                            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px', background: 'var(--bg-secondary)' }}>
+                                        <div id="stats-included-lists" className="field">
+                                            <label className="field-label">Lists to include in reports</label>
+                                            <p className="field-hint">Uncheck to exclude specific lists (e.g. "Done" or "Backlog") from statistics.</p>
+                                            <div className="check-list-box">
                                                 {(() => {
                                                     const layout = getPersistentLayout(user.id, selectedBoardId) || DEFAULT_LAYOUT;
                                                     // Group lists by Block
@@ -1732,13 +1702,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                         grouped['Other Lists'] = otherLists;
                                                     }
 
-                                                    if (Object.keys(grouped).length === 0) return <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>No lists found.</div>;
+                                                    if (Object.keys(grouped).length === 0) return <div className="empty-state">No lists found.</div>;
 
                                                     return Object.entries(grouped).map(([blockName, lists]) => (
-                                                        <div key={blockName} style={{ marginBottom: '10px' }}>
-                                                            <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: 'var(--text-secondary)', marginBottom: '5px', borderBottom: '1px solid var(--border-color)' }}>{blockName}</div>
+                                                        <div key={blockName} className="check-list-group">
+                                                            <div className="check-list-group-title">{blockName}</div>
                                                             {lists.map(list => (
-                                                                <div key={list.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px', marginLeft: '10px' }}>
+                                                                <div key={list.id} className="check-row">
                                                                     <input
                                                                         type="checkbox"
                                                                         id={`stat-list-${list.id}`}
@@ -1759,9 +1729,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                                 }
                                                                             }
                                                                         }}
-                                                                        style={{ marginRight: '8px' }}
                                                                     />
-                                                                    <label htmlFor={`stat-list-${list.id}`} style={{ cursor: 'pointer' }}>{list.name}</label>
+                                                                    <label htmlFor={`stat-list-${list.id}`}>{list.name}</label>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -1769,35 +1738,33 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 })()}
                                             </div>
                                             <button
-                                                className="button-link"
-                                                style={{ fontSize: '0.8em', padding: '5px 0', background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textDecoration: 'underline' }}
+                                                className="link-button"
                                                 onClick={() => setStatsIncludedLists([])}
                                             >
                                                 Select All (Clear Filter)
                                             </button>
                                         </div>
 
-                                        <div style={{ marginTop: '20px', padding: '15px', background: 'var(--bg-tertiary)', borderRadius: '6px', border: '1px solid var(--accent-border)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                                                <Sparkles size={18} color="#0052cc" />
-                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <label style={{ fontWeight: 'bold', margin: 0, color: 'var(--accent-color)' }}>Custom AI Prompt (Optional)</label>
-                                                    <span style={{ marginLeft: '10px', fontSize: '0.7em', padding: '2px 6px', backgroundColor: 'var(--accent-color)', color: 'var(--accent-contrast)', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '1px' }}>Beta</span>
-                                                </div>
+                                        <div className="subpanel subpanel-accent">
+                                            <div className="subpanel-head subpanel-head-start">
+                                                <Sparkles size={18} className="accent-icon" aria-hidden="true" />
+                                                <label className="subpanel-title">Custom AI Prompt (Optional)</label>
+                                                <span className="beta-badge">Beta</span>
                                             </div>
-                                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '0', marginBottom: '10px' }}>Provide additional context or specific instructions to the AI when generating a summary for this board. This context will be added to the core system instructions.</p>
+                                            <p className="field-hint">Provide additional context or specific instructions to the AI when generating a summary for this board. This context will be added to the core system instructions.</p>
                                             <textarea 
                                                 id="stats-ai-prompt"
                                                 value={statsCustomPrompt} 
                                                 onChange={(e) => setStatsCustomPrompt(e.target.value)}
                                                 placeholder="E.g., Write the summary as a pirate..."
-                                                style={{ width: '100%', minHeight: '80px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', resize: 'vertical' }}
+                                                className="input-full"
+                                                style={{ minHeight: '96px', resize: 'vertical' }}
                                             />
                                             <button 
                                                 className="button-secondary" 
                                                 onClick={handleImprovePrompt}
                                                 disabled={isImprovingPrompt || !statsCustomPrompt.trim()}
-                                                style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                                style={{ marginTop: '12px' }}
                                             >
                                                 {isImprovingPrompt ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />}
                                                 {isImprovingPrompt ? 'Improving...' : 'Improve Prompt with AI'}
@@ -1810,7 +1777,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 )}
                             </div>
                         ) : (
-                            <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure settings</div>
+                            <div className="empty-state">Select a board to configure settings</div>
                         )}
                     </div>
                 )}
@@ -1822,24 +1789,24 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 <>
                                     <div className="admin-section" id="section-4">
                                         <h3>Other Settings for {selectedBoard.name}</h3>
-                                    <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                    <p className="section-hint">
                                         These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
                                     </p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                        <div>
-                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Refresh Interval</label>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }} />
-                                                <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)} style={{ padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                    <div className="form-stack">
+                                        <div className="field">
+                                            <label className="field-label">Refresh Interval</label>
+                                            <div className="input-group">
+                                                <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} className="input-number" />
+                                                <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)}>
                                                     <option value="seconds">Seconds</option>
                                                     <option value="minutes">Minutes</option>
                                                     <option value="hours">Hours</option>
                                                 </select>
                                             </div>
-                                            <p style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginTop: '5px' }}>How often the data is retrieved from Trello.</p>
+                                            <p className="field-hint">How often the data is retrieved from Trello.</p>
                                         </div>
-                                        <div>
-                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Slideshow Interval (Seconds)</label>
+                                        <div className="field">
+                                            <label className="field-label">Slideshow Interval (Seconds)</label>
                                             <input
                                                 type="number"
                                                 min="10"
@@ -1847,73 +1814,73 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                 onChange={e => {
                                                     setSlideshowInterval(e.target.value);
                                                 }}
-                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                                className="input-number"
                                             />
                                             {slideshowInterval < 10 && (
-                                                <span style={{ color: 'red', marginLeft: '10px', fontSize: '0.9em' }}>Minimum 10 seconds required</span>
+                                                <span className="inline-error">Minimum 10 seconds required</span>
                                             )}
-                                            <p style={{ fontSize: '0.8em', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                                            <p className="field-hint">
                                                 Slideshow mode will cycle between the Dashboard and Map views at regular intervals, minimum 10 seconds. Start the slideshow using the arrows next to the Dashboard or Map button in the footer.
                                             </p>
                                         </div>
-                                        <div>
-                                            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Features</label>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setShowClock(!showClock)}>
+                                        <div className="field">
+                                            <label className="field-label">Features</label>
+                                            <div className="toggle-list">
+                                                <div className="toggle-row" onClick={() => setShowClock(!showClock)}>
                                                     <ToggleSwitch checked={showClock} onChange={e => setShowClock(e.target.checked)} />
                                                     <span>Show Clock</span>
                                                     {showClock && (
-                                                        <span style={{ marginLeft: '15px', color: 'var(--text-secondary)', fontFamily: 'monospace', background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                                                        <span className="clock-preview">
                                                             {new Date().toLocaleTimeString()}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIgnoreTemplateCards(!ignoreTemplateCards)}>
+                                                <div className="toggle-row" onClick={() => setIgnoreTemplateCards(!ignoreTemplateCards)}>
                                                     <ToggleSwitch checked={ignoreTemplateCards} onChange={e => setIgnoreTemplateCards(e.target.checked)} />
                                                     <span>Ignore Template Cards</span>
                                                 </div>
-                                                <div className="setting-item-row" onClick={() => setIgnoreNoDescCards(!ignoreNoDescCards)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'flex-start' }}>
-                                                    <div style={{ marginTop: '2px' }}>
+                                                <div className="setting-item-row toggle-row" onClick={() => setIgnoreNoDescCards(!ignoreNoDescCards)}>
+                                                    <div>
                                                         <ToggleSwitch
                                                             id="ignoreNoDescCards"
                                                             checked={ignoreNoDescCards}
                                                             onChange={(e) => setIgnoreNoDescCards(e.target.checked)}
                                                         />
                                                     </div>
-                                                    <div style={{ marginLeft: '10px' }}>
-                                                        <label htmlFor="ignoreNoDescCards" style={{ cursor: 'pointer' }}>Ignore Cards without Description</label>
-                                                        <span style={{ display: 'block', fontSize: '0.85em', color: 'var(--text-secondary)', fontWeight: 'normal', marginTop: '2px' }}>
+                                                    <div className="toggle-text">
+                                                        <label htmlFor="ignoreNoDescCards">Ignore Cards without Description</label>
+                                                        <span className="field-hint">
                                                             If enabled, cards with empty descriptions will not be counted in dashboard or placed on the map.
                                                             (First card description usage is unaffected).
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="setting-item-row" onClick={() => setIgnoreCompletedCards(!ignoreCompletedCards)} style={{ cursor: 'pointer' }}>
+                                                <div className="setting-item-row toggle-row" onClick={() => setIgnoreCompletedCards(!ignoreCompletedCards)}>
                                                     <ToggleSwitch
                                                         id="ignoreCompletedCards"
                                                         checked={ignoreCompletedCards}
                                                         onChange={(e) => setIgnoreCompletedCards(e.target.checked)}
                                                     />
-                                                    <label htmlFor="ignoreCompletedCards" style={{ marginLeft: '10px', cursor: 'pointer' }}>Ignore Completed Cards (Due Complete)</label>
+                                                    <label htmlFor="ignoreCompletedCards" className="toggle-text">Ignore Completed Cards (Due Complete)</label>
                                                 </div>
-                                                <div className="setting-item-row" onClick={() => setEnableIgnoreKeywords(!enableIgnoreKeywords)} style={{ cursor: 'pointer', marginTop: '10px' }}>
+                                                <div className="setting-item-row toggle-row" onClick={() => setEnableIgnoreKeywords(!enableIgnoreKeywords)}>
                                                     <ToggleSwitch
                                                         id="enableIgnoreKeywords"
                                                         checked={enableIgnoreKeywords}
                                                         onChange={(e) => setEnableIgnoreKeywords(e.target.checked)}
                                                     />
-                                                    <label htmlFor="enableIgnoreKeywords" style={{ marginLeft: '10px', cursor: 'pointer' }}>Ignore cards containing specific keywords</label>
+                                                    <label htmlFor="enableIgnoreKeywords" className="toggle-text">Ignore cards containing specific keywords</label>
                                                 </div>
                                                 {enableIgnoreKeywords && (
-                                                    <div style={{ marginLeft: '50px', marginTop: '10px' }}>
+                                                    <div className="toggle-nested">
                                                         <input 
                                                             type="text" 
                                                             value={ignoreKeywords} 
                                                             onChange={e => setIgnoreKeywords(e.target.value)} 
                                                             placeholder="Enter keywords separated by commas (e.g. archive, done)" 
-                                                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                                            className="input-full"
                                                         />
-                                                        <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>
+                                                        <span className="field-hint">
                                                             Cards containing any of these keywords in their title will be ignored.
                                                         </span>
                                                     </div>
@@ -1923,97 +1890,85 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     </div>
                                 </div>
                                 
-                                <div className="admin-section" id="section-naming" style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+                                <div className="admin-section" id="section-naming">
                                     <h3>Naming configuration</h3>
-                                    <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                                    <p className="section-hint">
                                         Customize the terminology used across your Dashboard, Map, and Statistics views. By default, it will use "Card", "List", and "Board". Leave empty to use defaults.
                                     </p>
                                     
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <label style={{ fontWeight: 'bold' }}>"Card" is called...</label>
+                                    <div className="naming-grid">
+                                        <div className="field">
+                                            <label className="field-label">"Card" is called...</label>
                                             <input 
                                                 type="text" 
                                                 value={namingCard} 
                                                 onChange={e => setNamingCard(e.target.value)} 
                                                 placeholder="e.g. Task, Job, Ticket"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                         
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <label style={{ fontWeight: 'bold' }}>"List" is called...</label>
+                                        <div className="field">
+                                            <label className="field-label">"List" is called...</label>
                                             <input 
                                                 type="text" 
                                                 value={namingList} 
                                                 onChange={e => setNamingList(e.target.value)} 
                                                 placeholder="e.g. Phase, Stage, Status"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                         
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <label style={{ fontWeight: 'bold' }}>"Board" is called...</label>
+                                        <div className="field">
+                                            <label className="field-label">"Board" is called...</label>
                                             <input 
                                                 type="text" 
                                                 value={namingBoard} 
                                                 onChange={e => setNamingBoard(e.target.value)} 
                                                 placeholder="e.g. Project, Sprint, Portfolio"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                         
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <label style={{ fontWeight: 'bold' }}>"Label" is called...</label>
+                                        <div className="field">
+                                            <label className="field-label">"Label" is called...</label>
                                             <input 
                                                 type="text" 
                                                 value={namingLabel} 
                                                 onChange={e => setNamingLabel(e.target.value)} 
                                                 placeholder="e.g. Tag, Category, Group"
-                                                style={{ width: '250px', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', marginTop: '5px' }}
                                             />
                                         </div>
                                     </div>
                                 </div>
                                 </>
                             ) : (
-                                <div style={{ marginTop: '20px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Select a board to configure settings</div>
+                                <div className="empty-state">Select a board to configure settings</div>
                             )}
 
-                            <div className="danger-zone" style={{ marginTop: '40px', paddingTop: '10px' }}>
-                                <style>{`
-                                .danger-header:hover { background-color: #fff0f0; }
-                             `}</style>
+                            <div className={`danger-zone${showResetSection ? ' is-open' : ''}`}>
                                 <div
                                     className="danger-header"
                                     onClick={() => setShowResetSection(!showResetSection)}
-                                    style={{
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '10px'
-                                    }}
+                                    role="button"
+                                    aria-expanded={showResetSection}
                                 >
-                                    <h4 style={{ color: 'var(--text-color)', margin: 0 }}>⚠️ Global settings reset</h4>
-                                    <span style={{ fontSize: '1.2em', color: '#d32f2f' }}>{showResetSection ? '▼' : '▶'}</span>
+                                    <h4><TriangleAlert size={18} aria-hidden="true" /> Global settings reset</h4>
+                                    <span className="danger-chevron">{showResetSection ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</span>
                                 </div>
 
                                 {showResetSection && (
-                                    <div style={{ backgroundColor: '#fff0f0', padding: '15px', borderRadius: '4px', border: '1px solid #ffcdcd', marginTop: '10px' }}>
+                                    <div className="danger-body">
 
-                                        <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '10px' }}>
+                                        <p>
                                             Resetting your settings will remove any locally stored information including dashboard and map configuration for <strong>ALL boards</strong>, as well as decoded geolocations.
                                         </p>
-                                        <p style={{ fontSize: '0.9em', color: '#8b0000', marginBottom: '15px' }}>
+                                        <p>
                                             Your Trello account will NOT be affected, nor will your Trellops subscriptions.
                                         </p>
 
-                                        <div style={{ marginBottom: '15px' }}>
-                                            <strong style={{ display: 'block', marginBottom: '5px', color: '#8b0000', fontSize: '0.85em' }}>
+                                        <div>
+                                            <strong className="danger-strong">
                                                 The reset will erase all the information stored below; it is recommended that you back up each configuration first.
                                             </strong>
-                                            <ul style={{ margin: '5px 0 10px 20px', fontSize: '0.85em', color: '#8b0000' }}>
+                                            <ul className="danger-list">
                                                 {(() => {
                                                     const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
                                                     // Find all boards that have data in trelloUserData OR have specific keys
@@ -2028,7 +1983,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                                                     return Array.from(allCachedBoardIds).map(bid => {
                                                         const bName = boards.find(b => b.id === bid)?.name || bid;
-                                                        return <li key={bid}>{bName} <span style={{ color: '#b71c1c', fontSize: '0.8em' }}>({bid})</span></li>;
+                                                        return <li key={bid}>{bName} <span className="danger-id">({bid})</span></li>;
                                                     });
                                                 })()}
                                             </ul>
@@ -2063,7 +2018,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     window.location.reload();
                                                 }
                                             }}
-                                            style={{ backgroundColor: '#d32f2f', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                                            className="button-danger"
                                         >
                                             Reset My Trellops Stored Cache
                                         </button>
@@ -2076,15 +2031,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                 {
                     viewMode === 'default' && (
-                        <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
-                            <button className="button-secondary" onClick={onClose}>Cancel</button>
+                        <div className="actions-container settings-actions">
                             {activeTab !== 'tasks' && (
-                                <>
+                                <div className="settings-actions-secondary">
                                     <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
                                     <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
-                                </>
+                                </div>
                             )}
+                            <button className="button-secondary" onClick={onClose}>Cancel</button>
+                            <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
                         </div>
                     )
                 }
@@ -2094,11 +2049,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             {/* MANAGE TASKS LINK (Default Mode Only) */}
             {
                 viewMode === 'default' && (
-                    <div style={{ marginTop: '30px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="settings-callout">
+                        <div className="settings-callout-inner">
                             <div>
                                 <strong>Looking for Task View settings?</strong>
-                                <p style={{ margin: '5px 0 0 0', fontSize: '0.9em', color: 'var(--text-secondary)' }}>
+                                <p className="field-hint">
                                     Use the dedicated page to configure your global task dashboard.
                                 </p>
                             </div>
@@ -2110,8 +2065,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     if (onManageTasks) onManageTasks();
                                     else window.dispatchEvent(new Event('popstate'));
                                 }}
-                                className="button-secondary"
-                                style={{ textDecoration: 'none', display: 'inline-block' }}
+                                className="button-secondary link-as-button"
                             >
                                 Manage Tasks View
                             </a>
@@ -2122,43 +2076,36 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             {
                 viewMode === 'tasks' && (
-                    <div className="admin-section" id="section-tasks" style={{ marginTop: '0', borderTop: 'none' }}>
-                        <div
-                            style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 0'
-                            }}
-                        >
-                            <h2 style={{ margin: 0 }}>{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
+                    <div className="admin-section" id="section-tasks">
+                        <div className="subpanel-head">
+                            <h2 className="settings-page-title">{(user.fullName || user.displayName || user.username)} Tasks View Settings</h2>
                         </div>
 
-                        <div style={{ paddingTop: '10px' }}>
-                            <p style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '-10px', marginBottom: '15px' }}>
+                        <div>
+                            <p className="section-hint">
                                 This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
                             </p>
-                            <div className="settings-row" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => setEnableTaskView(!enableTaskView)}>
+                            <div className="settings-row toggle-row toggle-row-main" onClick={() => setEnableTaskView(!enableTaskView)}>
                                 <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
                                 <span>Enable Tasks View</span>
                             </div>
 
                             {enableTaskView && (
                                 <>
-                                    <div style={{ marginTop: '10px', fontSize: '0.9em', color: 'green', display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-                                        <span style={{ marginRight: '5px' }}>✓</span> A "Tasks View" button will appear in the main navigation footer.
+                                    <div className="status-line status-success">
+                                        <Check size={16} aria-hidden="true" /> A "Tasks View" button will appear in the main navigation footer.
                                     </div>
 
                                     {/* Workspace Selection */}
-                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
-                                        <label className="setting-label">Workspaces to Include</label>
-                                        <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                                    <div className="setting-group field">
+                                        <label className="setting-label field-label">Workspaces to Include</label>
+                                        <div className="field-hint">
                                             Select which workspaces to show tasks from. At least one workspace must be selected.
                                         </div>
-                                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '4px' }}>
-                                            {userOrgs.length === 0 ? <div style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>Loading workspaces...</div> :
+                                        <div className="check-list-box" style={{ maxHeight: '180px' }}>
+                                            {userOrgs.length === 0 ? <div className="empty-state">Loading workspaces...</div> :
                                                 userOrgs.map(org => (
-                                                    <div key={org.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                                                    <div key={org.id} className="check-row">
                                                         <input
                                                             type="checkbox"
                                                             id={`ws-${org.id}`}
@@ -2175,9 +2122,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                                     }
                                                                 }
                                                             }}
-                                                            style={{ marginRight: '8px' }}
                                                         />
-                                                        <label htmlFor={`ws-${org.id}`} style={{ cursor: 'pointer' }}>{org.displayName}</label>
+                                                        <label htmlFor={`ws-${org.id}`}>{org.displayName}</label>
                                                     </div>
                                                 ))
                                             }
@@ -2185,48 +2131,47 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     </div>
 
                                     {/* Refresh Interval */}
-                                    <div className="setting-group" style={{ marginBottom: '20px' }}>
-                                        <label className="setting-label">Auto-Refresh Interval</label>
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <div className="setting-group field">
+                                        <label className="setting-label field-label">Auto-Refresh Interval</label>
+                                        <div className="input-group">
                                             <input
                                                 type="number"
                                                 min="1"
                                                 value={taskViewRefreshInterval.value}
                                                 onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, value: parseInt(e.target.value) || 1 })}
-                                                style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                                                className="input-number"
                                             />
                                             <select
                                                 value={taskViewRefreshInterval.unit}
                                                 onChange={(e) => setTaskViewRefreshInterval({ ...taskViewRefreshInterval, unit: e.target.value })}
-                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                                             >
                                                 <option value="minutes">Minutes</option>
                                                 <option value="hours">Hours</option>
                                             </select>
                                         </div>
-                                        <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', marginTop: '5px' }}>
+                                        <div className="field-hint">
                                             Minimum 1 minute.
                                         </div>
                                     </div>
                                 </>
                             )}
 
-                            <div className="actions-container" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px' }}>
-                                <button className="button-secondary" onClick={handleSaveTasks}>Save Tasks Settings</button>
+                            <div className="actions-container">
                                 <button className="button-secondary" onClick={onClose}>Cancel</button>
+                                <button className="button-primary" onClick={handleSaveTasks}>Save Tasks Settings</button>
                             </div>
                         </div>
                     </div>
                 )
             }
 
-            <div style={{ textAlign: 'center', marginTop: '30px', marginBottom: '10px', fontSize: '0.85em', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                v4.6.{__BUILD_ID__ || 1000} - November 2026
-            </div>
-            <div style={{ textAlign: 'center', marginBottom: '30px', fontSize: '0.85em', fontWeight: 'bold' }}>
-                <a href="/help.html" target="_blank" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', marginRight: '15px' }}>User Guide</a>
-                <a href="/privacy.html" target="_blank" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', marginRight: '15px' }}>Privacy Policy</a>
-                <a href="/releases.html" target="_blank" style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}>Release Notes</a>
+            <div className="settings-footer">
+                <div className="settings-version">v4.6.{__BUILD_ID__ || 1000} - November 2026</div>
+                <nav className="settings-footer-links">
+                    <a href="/help.html" target="_blank">User Guide</a>
+                    <a href="/privacy.html" target="_blank">Privacy Policy</a>
+                    <a href="/releases.html" target="_blank">Release Notes</a>
+                </nav>
             </div>
 
             {
