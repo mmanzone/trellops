@@ -44,15 +44,12 @@ export const trelloFetch = async (path, token, options = {}) => {
     const apiKey = options.apiKey || TRELLO_API_KEY;
     const url = `${TRELLO_API_BASE}${path}${path.includes('?') ? '&' : '?'}key=${apiKey}&token=${token}`;
 
-    console.log(`[TrelloAPI] ${options.method || 'GET'} ${path}`, { options, url });
-
+    // Never log `url`: it contains the user's Trello token.
     const response = await fetch(url, options);
 
-    if (response.ok) {
-        console.log(`[TrelloAPI] Response OK ${response.status} for ${path}`);
-    } else {
+    if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[TrelloAPI] Error ${response.status}:`, errorText);
+        console.error(`[TrelloAPI] Error ${response.status} for ${options.method || 'GET'} ${path.split('?')[0]}:`, errorText);
         let errorMessage = errorText;
         try {
             const errorJson = JSON.parse(errorText);
@@ -65,13 +62,19 @@ export const trelloFetch = async (path, token, options = {}) => {
 
         // Check specifically for Rate Limit error (429)
         if (response.status === 429) {
-            throw new Error(`Rate limit exceeded (429): Trello API requests too fast/frequent.`);
+            const rateError = new Error(`Rate limit exceeded (429): Trello API requests too fast/frequent.`);
+            rateError.status = 429;
+            throw rateError;
         }
         // Handle invalid token error (401)
         if (response.status === 401) {
-            throw new Error(`Invalid or expired token. Please log in again. (Details: ${errorMessage})`);
+            const authError = new Error(`Invalid or expired token. Please log in again. (Details: ${errorMessage})`);
+            authError.status = 401;
+            throw authError;
         }
-        throw new Error(errorMessage || `Trello API error: ${response.status}`);
+        const apiError = new Error(errorMessage || `Trello API error: ${response.status}`);
+        apiError.status = response.status;
+        throw apiError;
     }
     return response.json();
 };

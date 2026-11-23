@@ -14,6 +14,7 @@
     "@googlemaps/js-api-loader": "^2.0.2",
     "@vercel/functions": "^3.11.3",
     "ai": "^6.0.336",
+    "dompurify": "^3.5.0",
     "lucide-react": "^0.562.0",
     "marked": "^17.0.1",
     "react": "^18.2.0",

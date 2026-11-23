@@ -102,11 +102,19 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
     // FETCH DATA
     const isFetchingRef = useRef(false);
+    // Multiplies the refresh interval after Trello rate-limits us (1, 2, 4, 8).
+    const backoffRef = useRef(1);
+    // Seconds until the next automatic refresh. Kept in a ref so the timer can
+    // trigger a fetch without side effects inside a state updater.
+    const countdownRef = useRef(effectiveSeconds);
 
+    // Note: `loading` must not be a dependency here. If it were, every change of
+    // `loading` would recreate fetchData and restart the auto-refresh effect,
+    // which fetches again (every load and refresh used to hit Trello twice).
     const fetchData = useCallback(async (manual = false) => {
-        if (manual || loading) setLoading(true);
         if (isFetchingRef.current) return;
         isFetchingRef.current = true;
+        if (manual) setLoading(true);
         setError('');
 
         try {
@@ -124,11 +132,16 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             setAllListsMap(listsMap);
             setBoardLabels(labelsData);
             setAllCards(cardsData); // Store RAW cards
+            backoffRef.current = 1;
 
         } catch (e) {
             console.error("Dashboard fetch error:", e);
-            if (e.message && e.message.includes('429')) {
-                setError("Trello API Limit Exceeded. Refresh paused.");
+            if (e.status === 429 || (e.message && e.message.includes('429'))) {
+                // Back off: double the wait before the next automatic refresh, up to 8x.
+                backoffRef.current = Math.min(backoffRef.current * 2, 8);
+                countdownRef.current = effectiveSeconds * backoffRef.current;
+                setCountdown(countdownRef.current);
+                setError("Trello API limit reached. Automatic refresh has been slowed down.");
             } else {
                 setError(e.message);
             }
@@ -136,27 +149,50 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             isFetchingRef.current = false;
             setLoading(false);
         }
-    }, [boardId, user.token, loading]);
+    }, [boardId, user.token, effectiveSeconds]);
 
     // AUTO REFRESH
     useEffect(() => {
         if (timerRef.current) clearInterval(timerRef.current);
-        const interval = setInterval(() => {
-            setCountdown(prev => {
-                if (prev <= 1) {
-                    fetchData();
-                    return effectiveSeconds;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-        timerRef.current = interval;
+        countdownRef.current = effectiveSeconds;
         setCountdown(effectiveSeconds);
         fetchData(); // Initial Fetch
-        return () => clearInterval(interval);
+
+        let hiddenAt = null;
+        const interval = setInterval(() => {
+            // Don't poll Trello while the tab is in the background.
+            if (document.hidden) return;
+            countdownRef.current -= 1;
+            if (countdownRef.current <= 0) {
+                countdownRef.current = effectiveSeconds * backoffRef.current;
+                fetchData();
+            }
+            setCountdown(countdownRef.current);
+        }, 1000);
+        timerRef.current = interval;
+
+        // When the tab comes back after being hidden longer than one interval,
+        // refresh straight away instead of showing stale counts.
+        const handleVisibility = () => {
+            if (document.hidden) {
+                hiddenAt = Date.now();
+            } else if (hiddenAt && Date.now() - hiddenAt > effectiveSeconds * 1000) {
+                hiddenAt = null;
+                countdownRef.current = effectiveSeconds * backoffRef.current;
+                setCountdown(countdownRef.current);
+                fetchData();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
     }, [fetchData, effectiveSeconds]);
 
     const handleRefresh = useCallback(() => {
+        countdownRef.current = effectiveSeconds;
         setCountdown(effectiveSeconds);
         fetchData(true);
     }, [effectiveSeconds, fetchData]);

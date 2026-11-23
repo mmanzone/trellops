@@ -6,7 +6,7 @@ import { useDarkMode } from '../context/DarkModeContext';
 import { Sun, Moon, Sparkles, Loader2 } from 'lucide-react';
 import DigitalClock from './common/DigitalClock';
 import HamburgerMenu from './common/HamburgerMenu';
-import { marked } from 'marked';
+import { renderMarkdown } from '../utils/markdown';
 import { getTerminology } from '../utils/terminology';
 import { useAISummary } from '../hooks/useAISummary';
 
@@ -23,7 +23,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     
     // AI Summary State
     const { summaryText, isGenerating: isGeneratingSummary, source: summarySource, generate: generateSummary } = useAISummary();
-    const summaryHtml = useMemo(() => (summaryText ? marked(summaryText) : ''), [summaryText]);
+    const summaryHtml = useMemo(() => renderMarkdown(summaryText), [summaryText]);
 
     // Filters
     const [createdFilter, setCreatedFilter] = useState('this_week');

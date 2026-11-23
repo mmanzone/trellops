@@ -9,7 +9,7 @@ import DigitalClock from './common/DigitalClock';
 import { ICONS } from './common/IconPicker';
 import MapFilters from './MapFilters';
 import { loadGoogleMaps } from '/src/utils/googleMapsLoader';
-import { marked } from 'marked';
+import { renderMarkdown } from '../utils/markdown';
 import { getTerminology } from '/src/utils/terminology';
 import Dashboard from './Dashboard'; // For Slideshow
 import HamburgerMenu from './common/HamburgerMenu';
@@ -345,7 +345,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
                 <div
                     className="popup-desc"
                     style={{ marginBottom: '10px', fontSize: '0.95em', color: '#111', lineHeight: '1.5' }}
-                    dangerouslySetInnerHTML={{ __html: marked.parse(card.desc) }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(card.desc) }}
                 />
             )}
 
@@ -885,7 +885,8 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
         if (geocodingQueue.length === 0 && !loading) {
             setCountdown(refreshIntervalSeconds);
             countdownRef.current = setInterval(() => setCountdown(p => (p !== null && p > 0) ? p - 1 : p), 1000);
-            intervalRef.current = setInterval(() => { loadData(true); setCountdown(refreshIntervalSeconds); }, refreshIntervalSeconds * 1000);
+            // Skip refreshes while the tab is in the background.
+            intervalRef.current = setInterval(() => { if (document.hidden) return; loadData(true); setCountdown(refreshIntervalSeconds); }, refreshIntervalSeconds * 1000);
         } else { setCountdown(null); }
         return () => { clearInterval(countdownRef.current); clearInterval(intervalRef.current); };
     }, [geocodingQueue.length, loading, refreshIntervalSeconds, loadData]);

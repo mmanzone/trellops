@@ -1,7 +1,6 @@
-/* ------------------------------------------------ */
-/* --- DIGITAL-7 FONT LOAD (FIXED MONO FONT) --- */
-/* ------------------------------------------------ */
-@import url('https://fonts.cdnfonts.com/css/digital-7-mono');
+/* The Digital-7 clock font is loaded with a <link> in index.html, not an
+   @import here: an @import is only discovered after this stylesheet has
+   downloaded, which delayed the whole page's CSS. */
 
 /* ------------------------------------------------ */
 /* --- Modern & Minimalist Theme --- */

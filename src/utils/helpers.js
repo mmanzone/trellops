@@ -77,3 +77,19 @@ export const formatDynamicCountdown = (seconds) => {
     if (seconds < 3600) return `${Math.ceil(seconds / 60)}m`;
     return `${Math.round(seconds / 3600)}h`;
 };
+
+// Base64 of a string's UTF-8 bytes, and back. Replaces the deprecated
+// btoa(unescape(encodeURIComponent(s))) / decodeURIComponent(escape(atob(b)))
+// idiom and produces the same output, so existing share links keep working.
+export const encodeBase64Utf8 = (text) => {
+    const bytes = new TextEncoder().encode(text);
+    let binary = '';
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    return btoa(binary);
+};
+
+export const decodeBase64Utf8 = (base64) => {
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+};
