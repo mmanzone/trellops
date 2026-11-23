@@ -5,344 +5,200 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trellops User Guide</title>
-    <style>
-        :root {
-            --bg-primary: #121212;
-            --bg-secondary: #1e1e1e;
-            --text-color: #e0e0e0;
-            --accent: #00c6ff;
-            --border: #333;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-color);
-            line-height: 1.6;
-            margin: 0;
-            padding: 40px;
-        }
-
-        nav {
-            margin-bottom: 40px;
-        }
-
-        nav a {
-            color: var(--accent);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        header {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        h1 {
-            color: #ffffff;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            color: #aaa;
-            font-size: 1.2em;
-        }
-
-        hr {
-            border: 0;
-            border-top: 1px solid var(--border);
-            margin: 40px 0;
-        }
-
-        section {
-            max-width: 800px;
-            margin: 0 auto 40px;
-            background: var(--bg-secondary);
-            padding: 30px;
-            border-radius: 12px;
-        }
-
-        h2 {
-            color: #ffffff;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 15px;
-            margin-top: 0;
-        }
-
-        h3 {
-            color: #fff;
-            margin-top: 25px;
-            margin-bottom: 10px;
-        }
-
-        ul,
-        ol {
-            padding-left: 20px;
-        }
-
-        li {
-            margin-bottom: 10px;
-        }
-
-        a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        blockquote {
-            background: rgba(255, 193, 7, 0.1);
-            border-left: 4px solid #ffc107;
-            margin: 20px 0;
-            padding: 15px;
-            color: #ffd54f;
-        }
-
-        footer {
-            margin-top: 60px;
-            text-align: center;
-            color: #666;
-            font-size: 0.9em;
-            border-top: 1px solid var(--border);
-            padding-top: 20px;
-        }
-
-        .video-embed {
-            margin-top: 20px;
-            background: black;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 20px;
-            }
-
-            section {
-                padding: 20px;
-            }
-
-            h1 {
-                font-size: 2em;
-            }
-        }
-    </style>
+    <meta name="description" content="How to set up Trellops: dashboard blocks and tiles, the Map view, statistics, AI summaries and sharing.">
+    <link rel="icon" type="image/png" href="/powerupicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Instrument+Sans:wght@400..700&display=swap">
+    <link rel="stylesheet" href="/src/styles/site.css">
 </head>
 
-<body>
-
-    <nav>
-        <a href="index.html">← Home</a>
-    </nav>
-
-    <header>
-        <h1>Trellops User Guide</h1>
-        <p class="subtitle">From initial setup to advanced mapping—everything you need to know.</p>
-        <p>Quick links: <a href="#getting-started">Getting Started</a> · <a href="#dashboard-setup">Dashboard Setup</a>
-            · <a href="#map-view">Map View</a> · <a href="#advanced">Advanced Tips</a> · <a href="#sharing">Sharing</a>
-        </p>
+<body class="site site-docs">
+    <a class="site-skip" href="#main">Skip to content</a>
+    <header class="site-header">
+        <div class="site-wrap">
+            <a class="site-brand" href="/"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2.5" fill="#0079bf"/><rect x="13" y="1" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="1" y="13" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="13" y="13" width="10" height="10" rx="2.5" fill="#15171c" opacity="0.28"/></svg>Trellops</a>
+            <nav class="site-nav" aria-label="Main">
+                <a class="site-nav-link" href="/#features">Features</a>
+                <a class="site-nav-link" href="help.html" aria-current="page">User guide</a>
+                <a class="site-nav-link" href="privacy.html">Privacy</a>
+                <a class="s-btn s-btn-primary s-btn-sm" href="/">Open Trellops</a>
+            </nav>
+        </div>
     </header>
 
-    <hr>
-
-    <section id="getting-started">
-        <h2 style="display: flex; align-items: center; gap: 10px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
-            <span>Getting Started & Privacy</span>
-        </h2>
-
-        <h3>How to Login</h3>
-        <p>To use Trellops, simply log in with your existing Atlassian Trello user account. You will be asked to grant
-            permission for Trellops to access your boards.</p>
-
-        <h3>Privacy & Permissions</h3>
-        <ul>
-            <li><strong>Local Storage:</strong> generally, Trellops follows a "Local First" policy. None of the
-                information you enter is stored on our servers; everything stays local on your computer.</li>
-            <li><strong>Read vs. Write Access:</strong> By default, Trellops only requires "Read" permissions to display
-                your dashboard. However, if you wish to use the <strong>Map View</strong> to move cards between lists,
-                you will be prompted to re-login and grant "Write" permissions.</li>
-            <li><strong>Server Storage Exception:</strong> If you choose to share your configuration via a "Unique
-                Link," we must store the technical skeleton of your layout (Board IDs, Block names) on our server to
-                make the link work. No card content is stored.</li>
-        </ul>
-    </section>
-
-    <hr>
-
-    <section id="dashboard-setup">
-        <h2 style="display: flex; align-items: center; gap: 10px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M3 14h7v7H3z"></path></svg>
-            <span>Setting up your Dashboard</span>
-        </h2>
-        <p>Once you select a board, head to the <strong>Settings</strong> menu. The interface is now split into three
-            tabs: <em>Dashboard</em>, <em>Map</em>, and <em>Other</em>.</p>
-
-        <h3>1. Creating Blocks (The Dashboard Tab)</h3>
-        <p>A "Block" is a collection of list tiles that you group together. This allows you to organise your board
-            logically (e.g., "Backlog," "Sprint," "Completed") rather than just alphabetically.</p>
-        <ul>
-            <li><strong>Create & Name:</strong> Create as many blocks as you need and give them meaningful names.</li>
-            <li><strong>Hide/Show:</strong> You can temporarily hide a whole block from the main dashboard if you don't
-                need to see it (e.g., hiding the "Done" column to focus on active work).</li>
-        </ul>
-
-        <h3>2. Configuring Tiles</h3>
-        <p>Your Trello lists appear as "Tiles." You can now use the new <strong>Drag-and-Drop</strong> interface to
-            organise them:</p>
-        <ul>
-            <li><strong>Assigning Lists:</strong> Drag a list from the "Unassigned" area into any Block you created.
-            </li>
-            <li><strong>Reordering:</strong> Want "Urgent" at the top? Simply drag the tile up or down to change the
-                order.</li>
-            <li><strong>Colour Coding:</strong> Click on any tile to assign a specific colour (e.g., Red for bugs, Green
-                for finished items). If you don't choose a colour, we will assign a random one for you.</li>
-        </ul>
-    </section>
-
-    <hr>
-
-    <section id="map-view">
-        <h2 style="display: flex; align-items: center; gap: 10px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-            <span>Using the Map View (New!)</span>
-        </h2>
-        <p>Visualise your workload geographically. This feature automatically plots your cards onto a map based on their
-            location data.</p>
-
-        <h3>How it Works</h3>
-        <p>Trellops looks for location data in your cards in two ways:</p>
-        <ol>
-            <li><strong>Coordinates (Preferred):</strong> If a card has latitude/longitude stored in it, it plots
-                instantly.</li>
-            <li><strong>Address Decoding:</strong> If no coordinates are found, Trellops reads the card's
-                <strong>description field</strong>. If it finds an address, it uses the <em>Google Maps</em> service to
-                find the location.
-            </li>
-        </ol>
-
-        <blockquote>
-            <strong>⚠️ Important Note on Speed:</strong> The Google Maps service limits requests to prevent abuse. If
-            you open a map with 50 new addresses, it may take a moment to fully
-            populate. We cache these locations on your browser, so the <em>next</em> time you load the map, it will be
-            instant!
-        </blockquote>
-
-        <h3>Map Features</h3>
-        <ul>
-            <li><strong>Custom Icons:</strong> In the <em>Map Settings</em> tab, you can assign unique icons to
-                different Blocks.</li>
-            <li><strong>Icon Overrides:</strong> You can set specific icons to trigger based on Trello labels (e.g., a
-                "Fire" icon for any card with a "Urgent" label).</li>
-            <li><strong>Home Address:</strong> Set a "Home Address" to mark your HQ or office location on the map.</li>
-            <li><strong>Move Cards:</strong> You can drag a card from one location to another list directly on the map
-                (Requires "Write" permission).</li>
-            <li><strong>Street View (Optional):</strong> Head to Map Settings to enable "Show street view". When clicked, card popups will provide a direct <em>Google Street View</em> link for the card's address.</li>
-            <li><strong>Smart Zoom & Fit:</strong> The "Fit Map" button automatically repositions to view all your pinned locations. If you only have one pin on the map, it will seamlessly smart-zoom down to comfortable street level (instead of maximum zoom).</li>
-        </ul>
-    </section>
-
-    <hr>
-
-    <section id="advanced">
-        <h2 style="display: flex; align-items: center; gap: 10px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
-            <span>Advanced Configuration & Filtering</span>
-        </h2>
-
-        <h3>Handling "Description Cards"</h3>
-        <p>Sometimes, the first card in a Trello list isn't a task—it's a set of instructions or a header. This makes
-            the total card count inaccurate. You can fix this in the <strong>Advanced Settings</strong> for that
-            specific tile:</p>
-        <ul>
-            <li><strong>Don't Count First Card:</strong> Tells Trellops to ignore the first card so your total reflects actual work items.</li>
-            <li><strong>Display as Description:</strong> You can choose to display the text of that first card on the dashboard tile, acting as a header or instruction for your team.</li>
-            <li><strong>Ignore Keywords:</strong> In <strong>Settings -> Other Settings</strong>, you can provide a list of comma-separated keywords. Any cards containing these keywords in their title will be excluded from the dashboard, map, and statistics.</li>
-        </ul>
-
-        <h3>Terminology Customisation</h3>
-        <p>If terms like "Board" or "Card" don't match your company's vernacular, head to <strong>Settings -> Other Settings</strong> and look for <em>Naming Config</em>. You can override these terms (e.g., changing "Card" to "Task", or "Label" to "Tag"), and the app will natively apply your vocabulary across your entire dashboard and statistics views.</p>
-
-        <h3>Statistics & AI Summaries (Beta)</h3>
-        <p>Navigate to the <code>/stats</code> page to access powerful insights over any specified time boundary. We also offer an innovative <strong>AI Summary</strong> feature that provides a plain-English briefing capturing the highlights of your team's workflow within that time frame.</p>
-        <ul>
-            <li><strong>AI Context Prompts:</strong> Go to the bottom of the Settings menu to define an optional Custom AI Prompt to guide exactly how you want your summaries formed (e.g., "Summarise as a daily briefing").</li>
-        </ul>
-
-        <h3>Dashboard Extras</h3>
-        <ul>
-            <li><strong>Time Filtering:</strong> Use the filter menu to show only cards created "This Week" or "Last
-                Week" to spot recent trends.</li>
-            <li><strong>Digital Clock:</strong> Enable a large digital clock in the top-left corner—perfect for
-                wall-mounted displays.</li>
-            <li><strong>Themes:</strong> Manually switch between Light and Dark mode, or let it follow your system
-                settings.</li>
-            <li><strong>Clear Cache:</strong> If you need to reset everything, use the "Clear local storage" button in
-                the "Other" settings tab. <em>Warning: This erases all saved configurations.</em></li>
-        </ul>
-    </section>
-
-    <hr>
-
-    <section id="sharing">
-        <h2 style="display: flex; align-items: center; gap: 10px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            <span>Sharing Your Configuration</span>
-        </h2>
-        <p>You can share your perfect dashboard setup with colleagues so they don't have to build it from scratch.</p>
-
-        <h3>Option 1: Share via Link (New)</h3>
-        <p>Click "Share Configuration" to generate a unique link. Send this to a colleague, and when they open it, their
-            Trellops will load your exact layout (Board IDs, Blocks, and settings).</p>
-
-        <h3>Option 2: Export to File</h3>
-        <p>For a purely local options, you can "Export configuration to a file". Your colleague can then use the
-            "Import" function to load that file directly into their browser.</p>
-    </section>
-
-    <hr>
-
-    <section id="video-walkthrough">
-        <h2 style="display: flex; align-items: center; gap: 10px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><path d="M10 8l6 4-6 4V8z"></path></svg>
-            <span>Video Walkthrough</span>
-        </h2>
-        <p>Watch a brief overview of the Trellops features.</p>
-        <div class="video-embed">
-            <div class="sp-embed-player" data-id="cTXq3anqlqS" data-aspect-ratio="1.825352"
-                data-padding-top="54.783951%" style="position:relative;width:100%;aspect-ratio:1.825352;">
-                <script src="https://go.screenpal.com/consumption/player_appearance/cTXq3anqlqS/1.825352"></script>
-                <iframe style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" scrolling="no"
-                    src="https://go.screenpal.com/player/cTXq3anqlqS?ff=1&title=0" allowfullscreen="true"></iframe>
+    <main id="main">
+        <div class="docs-hero">
+            <div class="site-wrap">
+                <p class="site-eyebrow">User guide</p>
+                <h1>Everything you need to set up Trellops.</h1>
+                <p>From your first sign-in to maps, statistics and sharing a setup with your team.</p>
             </div>
         </div>
-    </section>
 
-    <footer>
-        <p>&copy; 2025 Trellops. <a href="privacy.html">Privacy Policy</a> | <a href="releases.html">Release Notes</a></p>
+        <div class="site-wrap docs-layout">
+            <nav class="docs-toc" aria-label="On this page">
+                <p>On this page</p>
+                <ol>
+                    <li><a href="#getting-started">Getting started</a></li>
+                    <li><a href="#dashboard-setup">Dashboard setup</a></li>
+                    <li><a href="#map-view">Map view</a></li>
+                    <li><a href="#advanced">Advanced settings</a></li>
+                    <li><a href="#sharing">Sharing</a></li>
+                    <li><a href="#video-walkthrough">Video walkthrough</a></li>
+                </ol>
+            </nav>
+
+            <article class="docs-body">
+
+                <section id="getting-started">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>Getting started and privacy</h2>
+                    <h3>Signing in</h3>
+                    <p>Sign in with your existing Atlassian Trello account. Trello will ask you to allow Trellops to access your boards.</p>
+
+                    <h3>Privacy and permissions</h3>
+                    <ul>
+                        <li><strong>Local storage:</strong> Trellops follows a “local first” policy. The settings you enter stay in your browser, not on our servers.</li>
+                        <li><strong>Read and write access:</strong> By default Trellops only needs read access to show your dashboard. If you want to move cards between lists from the <strong>Map view</strong>, you will be asked to sign in again and allow write access.</li>
+                        <li><strong>Shared links:</strong> If you share your configuration as a link, we store the skeleton of your layout (board IDs and block names) so the link works. No card content is stored.</li>
+                    </ul>
+                </section>
+
+                <section id="dashboard-setup">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></span>Setting up your dashboard</h2>
+                    <p>Once you have picked a board, open <strong>Settings</strong>. It has three tabs: <em>Dashboard</em>, <em>Map</em> and <em>Other</em>.</p>
+
+                    <h3>Creating blocks</h3>
+                    <p>A block is a group of list tiles. Blocks let you organise the board the way your team thinks about it, for example “Backlog”, “Sprint” and “Completed”, rather than in Trello’s order.</p>
+                    <ul>
+                        <li><strong>Create and name:</strong> Create as many blocks as you need and give them meaningful names.</li>
+                        <li><strong>Hide and show:</strong> Hide a whole block from the dashboard when you don’t need it, such as a “Done” column while you focus on active work.</li>
+                    </ul>
+
+                    <h3>Configuring tiles</h3>
+                    <p>Each Trello list appears as a tile. Use drag and drop to organise them:</p>
+                    <ul>
+                        <li><strong>Assigning lists:</strong> Drag a list from the “Unassigned” area into any block.</li>
+                        <li><strong>Reordering:</strong> Want “Urgent” first? Drag the tile up or down.</li>
+                        <li><strong>Colours:</strong> Click a tile to give it a colour, such as red for bugs or green for finished work. Tiles without a colour get one picked for them.</li>
+                    </ul>
+                </section>
+
+                <section id="map-view">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span>Using the Map view</h2>
+                    <p>See your work geographically. Trellops plots cards on a map using the location in each card.</p>
+
+                    <h3>How it works</h3>
+                    <p>Trellops looks for a location in two ways:</p>
+                    <ol>
+                        <li><strong>Coordinates (preferred):</strong> If a card has a latitude and longitude, it is plotted straight away.</li>
+                        <li><strong>Address lookup:</strong> Otherwise Trellops reads the card’s <strong>description</strong>. If it finds an address, it uses <em>Google Maps</em> to locate it.</li>
+                    </ol>
+                    <div class="docs-callout" role="note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><div><strong>The first load can take a moment.</strong> Google Maps limits how many addresses can be looked up at once, so a map with 50 new addresses may take a while to fill in. Locations are then cached in your browser, so the next load is instant.</div></div>
+
+                    <h3>Map features</h3>
+                    <ul>
+                        <li><strong>Custom icons:</strong> In the <em>Map</em> settings tab, give each block its own icon.</li>
+                        <li><strong>Icons by label:</strong> Show a specific icon for cards with a given Trello label, such as a fire icon for anything labelled “Urgent”.</li>
+                        <li><strong>Home address:</strong> Set a home address to mark your office or headquarters on the map.</li>
+                        <li><strong>Move cards:</strong> Move a card to another list directly from the map (requires write access).</li>
+                        <li><strong>Street View (optional):</strong> Turn on “Show street view” in Map settings and card popups will include a <em>Google Street View</em> link for the card’s address.</li>
+                        <li><strong>Fit map:</strong> The “Fit map” button frames all your pins. With a single pin, it zooms to a comfortable street level instead of maximum zoom.</li>
+                    </ul>
+                </section>
+
+                <section id="advanced">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg></span>Advanced settings and filters</h2>
+                    <h3>Lists that start with an instructions card</h3>
+                    <p>Sometimes the first card in a list isn’t a task but a set of instructions or a header, which makes the count wrong. Fix this in the tile’s <strong>Advanced settings</strong>:</p>
+                    <ul>
+                        <li><strong>Don’t count first card:</strong> Ignores the first card so the total reflects real work.</li>
+                        <li><strong>Display as description:</strong> Shows that first card’s text on the tile, as a header or instruction for your team.</li>
+                        <li><strong>Ignore keywords:</strong> In <strong>Settings › Other</strong>, enter comma-separated keywords. Cards with any of them in their title are left out of the dashboard, map and statistics.</li>
+                    </ul>
+
+                    <h3>Your own terminology</h3>
+                    <p>If “Board” or “Card” isn’t how your team talks, open <strong>Settings › Other</strong> and find <em>Naming config</em>. Rename the terms (for example “Card” to “Task”, or “Label” to “Tag”) and the new words are used across the dashboard and statistics.</p>
+
+                    <h3>Statistics and AI summaries (beta)</h3>
+                    <p>Open the <code>/stats</code> page to see activity over any period. The <strong>AI summary</strong> gives a plain-English briefing of what happened on the board in that period.</p>
+                    <ul>
+                        <li><strong>Custom prompt:</strong> At the bottom of Settings, add an optional prompt to shape the summary, for example “Summarise as a daily briefing”.</li>
+                    </ul>
+
+                    <h3>Dashboard extras</h3>
+                    <ul>
+                        <li><strong>Date filters:</strong> Show only cards created “This week” or “Last week” to spot recent trends.</li>
+                        <li><strong>Digital clock:</strong> Show a large clock in the top-left corner, ideal for wall screens.</li>
+                        <li><strong>Themes:</strong> Switch between light and dark, or follow your system setting.</li>
+                        <li><strong>Clear local storage:</strong> To start over, use “Clear local storage” in the Other tab. <em>This erases every saved configuration.</em></li>
+                    </ul>
+                </section>
+
+                <section id="sharing">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg></span>Sharing your configuration</h2>
+                    <p>Share your dashboard setup so colleagues don’t have to build it from scratch.</p>
+
+                    <h3>Share a link</h3>
+                    <p>Click “Share configuration” to create a unique link. When a colleague opens it, Trellops loads your exact layout: board IDs, blocks and settings.</p>
+
+                    <h3>Export to a file</h3>
+                    <p>To keep everything local, choose “Export configuration to a file”. Your colleague can load it with “Import”.</p>
+                </section>
+
+                <section id="video-walkthrough">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m10 8 6 4-6 4Z"/></svg></span>Video walkthrough</h2>
+                    <p>A short tour of the main features.</p>
+                    <div class="docs-video">
+                        <div class="sp-embed-player" data-id="cTXq3anqlqS" data-aspect-ratio="1.825352"
+                            data-padding-top="54.783951%" style="position:relative;width:100%;aspect-ratio:1.825352;">
+                            <script src="https://go.screenpal.com/consumption/player_appearance/cTXq3anqlqS/1.825352"></script>
+                            <iframe title="Trellops video walkthrough" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" scrolling="no"
+                                src="https://go.screenpal.com/player/cTXq3anqlqS?ff=1&title=0" allowfullscreen="true"></iframe>
+                        </div>
+                    </div>
+                </section>
+            </article>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="site-wrap">
+            <a class="site-brand" href="/"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="2.5" fill="#0079bf"/><rect x="13" y="1" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="1" y="13" width="10" height="10" rx="2.5" fill="#15171c"/><rect x="13" y="13" width="10" height="10" rx="2.5" fill="#15171c" opacity="0.28"/></svg>Trellops</a>
+            <nav aria-label="Footer">
+                <a href="help.html">User guide</a>
+                <a href="privacy.html">Privacy</a>
+                <a href="releases.html">Release notes</a>
+            </nav>
+            <small>&copy; 2026 Trellops. Version 4.6, November 2026.</small>
+        </div>
     </footer>
 
     <script>
+        // Preview deployments get a banner so they are never mistaken for production.
         if (window.location.hostname !== 'trellops.xyz') {
             var banner = document.createElement('div');
+            banner.className = 'site-preview';
             banner.innerText = 'PREVIEW ENVIRONMENT';
-            banner.style.width = '100%';
-            banner.style.backgroundColor = '#003366';
-            banner.style.color = '#ffffff';
-            banner.style.textAlign = 'center';
-            banner.style.padding = '4px 0';
-            banner.style.fontSize = '12px';
-            banner.style.fontWeight = 'bold';
-            banner.style.letterSpacing = '1px';
-            banner.style.position = 'relative';
-            banner.style.zIndex = '9999';
             document.body.insertBefore(banner, document.body.firstChild);
         }
+
+        // Highlight the section being read in the table of contents.
+        (function () {
+            var links = Array.prototype.slice.call(document.querySelectorAll('.docs-toc a'));
+            if (!('IntersectionObserver' in window) || !links.length) return;
+            var byId = {};
+            links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+            var io = new IntersectionObserver(function (entries) {
+                entries.forEach(function (e) {
+                    if (!e.isIntersecting) return;
+                    links.forEach(function (a) { a.classList.remove('is-active'); });
+                    var a = byId[e.target.id];
+                    if (a) a.classList.add('is-active');
+                });
+            }, { rootMargin: '-90px 0px -65% 0px' });
+            document.querySelectorAll('.docs-body section[id]').forEach(function (s) { io.observe(s); });
+        })();
     </script>
 </body>
 
