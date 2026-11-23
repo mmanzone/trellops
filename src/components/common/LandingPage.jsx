@@ -20,9 +20,9 @@ const ROLES = [
         lists: [['Requests', '#5b6b7f'], ['In design', '#d9822b'], ['Feedback', '#7a5cc7'], ['Approved', '#1f8a70']],
     },
     {
-        title: 'Marketers',
-        text: 'Track every campaign from idea to published, and put the live count on the office screen so no launch slips by.',
-        lists: [['Ideas', '#5b6b7f'], ['Drafting', '#d9822b'], ['Scheduled', '#0079bf'], ['Published', '#1f8a70']],
+        title: 'Operations teams',
+        text: 'Coordinate jobs across the team, balance the workload, and see at a glance where every request is up to, on the wall screen or on the map.',
+        lists: [['New requests', '#5b6b7f'], ['Scheduled', '#0079bf'], ['In the field', '#d9822b'], ['Completed', '#1f8a70']],
     },
 ];
 
