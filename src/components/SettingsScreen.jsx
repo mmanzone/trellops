@@ -103,6 +103,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const [error, setError] = useState('');
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [loadingLists, setLoadingLists] = useState(false);
+    // False until the saved settings (boards, lists, layout) have been read
+    // back into this screen. Saving before then would write the empty
+    // defaults over the real configuration.
+    const [initialLoadDone, setInitialLoadDone] = useState(false);
     const [activeTab, setActiveTab] = useState(initialTab === 'tasks' ? 'dashboard' : initialTab);
     const [expandedSection, setExpandedSection] = useState(viewMode === 'tasks' ? 'tasks' : 'board');
 
@@ -499,16 +503,22 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     // Global map enables (legacy fallback or global pref)
                     if (userSettings.enableMapView !== undefined) setEnableMapView(userSettings.enableMapView);
                     if (userSettings.mapGeocodeMode) setMapGeocodeMode(userSettings.mapGeocodeMode);
+                }
+
+                // Task view settings don't depend on a board, so load them even
+                // when no board is configured (tasks-only users).
+                if (userSettings) {
                     if (userSettings.enableTaskView !== undefined) setEnableTaskView(userSettings.enableTaskView);
                     if (userSettings.taskViewWorkspaces !== undefined) setTaskViewWorkspaces(userSettings.taskViewWorkspaces);
                     if (userSettings.taskViewRefreshInterval !== undefined) setTaskViewRefreshInterval(userSettings.taskViewRefreshInterval);
-
                 }
 
                 // Also check if 'tasks' view was active in previous session or generic settings 
                 // (Actually task view enabled is per user, so userSettings check above is good)
+                setInitialLoadDone(true);
             } catch (e) {
                 console.warn("Error loading settings", e);
+                setError("Couldn't load your settings from Trello. Please try again in a moment.");
             }
         };
         loadInitialSettings();
@@ -643,7 +653,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     const handleUpdateRule = (id, f, v) => setMarkerRules(markerRules.map(r => r.id === id ? { ...r, [f]: v } : r));
     const removeRule = (id) => setMarkerRules(markerRules.filter(r => r.id !== id));
 
+    const settingsReady = initialLoadDone && !loadingLists;
+
     const handleSave = () => {
+        // Don't save while the saved configuration is still loading: the form
+        // still holds empty defaults and would wipe the board's layout.
+        if (!settingsReady) return;
+
         // VALIDATION: Slideshow Interval
         if (slideshowInterval < 10) {
             alert("Slideshow interval must be at least 10 seconds.");
@@ -710,7 +726,14 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
             // 5. Update User Settings (CRITICAL: Populate selectedLists for Dashboard.jsx)
             // Flatten all lists assigned to blocks
-            const assignedLists = blocks.flatMap(b => b.listIds.map(lId => allLists.find(l => l.id === lId))).filter(Boolean);
+            // If the board's lists couldn't be fetched (e.g. Trello rate limit),
+            // fall back to the names saved last time, then to the bare id, so the
+            // dashboard never loses its lists because of a failed request.
+            const previousLists = JSON.parse(localStorage.getItem('trelloUserData') || '{}')[user.id]?.settings?.selectedLists || [];
+            const assignedLists = blocks.flatMap(b => b.listIds).map(lId => {
+                const list = allLists.find(l => l.id === lId) || previousLists.find(l => l.id === lId);
+                return list ? { id: list.id, name: list.name } : { id: lId, name: '' };
+            });
 
             const newSettings = {
                 boardId: selectedBoardId || null,
@@ -754,6 +777,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
     };
 
     const handleSaveTasks = () => {
+        if (!settingsReady) return;
         try {
             const newSettings = {
                 // Keep existing board settings? No, we are updating user.settings which mixes both.
@@ -787,8 +811,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             // Notify Parent
             // We pass the full new settings object to update local state in App.jsx
             // We can mix current state + new task settings
+            // Pass the full stored settings (board included) back to App.jsx.
+            // `user` has no settings field, so spreading user.settings here
+            // dropped the board and made the dashboard ask to be configured.
             onSave({
-                ...(user.settings || {}),
+                ...(currentUserData.settings || {}),
                 enableTaskView,
                 taskViewWorkspaces,
                 taskViewRefreshInterval
@@ -2039,7 +2066,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 </div>
                             )}
                             <button className="button-secondary" onClick={onClose}>Cancel</button>
-                            <button className="save-layout-button" onClick={handleSave}>Save Settings</button>
+                            <button className="save-layout-button" onClick={handleSave} disabled={!settingsReady}>{settingsReady ? 'Save Settings' : 'Loading...'}</button>
                         </div>
                     )
                 }
@@ -2158,7 +2185,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
                             <div className="actions-container">
                                 <button className="button-secondary" onClick={onClose}>Cancel</button>
-                                <button className="button-primary" onClick={handleSaveTasks}>Save Tasks Settings</button>
+                                <button className="button-primary" onClick={handleSaveTasks} disabled={!settingsReady}>{settingsReady ? 'Save Tasks Settings' : 'Loading...'}</button>
                             </div>
                         </div>
                     </div>

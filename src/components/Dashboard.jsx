@@ -350,7 +350,11 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
 
     if (loading && allCards.length === 0) return <div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading dashboard data...</div>;
 
-    if (!boardName || listsFromSettings.length === 0) {
+    // A board counts as configured when it has a saved layout with lists in
+    // it. selectedLists alone isn't reliable: older saves could write it empty
+    // when the board's lists failed to load in Settings.
+    const hasLayoutLists = sectionsLayout.some(s => s.listIds && s.listIds.length > 0);
+    if (!boardId || (listsFromSettings.length === 0 && !hasLayoutLists)) {
         return (
             <div className="container">
                 <div className="header">
