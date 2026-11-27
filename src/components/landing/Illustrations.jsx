@@ -183,10 +183,11 @@ export const StatsArt = () => {
 };
 
 export const BrandMark = ({ size = 24 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="1" y="1" width="10" height="10" rx="2.5" fill="#0079bf" />
-        <rect x="13" y="1" width="10" height="10" rx="2.5" fill="#15171c" />
-        <rect x="1" y="13" width="10" height="10" rx="2.5" fill="#15171c" />
-        <rect x="13" y="13" width="10" height="10" rx="2.5" fill="#15171c" opacity="0.28" />
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="18" height="18" rx="4" fill="#0079bf" />
+        <rect x="20" width="12" height="8" rx="3" fill="#d9822b" />
+        <rect x="20" y="10" width="12" height="22" rx="4" fill="#7a5cc7" />
+        <rect y="20" width="18" height="12" rx="4" fill="#1f8a70" />
+        <rect x="4" y="12" width="6" height="2" rx="1" fill="#fff" />
     </svg>
 );
