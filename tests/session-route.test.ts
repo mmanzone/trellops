@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import handler from '../api/session';
 import summarize from '../api/summarize';
-import { __setDbForTests, splitStatements } from '../api/_lib/db';
+import { __setDbForTests, splitStatements, databaseUrl } from '../api/_lib/db';
 import { SCHEMA_SQL } from '../api/_lib/schema';
 import { SESSION_COOKIE } from '../api/_lib/session';
 import { readFileSync } from 'node:fs';
@@ -135,5 +135,13 @@ describe('other methods', () => {
 describe('schema', () => {
   it('api/_lib/schema.ts matches db/schema.sql (run npm run build:schema)', () => {
     expect(SCHEMA_SQL).toBe(readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8'));
+  });
+});
+
+describe('database url', () => {
+  it('accepts the prefixed names the Neon integration creates', () => {
+    expect(databaseUrl({ TRELLOPS_DATABASE_URL: 'postgres://a' })).toBe('postgres://a');
+    expect(databaseUrl({ DATABASE_URL: 'postgres://b', TRELLOPS_DATABASE_URL: 'postgres://a' })).toBe('postgres://b');
+    expect(databaseUrl({})).toBeNull();
   });
 });
