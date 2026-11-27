@@ -131,6 +131,9 @@ describe('charity requests', () => {
 
   it('requires sign-in and every field', async () => {
     expect((await post(compRequests, '/api/comp-requests', null, form)).status).toBe(401);
+    delete process.env.SESSION_SECRET;
+    expect((await post(compRequests, '/api/comp-requests', null, form)).body.code).toBe('NOT_CONFIGURED');
+    process.env.SESSION_SECRET = SECRET;
     const missing = await post(compRequests, '/api/comp-requests', USER, { ...form, country: '', charityType: 'Club' });
     expect(missing.status).toBe(400);
     expect(missing.body.fields).toEqual(['type of organisation', 'country or location']);

@@ -5,7 +5,7 @@
  * request waits in the admin dashboard's review queue.
  */
 import { json, methodNotAllowed } from './_lib/http.js';
-import { getSession } from './_lib/session.js';
+import { getSession, sessionsConfigured } from './_lib/session.js';
 import { getDb, ensureSchema } from './_lib/db.js';
 import { isTrelloId, cleanText, cleanLongText } from './_lib/validate.js';
 
@@ -22,8 +22,12 @@ export const CHARITY_TYPES = [
 const MAX_PENDING_PER_MEMBER = 5;
 
 async function handlePost(request: Request): Promise<Response> {
+  if (!sessionsConfigured()) {
+    console.error('[comp-requests] SESSION_SECRET is not set for this environment');
+    return json(503, { error: 'Requests cannot be received right now (sign-in sessions are not configured). Please try again later.', code: 'NOT_CONFIGURED' });
+  }
   const session = await getSession(request);
-  if (!session) return json(401, { error: 'Sign in with Trello to send a request.', code: 'NO_SESSION' });
+  if (!session) return json(401, { error: 'Your sign-in has expired. Sign out of Trellops and sign in again, then resend the request.', code: 'NO_SESSION' });
 
   const body: any = await request.json().catch(() => null);
   const boardId = body?.boardId;
