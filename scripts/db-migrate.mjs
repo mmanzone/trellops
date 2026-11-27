@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { neon } from '@neondatabase/serverless';
 
-const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const url = process.env.DATABASE_URL || process.env.TRELLOPS_DATABASE_URL || process.env.POSTGRES_URL || process.env.TRELLOPS_POSTGRES_URL;
 if (!url) {
   console.error('Set DATABASE_URL first (Vercel > Storage > your Neon database > .env.local).');
   process.exit(1);

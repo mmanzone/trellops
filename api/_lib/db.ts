@@ -12,9 +12,22 @@ type Sql = NeonQueryFunction<false, false>;
 let client: Sql | null | undefined;
 let schemaReady: Promise<void> | null = null;
 
+/**
+ * The Neon integration names its variables with the prefix chosen when the
+ * database is connected (for example TRELLOPS_DATABASE_URL), so accept both.
+ */
+export const DATABASE_URL_KEYS = ['DATABASE_URL', 'TRELLOPS_DATABASE_URL', 'POSTGRES_URL', 'TRELLOPS_POSTGRES_URL'];
+
+export function databaseUrl(env: Record<string, string | undefined> = process.env): string | null {
+  for (const key of DATABASE_URL_KEYS) {
+    if (env[key]) return env[key] as string;
+  }
+  return null;
+}
+
 export function getDb(): Sql | null {
   if (client !== undefined) return client;
-  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const url = databaseUrl();
   client = url ? neon(url) : null;
   return client;
 }
