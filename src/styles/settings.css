@@ -64,13 +64,21 @@
     font-size: 15px;
 }
 
-/* Board id under the board picker (used for board plans and charity requests) */
+/* Board picker row: dropdown with the board id beside it (wraps on narrow screens) */
+.board-select-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+}
+
+/* Board id (used for board plans and charity requests) */
 .board-id-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin: 10px 0 0;
+    margin: 0;
     font-size: 13px;
     color: var(--text-secondary);
 }

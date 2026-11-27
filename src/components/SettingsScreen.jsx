@@ -1116,7 +1116,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         <p className="section-hint">
                             Boards are pulled directly from your Trello account, across all workspaces.
                         </p>
-                        <div id="board-selection-container">
+                        <div id="board-selection-container" className="board-select-row">
                         <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
                             <option value="">-- Choose a Board --</option>
                             {(() => {
@@ -1156,8 +1156,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 );
                             })()}
                         </select>
-                        </div>
                         {selectedBoardId && <BoardIdCopy boardId={selectedBoardId} />}
+                        </div>
                     </div>
 
                     {/* TABS HEADER */}
