@@ -1,5 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { trelloAuth, trelloFetch } from './api/trello';
+import { startServerSession, endServerSession, isEmailNoticeDismissed, dismissEmailNotice } from './api/session';
 import { STORAGE_KEYS } from './utils/constants';
 import { getUserData, setUserData, getCurrentUser, setCurrentUser } from './utils/persistence';
 import { DarkModeProvider } from './context/DarkModeContext';
@@ -28,6 +29,8 @@ const App = () => {
     const [slideshowActive, setSlideshowActive] = useState(false);
     const [slideshowView, setSlideshowView] = useState(null); // 'dashboard' or 'map'
 
+    const [serverSession, setServerSession] = useState(null); // Answer from /api/session
+    const [emailNoticeDismissed, setEmailNoticeDismissed] = useState(isEmailNoticeDismissed);
     const [retryToken, setRetryToken] = useState(null); // Set when startup failed for a non-auth reason
     const [keepScreenOn, setKeepScreenOn] = useState(false);
     const { requestWakeLock, releaseWakeLock } = useWakeLock();
@@ -169,6 +172,9 @@ const App = () => {
 
             setUser(userData);
 
+            // Register the sign-in with Trellops' server (non-blocking).
+            startServerSession(token).then(setServerSession);
+
             const savedSettings = getUserData(member.id, 'settings');
 
             // ROUTING LOGIC POST-LOGIN
@@ -274,6 +280,8 @@ const App = () => {
         }
         setCurrentUser(null);
         setUser(null);
+        setServerSession(null);
+        endServerSession();
         setSettings(null);
         setView('landing');
         setPreviousView(null);
@@ -336,6 +344,20 @@ const App = () => {
             </div>
         );
     }
+
+    // Members whose Trello token predates the email permission are asked to
+    // reconnect once. Shown on the settings screen only, never on a wall display.
+    const accountNotice = {
+        show: !!serverSession && serverSession.emailScope === false && !emailNoticeDismissed,
+        onReconnect: async () => {
+            const scopes = user?.token ? await trelloAuth.checkTokenScopes(user.token) : [];
+            trelloAuth.login(scopes.includes('write') ? 'read,write,account' : 'read,account');
+        },
+        onDismiss: () => {
+            dismissEmailNotice();
+            setEmailNoticeDismissed(true);
+        },
+    };
 
     const renderView = () => {
         if (view === 'map') {
@@ -470,6 +492,7 @@ const App = () => {
                     importedConfig={importConfig}
                     onClearImportConfig={() => setImportConfig(null)}
                     viewMode="default"
+                    accountNotice={accountNotice}
                     onManageTasks={() => {
                         setView('tasks-settings');
                         window.history.pushState({}, '', '/tasks/settings');

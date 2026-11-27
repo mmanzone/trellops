@@ -23,6 +23,7 @@
 import { streamText, gateway, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { getCache, waitUntil } from '@vercel/functions';
+import { requireSession } from './_lib/session.js';
 
 // Vercel function settings. No `runtime` is set, so this runs on Node.js (Fluid compute).
 export const config = { maxDuration: 60 };
@@ -369,6 +370,9 @@ export default {
         headers: { 'Content-Type': 'application/json', Allow: 'POST' },
       });
     }
+    // Signed-in Trellops users only (open until SESSION_SECRET is set).
+    const gate = await requireSession(request);
+    if ('response' in gate) return gate.response;
     return handlePost(request);
   },
 };

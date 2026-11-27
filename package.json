@@ -6,18 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "build:schema": "node scripts/build-schema.mjs",
+    "db:migrate": "node scripts/db-migrate.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.148",
     "@ai-sdk/react": "^3.0.339",
     "@hello-pangea/dnd": "^18.0.1",
+    "@neondatabase/serverless": "^1.2.1",
     "@vercel/functions": "^3.11.3",
     "ai": "^6.0.336",
     "chart.js": "^4.6.1",
     "chartjs-plugin-datalabels": "^2.2.0",
     "dompurify": "^3.5.0",
     "html2canvas": "^1.4.1",
+    "jose": "^6.2.18",
     "lucide-react": "^0.562.0",
     "marked": "^17.0.1",
     "react": "^18.2.0",
@@ -28,6 +33,7 @@
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10.2.0",
-    "vite": "^8.3.8"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.2"
   }
 }

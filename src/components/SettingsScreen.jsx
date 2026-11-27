@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { trelloFetch, trelloAuth } from '../api/trello';
+import { serverSessionReady } from '../api/session';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
 import IconPicker from './common/IconPicker';
@@ -7,7 +8,7 @@ import ColorPicker from './common/ColorPicker';
 import { getPersistentLayout } from '../utils/persistence';
 import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
-import { Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, TriangleAlert, ChevronDown, ChevronRight, LayoutGrid, Map as MapIcon, ChartColumn, SlidersHorizontal, Check, Info } from 'lucide-react';
+import { Copy, Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, TriangleAlert, ChevronDown, ChevronRight, LayoutGrid, Map as MapIcon, ChartColumn, SlidersHorizontal, Check, Info } from 'lucide-react';
 import { encodeBase64Utf8 } from '../utils/helpers';
 import '../styles/settings.css';
 
@@ -53,7 +54,28 @@ const ShareConfigModal = ({ config, onClose, boardName }) => {
     );
 };
 
-const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { }, viewMode = 'default', onManageTasks, onGoToStats }) => {
+// Shows the Trello board id (needed for board plans and charity requests).
+const BoardIdCopy = ({ boardId }) => {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = () => {
+        navigator.clipboard?.writeText(boardId).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }).catch(() => { });
+    };
+    return (
+        <p className="board-id-row">
+            <span className="board-id-label">Board ID</span>
+            <code className="board-id-value">{boardId}</code>
+            <button type="button" className="button-secondary board-id-copy" onClick={handleCopy} aria-label="Copy board ID">
+                {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
+                {copied ? 'Copied' : 'Copy'}
+            </button>
+        </p>
+    );
+};
+
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { }, viewMode = 'default', onManageTasks, onGoToStats, accountNotice = null }) => {
     // viewMode: 'default' (Board Settings) | 'tasks' (Task Settings Only)
 
     // --- State ---
@@ -862,6 +884,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         if (!statsCustomPrompt.trim()) return;
         setIsImprovingPrompt(true);
         try {
+            await serverSessionReady(); // the route needs the session cookie
             const res = await fetch('/api/improvePrompt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1076,13 +1099,24 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 <>
                     <h2 className="settings-page-title">Dashboard Settings</h2>
 
+                    {accountNotice?.show && (
+                        <div className="notice notice-info account-scope-notice" role="status">
+                            <strong>Reconnect Trello to finish setting up your account.</strong>
+                            <span className="notice-sub">Trellops now asks Trello for your email address so we can link plans and support requests to your account. Your boards and settings stay as they are.</span>
+                            <div className="notice-actions">
+                                <button className="button-primary notice-action" onClick={accountNotice.onReconnect}>Reconnect Trello</button>
+                                <button className="button-secondary notice-action" onClick={accountNotice.onDismiss}>Not now</button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* BOARD SELECTOR (GLOBAL) */}
                     <div className="admin-section board-picker">
                         <h3>Choose your Trello Board</h3>
                         <p className="section-hint">
                             Boards are pulled directly from your Trello account, across all workspaces.
                         </p>
-                        <div id="board-selection-container">
+                        <div id="board-selection-container" className="board-select-row">
                         <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
                             <option value="">-- Choose a Board --</option>
                             {(() => {
@@ -1122,6 +1156,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 );
                             })()}
                         </select>
+                        {selectedBoardId && <BoardIdCopy boardId={selectedBoardId} />}
                         </div>
                     </div>
 
@@ -1441,7 +1476,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                                     <div className="notice notice-info">
                                                         <strong>Permission Required:</strong> To update card coordinates, you must grant Trello "Write" access.<br />
                                                         <span className="notice-sub">The location cache on your computer will be reset for the cards to be decoded again.</span>
-                                                        <button className="button-primary notice-action" onClick={() => trelloAuth.login('read,write')}>
+                                                        <button className="button-primary notice-action" onClick={() => trelloAuth.login('read,write,account')}>
                                                             Authorize Write Access (Re-Login)
                                                         </button>
                                                     </div>
@@ -1572,7 +1607,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                             {enableCardMove && !hasWritePermission && (
                                                 <div className="notice notice-info">
                                                     <strong>Permission Required:</strong> To move cards, you must grant Trello "Write" access.<br />
-                                                    <button className="button-primary notice-action" onClick={() => trelloAuth.login('read,write')}>
+                                                    <button className="button-primary notice-action" onClick={() => trelloAuth.login('read,write,account')}>
                                                         Authorize Write Access (Re-Login)
                                                     </button>
                                                 </div>
