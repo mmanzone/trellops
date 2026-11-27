@@ -64,6 +64,42 @@
     font-size: 15px;
 }
 
+/* Board id under the board picker (used for board plans and charity requests) */
+.board-id-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.board-id-value {
+    padding: 2px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--bg-tertiary);
+    font-size: 12px;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.board-id-copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    font-size: 12px;
+}
+
+/* Reconnect Trello notice (email permission) */
+.account-scope-notice .notice-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 /* Tabs: segmented bar */
 .settings-tabs {
     display: flex;

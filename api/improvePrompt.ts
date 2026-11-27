@@ -6,6 +6,7 @@
  */
 import { generateText, gateway, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { requireSession } from './_lib/session.js';
 
 export const config = { maxDuration: 30 };
 
@@ -76,6 +77,9 @@ export default {
         headers: { 'Content-Type': 'application/json', Allow: 'POST' },
       });
     }
+    // Signed-in Trellops users only (open until SESSION_SECRET is set).
+    const gate = await requireSession(request);
+    if ('response' in gate) return gate.response;
     return handlePost(request);
   },
 };

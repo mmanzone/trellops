@@ -12,6 +12,7 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import { useCompletion } from '@ai-sdk/react';
+import { serverSessionReady } from '../api/session';
 
 const CACHE_PREFIX = 'TRELLOPS_AI_SUMMARY_';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -78,6 +79,7 @@ export const useAISummary = () => {
         streamProtocol: 'text',
         experimental_throttle: 50,
         fetch: async (input, init) => {
+            await serverSessionReady(); // the route needs the session cookie
             const res = await fetch(input, init);
             setSource(res.headers.get('X-Summary-Cache') === 'HIT' ? 'server' : 'live');
             return res;

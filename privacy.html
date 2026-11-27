@@ -43,6 +43,7 @@
                     <li><a href="#at-a-glance">At a glance</a></li>
                     <li><a href="#local-first">Local first</a></li>
                     <li><a href="#data-storage">Data storage</a></li>
+                    <li><a href="#account">Your account record</a></li>
                     <li><a href="#permissions">Trello permissions</a></li>
                     <li><a href="#third-parties">Third-party services</a></li>
                     <li><a href="#contact">Contact</a></li>
@@ -61,6 +62,10 @@
                                 <li>Your dashboard layout, colours and settings</li>
                                 <li>Cached map locations</li>
                             </ul>
+                            <h3><span class="info"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span>Kept on our server</h3>
+                            <ul>
+                                <li>Your account record: Trello member ID, username, name, email and when you signed in</li>
+                            </ul>
                         </div>
                         <div>
                             <h3><span class="info"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></span>Leaves your browser only when you ask</h3>
@@ -75,7 +80,7 @@
 
                 <section id="local-first">
                     <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="12" x="3" y="4" rx="2"/><path d="M2 20h20"/></svg></span>The “local first” approach</h2>
-                    <p>Trellops is a client-side application. For almost every feature, <strong>your data never leaves your browser</strong>. We do not track your activity, sell your data, or store your Trello card contents on our servers.</p>
+                    <p>Trellops is a client-side application. For almost every feature, <strong>your data never leaves your browser</strong>. We do not track what you do in the app, sell your data, or store your Trello card contents on our servers. The only thing we keep about you is a small account record, described below.</p>
                 </section>
 
                 <section id="data-storage">
@@ -92,12 +97,26 @@
                     <div class="docs-callout is-info" role="note"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><div>We do <strong>not</strong> store card data, card descriptions or personal information (PII) as part of sharing.</div></div>
                 </section>
 
+                <section id="account">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></span>Your account record</h2>
+                    <p>When you sign in, Trellops checks your Trello sign-in with Trello once and keeps a short record of your account, so we can link plans and support requests to you. The record holds:</p>
+                    <ul>
+                        <li>Your Trello member ID, username and full name</li>
+                        <li>The email address on your Trello account</li>
+                        <li>When you first signed in, when you last used Trellops, and how many times you have signed in</li>
+                    </ul>
+                    <p>Your Trello token is used for that check and is never stored on our server. We set one cookie, <code>trellops_session</code>, which holds a signed copy of your member ID for 30 days so our server knows it is you. Board names and card contents are not part of the record. To have your record deleted, contact us.</p>
+                </section>
+
                 <section id="permissions">
                     <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>Trello permissions: read and write</h2>
                     <p>When you sign in, Trellops asks for access to your Trello boards. That access is limited to the features you use.</p>
 
                     <h3>Default: read-only</h3>
                     <p>By default Trellops only asks for <strong>read</strong> permission. Lists and cards are downloaded only to show them on your dashboard. Trellops cannot change, delete or create anything.</p>
+
+                    <h3>Your email address</h3>
+                    <p>Trellops also asks Trello for <strong>account</strong> permission, which lets us read the email address on your Trello account for your account record. It does not give access to your password or let Trellops change your account.</p>
 
                     <h3>Optional: write access</h3>
                     <p>Some Map features need <strong>write</strong> permission. You are asked for it only when you try to:</p>

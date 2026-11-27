@@ -1,7 +1,8 @@
 import { TRELLO_API_BASE, TRELLO_API_KEY } from '../utils/constants';
 
 export const trelloAuth = {
-    login: (scope = 'read') => {
+    // `account` lets Trellops read the email address of the signed-in member.
+    login: (scope = 'read,account') => {
         const appName = "Trello Stats Dashboard";
         // Remove hash from current location
         const returnUrl = window.location.href.split('#')[0];
