@@ -10,6 +10,7 @@ import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
 import { Copy, Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, TriangleAlert, ChevronDown, ChevronRight, LayoutGrid, Map as MapIcon, ChartColumn, SlidersHorizontal, Check, Info } from 'lucide-react';
 import { encodeBase64Utf8 } from '../utils/helpers';
+import CharityRequestModal from './common/CharityRequestModal';
 import '../styles/settings.css';
 
 const ShareConfigModal = ({ config, onClose, boardName }) => {
@@ -75,7 +76,7 @@ const BoardIdCopy = ({ boardId }) => {
     );
 };
 
-const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { }, viewMode = 'default', onManageTasks, onGoToStats, accountNotice = null }) => {
+const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLogout, importedConfig = null, onClearImportConfig = () => { }, viewMode = 'default', onManageTasks, onGoToStats, accountNotice = null, isAdmin = false, onOpenAdmin }) => {
     // viewMode: 'default' (Board Settings) | 'tasks' (Task Settings Only)
 
     // --- State ---
@@ -145,6 +146,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
 
     const [showShareModal, setShowShareModal] = useState(false);
+    const [showCharityModal, setShowCharityModal] = useState(false);
     const [pendingImport, setPendingImport] = useState(null);
     const [showResetSection, setShowResetSection] = useState(false); // Collapsible Danger Zone toggle
 
@@ -1097,7 +1099,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         <div className="settings-container settings-page">
             {viewMode === 'default' && (
                 <>
-                    <h2 className="settings-page-title">Dashboard Settings</h2>
+                    <div className="settings-title-row">
+                        <h2 className="settings-page-title">Dashboard Settings</h2>
+                        {isAdmin && onOpenAdmin && (
+                            <button type="button" className="button-secondary" onClick={onOpenAdmin}>Admin dashboard</button>
+                        )}
+                    </div>
 
                     {accountNotice?.show && (
                         <div className="notice notice-info account-scope-notice" role="status">
@@ -1158,6 +1165,21 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         </select>
                         {selectedBoardId && <BoardIdCopy boardId={selectedBoardId} />}
                         </div>
+                        {selectedBoardId && (
+                            <p className="charity-link-row">
+                                Charity or NGO?{' '}
+                                <button type="button" className="link-button" onClick={() => setShowCharityModal(true)}>
+                                    Request a free board plan
+                                </button>
+                            </p>
+                        )}
+                        {showCharityModal && (
+                            <CharityRequestModal
+                                boardId={selectedBoardId}
+                                boardName={boards.find(b => b.id === selectedBoardId)?.name}
+                                onClose={() => setShowCharityModal(false)}
+                            />
+                        )}
                     </div>
 
                     {/* TABS HEADER */}

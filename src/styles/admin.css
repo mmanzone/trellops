@@ -1,0 +1,490 @@
+/* Admin dashboard. Uses the app's design tokens (theme.css), so it follows
+   light and dark mode like every other signed-in page. */
+
+.admin-view {
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+.admin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-header-actions .button-secondary,
+.admin-toolbar .button-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 8px 32px 48px;
+    box-sizing: border-box;
+}
+
+/* Tabs (same look as the settings tabs) */
+.admin-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 12px 0 20px;
+    padding: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.admin-tabs .tab-button {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 14px;
+    margin: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    box-shadow: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.admin-tabs .tab-button:hover {
+    background: var(--bg-hover);
+    color: var(--text-color);
+}
+
+.admin-tabs .tab-button.active {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-color);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
+
+.admin-tabs .tab-button.active svg {
+    color: var(--accent-color);
+}
+
+.admin-count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--accent-color);
+    color: var(--accent-contrast);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+    box-sizing: border-box;
+}
+
+/* Panels */
+.admin-panel {
+    margin-bottom: 20px;
+    padding: 20px 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+
+.admin-panel h3 {
+    margin: 0 0 12px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    flex-grow: 0;
+}
+
+.admin-panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 12px;
+}
+
+.admin-panel-head h3 {
+    margin: 0;
+}
+
+.admin-muted {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.admin-footnote {
+    margin: 0 0 8px;
+}
+
+.admin-sub {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* Overview tiles */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.admin-stat {
+    padding: 16px 18px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.admin-stat-value {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-stat-label {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.admin-stat-hint {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Weekly sign-ins: bars with new users overlaid */
+.admin-bars {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 8px;
+    align-items: end;
+    height: 180px;
+}
+
+.admin-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    min-width: 0;
+}
+
+.admin-bar-value {
+    height: 16px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-bar-track {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    max-width: 36px;
+    border-bottom: 1px solid var(--border-strong);
+}
+
+.admin-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 4px 4px 0 0;
+    background: var(--accent-color);
+    opacity: 0.35;
+}
+
+.admin-bar-new {
+    opacity: 1;
+    left: 25%;
+    right: 25%;
+}
+
+.admin-bar-label {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.admin-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.admin-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--accent-color);
+    opacity: 0.35;
+}
+
+.admin-swatch-new {
+    opacity: 1;
+}
+
+/* Toolbar and search */
+.admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.admin-search {
+    flex: 1 1 280px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    height: var(--control-height);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+
+.admin-search input {
+    flex: 1;
+    height: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    color: var(--text-color);
+}
+
+.admin-search:focus-within {
+    box-shadow: var(--focus-ring);
+    border-color: var(--accent-color);
+}
+
+/* Tables */
+.admin-table-wrap {
+    overflow-x: auto;
+    margin: 0 -24px;
+    padding: 0 24px;
+}
+
+.admin-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.admin-table th {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.admin-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+    color: var(--text-color);
+}
+
+.admin-table tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-table code {
+    white-space: nowrap;
+}
+
+.admin-table code,
+.admin-dl code,
+.admin-denied code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.admin-inactive td {
+    color: var(--text-muted);
+}
+
+.admin-table td.admin-over {
+    color: var(--danger-text);
+    font-weight: 600;
+}
+
+.admin-ids {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.admin-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.admin-pill.is-pro,
+.admin-pill.is-active {
+    border-color: var(--accent-border);
+    background: var(--accent-light);
+    color: var(--accent-text);
+}
+
+.admin-danger-link {
+    color: var(--danger-color);
+}
+
+/* Grant form */
+.admin-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px 16px;
+}
+
+.admin-form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.admin-form-grid input,
+.admin-form-grid select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.admin-form-wide {
+    grid-column: 1 / -1;
+}
+
+.admin-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.notice-success {
+    border-color: var(--success-border);
+    background: var(--success-bg);
+    color: var(--success-color);
+}
+
+/* Charity request cards */
+.admin-dl {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 8px 16px;
+    margin: 0;
+    font-size: 14px;
+}
+
+.admin-dl dt {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.admin-dl dd {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.admin-pre {
+    white-space: pre-wrap;
+}
+
+@media (max-width: 700px) {
+    .admin-view .map-header {
+        height: auto;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        gap: 10px;
+    }
+
+    .admin-header-actions .button-secondary {
+        height: 34px;
+        padding: 0 10px;
+        font-size: 13px;
+    }
+
+    .admin-main {
+        padding: 8px 16px 40px;
+    }
+
+    .admin-panel {
+        padding: 16px;
+    }
+
+    .admin-table-wrap {
+        margin: 0 -16px;
+        padding: 0 16px;
+    }
+
+    .admin-dl {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+
+    .admin-dl dd {
+        margin-bottom: 8px;
+    }
+
+    .admin-bars {
+        gap: 3px;
+    }
+
+    .admin-bar-label {
+        font-size: 9px;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+    }
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { trelloAuth, trelloFetch } from './api/trello';
-import { startServerSession, endServerSession, isEmailNoticeDismissed, dismissEmailNotice } from './api/session';
+import { startServerSession, endServerSession, isEmailNoticeDismissed, dismissEmailNotice, fetchMe, registerBoard } from './api/session';
 import { STORAGE_KEYS } from './utils/constants';
 import { getUserData, setUserData, getCurrentUser, setCurrentUser } from './utils/persistence';
 import { DarkModeProvider } from './context/DarkModeContext';
@@ -13,6 +13,7 @@ const SettingsScreen = lazy(() => import('./components/SettingsScreen'));
 const MapView = lazy(() => import('./components/MapView'));
 const TaskView = lazy(() => import('./components/TaskView'));
 const StatisticsView = lazy(() => import('./components/StatisticsView'));
+const AdminView = lazy(() => import('./components/AdminView'));
 import useWakeLock from './hooks/useWakeLock';
 import { decodeBase64Utf8 } from './utils/helpers';
 
@@ -30,10 +31,16 @@ const App = () => {
     const [slideshowView, setSlideshowView] = useState(null); // 'dashboard' or 'map'
 
     const [serverSession, setServerSession] = useState(null); // Answer from /api/session
+    const [isAdmin, setIsAdmin] = useState(false);
     const [emailNoticeDismissed, setEmailNoticeDismissed] = useState(isEmailNoticeDismissed);
     const [retryToken, setRetryToken] = useState(null); // Set when startup failed for a non-auth reason
     const [keepScreenOn, setKeepScreenOn] = useState(false);
     const { requestWakeLock, releaseWakeLock } = useWakeLock();
+
+    // Tell the server which board this member uses (id only), for the admin dashboard.
+    useEffect(() => {
+        if (serverSession?.sessions && settings?.boardId) registerBoard(settings.boardId);
+    }, [serverSession, settings?.boardId]);
 
     // Wake Lock Effect
     useEffect(() => {
@@ -68,6 +75,7 @@ const App = () => {
         else if (path === '/tasks/settings') setView('tasks-settings');
         else if (path === '/stats') setView('stats');
         else if (path === '/settings') setView('settings');
+        else if (path === '/admin') setView('admin');
         // else default to landing (or dashboard if logged in logic below decides)
 
         const tokenFromUrl = trelloAuth.getTokenFromUrl();
@@ -117,6 +125,7 @@ const App = () => {
             else if (path === '/tasks/settings') setView('tasks-settings');
             else if (path === '/stats') setView('stats');
             else if (path === '/settings') setView('settings');
+            else if (path === '/admin') setView('admin');
             else setView(settings?.boardId ? 'dashboard' : 'settings');
         };
         window.addEventListener('popstate', handlePopState);
@@ -173,7 +182,10 @@ const App = () => {
             setUser(userData);
 
             // Register the sign-in with Trellops' server (non-blocking).
-            startServerSession(token).then(setServerSession);
+            startServerSession(token).then((info) => {
+                setServerSession(info);
+                if (info?.sessions) fetchMe().then((me) => setIsAdmin(!!me?.admin));
+            });
 
             const savedSettings = getUserData(member.id, 'settings');
 
@@ -207,6 +219,11 @@ const App = () => {
                     if (savedSettings) setSettings(savedSettings);
                     setView('map');
                 }
+            }
+            // Admin dashboard (access is checked by the server)
+            else if (path === '/admin') {
+                if (savedSettings) setSettings(savedSettings);
+                setView('admin');
             }
             // 3. Settings Route
             else if (path === '/settings') {
@@ -281,6 +298,7 @@ const App = () => {
         setCurrentUser(null);
         setUser(null);
         setServerSession(null);
+        setIsAdmin(false);
         endServerSession();
         setSettings(null);
         setView('landing');
@@ -424,6 +442,18 @@ const App = () => {
             );
         }
 
+        if (view === 'admin' && user) {
+            return (
+                <AdminView
+                    onClose={() => {
+                        const next = settings?.boardId ? 'dashboard' : 'settings';
+                        setView(next);
+                        window.history.pushState({}, '', `/${next}`);
+                    }}
+                />
+            );
+        }
+
         if (view === 'stats' && user) {
             return (
                 <StatisticsView
@@ -493,6 +523,11 @@ const App = () => {
                     onClearImportConfig={() => setImportConfig(null)}
                     viewMode="default"
                     accountNotice={accountNotice}
+                    isAdmin={isAdmin}
+                    onOpenAdmin={() => {
+                        setView('admin');
+                        window.history.pushState({}, '', '/admin');
+                    }}
                     onManageTasks={() => {
                         setView('tasks-settings');
                         window.history.pushState({}, '', '/tasks/settings');
