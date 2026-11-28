@@ -1,6 +1,9 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { trelloAuth, trelloFetch } from './api/trello';
-import { startServerSession, endServerSession, isEmailNoticeDismissed, dismissEmailNotice, fetchMe, registerBoard } from './api/session';
+import { startServerSession, endServerSession, isEmailNoticeDismissed, dismissEmailNotice } from './api/session';
+import { fetchEntitlements, registerBoardWithLimit, openShareLink, OPEN_ENTITLEMENTS } from './api/entitlements';
+import { EntitlementsProvider } from './context/EntitlementsContext';
+import { ProLockScreen, BoardLimitModal, PlanBanner } from './components/common/PlanGate';
 import { STORAGE_KEYS } from './utils/constants';
 import { getUserData, setUserData, getCurrentUser, setCurrentUser } from './utils/persistence';
 import { DarkModeProvider } from './context/DarkModeContext';
@@ -37,10 +40,114 @@ const App = () => {
     const [keepScreenOn, setKeepScreenOn] = useState(false);
     const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
-    // Tell the server which board this member uses (id only), for the admin dashboard.
+    // --- Plans and entitlements (see src/api/entitlements.js) ---
+    const [entitlements, setEntitlements] = useState(OPEN_ENTITLEMENTS);
+    const [entitlementsReady, setEntitlementsReady] = useState(false);
+    const [memberBoards, setMemberBoards] = useState([]);
+    const [boardPlanBoards, setBoardPlanBoards] = useState([]);
+    const [boardLimit, setBoardLimit] = useState(null); // { boardLimit, boards, boardId? } while the limit dialog is open
+    const [planNotice, setPlanNotice] = useState(null); // Top banner, e.g. a share link that needs Pro
+    const lastFetch = useRef(0);
+    const askedBoardIds = useRef([]);
+
+    const can = useCallback((feature) => entitlements.features.includes(feature), [entitlements]);
+
+    const refreshEntitlements = useCallback(async (opts = {}) => {
+        if (!user || !serverSession?.sessions) return;
+        if (opts.boardIds) askedBoardIds.current = opts.boardIds;
+        lastFetch.current = Date.now();
+        const { me, entitlements: ent } = await fetchEntitlements({
+            boardId: settings?.boardId,
+            token: user.token,
+            boardIds: askedBoardIds.current,
+        });
+        setEntitlements(ent);
+        setEntitlementsReady(true);
+        if (me) {
+            setIsAdmin(!!me.admin);
+            setMemberBoards(me.boards || []);
+            setBoardPlanBoards(me.boardPlanBoards || []);
+        }
+    }, [user, serverSession, settings?.boardId]);
+
+    // Without a server session (sessions not configured) the app stays fully open.
     useEffect(() => {
-        if (serverSession?.sessions && settings?.boardId) registerBoard(settings.boardId);
-    }, [serverSession, settings?.boardId]);
+        if (serverSession && !serverSession.sessions) setEntitlementsReady(true);
+    }, [serverSession]);
+
+    // Register the board (id only) and check the board limit; then load entitlements for it.
+    useEffect(() => {
+        if (!serverSession?.sessions || !user) return;
+        let alive = true;
+        (async () => {
+            if (settings?.boardId) {
+                const result = await registerBoardWithLimit(settings.boardId, user.token);
+                if (!alive) return;
+                if (!result.ok) setBoardLimit(result.limit);
+            }
+            refreshEntitlements();
+        })();
+        return () => { alive = false; };
+    }, [serverSession, user, settings?.boardId, refreshEntitlements]);
+
+    // Re-check when the window regains focus (at most once a minute), e.g. after an upgrade.
+    useEffect(() => {
+        const onFocus = () => { if (Date.now() - lastFetch.current > 60000) refreshEntitlements(); };
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
+    }, [refreshEntitlements]);
+
+    // Over the board limit on the current board (for example after a trial ends): pick boards to keep.
+    useEffect(() => {
+        if (entitlements.board && entitlements.board.allowed === false && !boardLimit) {
+            setBoardLimit({ boardLimit: entitlements.boardLimit, boards: memberBoards, boardId: null });
+        }
+    }, [entitlements, memberBoards, boardLimit]);
+
+    useEffect(() => {
+        if (boardLimit && !boardLimit.boardId && entitlements.board?.allowed !== false) setBoardLimit(null);
+    }, [entitlements, boardLimit]);
+
+    // Stop Pro-only modes when the plan does not include them.
+    useEffect(() => {
+        if (!can('keepScreenOn') && keepScreenOn) setKeepScreenOn(false);
+        if (!can('slideshow') && slideshowActive) { setSlideshowActive(false); setSlideshowView(null); }
+    }, [can, keepScreenOn, slideshowActive]);
+
+    // Shared configurations: wait until the plan is known, then import or warn.
+    useEffect(() => {
+        if (!user || !entitlementsReady) return;
+        const shareId = localStorage.getItem('PENDING_SHARE_ID');
+        const pendingConfig = localStorage.getItem('PENDING_SHARE_CONFIG');
+        if (!shareId && !pendingConfig) return;
+        localStorage.removeItem('PENDING_SHARE_ID');
+        localStorage.removeItem('PENDING_SHARE_CONFIG');
+        const readOnlyWarning = {
+            tone: 'warning',
+            title: 'This shared dashboard needs Trellops Pro',
+            text: 'Opening shared configurations is part of Pro, so nothing was imported. Your own dashboard is unchanged.',
+        };
+        const openImport = (config) => {
+            setImportConfig(config);
+            setPreviousView('dashboard');
+            setView('settings');
+            window.history.replaceState({}, '', '/settings');
+        };
+        if (shareId) {
+            openShareLink(shareId).then((res) => {
+                if (res?.allowed && res.config) openImport(res.config);
+                else if (res?.code === 'NEEDS_PRO' || res?.allowed === false && !res?.error) setPlanNotice(readOnlyWarning);
+                else setPlanNotice({ tone: 'warning', title: 'This share link could not be opened', text: res?.error || '' });
+            });
+            return;
+        }
+        if (!can('share')) { setPlanNotice(readOnlyWarning); return; }
+        try {
+            openImport(JSON.parse(decodeBase64Utf8(pendingConfig)));
+        } catch (e) {
+            console.error('Failed to load pending config', e);
+        }
+    }, [user, entitlementsReady, can]);
 
     // Wake Lock Effect
     useEffect(() => {
@@ -56,6 +163,11 @@ const App = () => {
         // 0. Check for Config Share URL
         const params = new URLSearchParams(window.location.search);
         const configParam = params.get('config');
+        const shareParam = params.get('share') || (window.location.pathname.match(/^\/s\/([A-Za-z0-9]{10,16})$/) || [])[1];
+        if (shareParam && /^[A-Za-z0-9]{10,16}$/.test(shareParam)) {
+            localStorage.setItem('PENDING_SHARE_ID', shareParam);
+            window.history.replaceState({}, document.title, '/');
+        }
         if (configParam) {
             try {
                 // Validate generic structure (decode)
@@ -182,10 +294,7 @@ const App = () => {
             setUser(userData);
 
             // Register the sign-in with Trellops' server (non-blocking).
-            startServerSession(token).then((info) => {
-                setServerSession(info);
-                if (info?.sessions) fetchMe().then((me) => setIsAdmin(!!me?.admin));
-            });
+            startServerSession(token).then((info) => setServerSession(info || { sessions: false }));
 
             const savedSettings = getUserData(member.id, 'settings');
 
@@ -255,22 +364,7 @@ const App = () => {
 
             if (savedSettings) setSettings(savedSettings);
 
-            // CHECK FOR PENDING CONFIG
-            const pendingConfig = localStorage.getItem('PENDING_SHARE_CONFIG');
-            if (pendingConfig) {
-                try {
-                    const decoded = decodeBase64Utf8(pendingConfig);
-                    const config = JSON.parse(decoded);
-                    setImportConfig(config);
-                    setView('settings');
-                    window.history.replaceState({}, '', '/settings');
-                    setPreviousView('dashboard');
-                    localStorage.removeItem('PENDING_SHARE_CONFIG');
-                    console.log("Loaded pending shared configuration");
-                } catch (e) {
-                    console.error("Failed to load pending config", e);
-                }
-            }
+            // Pending shared configurations are handled once the plan is known (see above).
         } catch (e) {
             console.error("Login validation failed:", e);
             if (e.status === 401) {
@@ -299,6 +393,9 @@ const App = () => {
         setUser(null);
         setServerSession(null);
         setIsAdmin(false);
+        setEntitlements(OPEN_ENTITLEMENTS);
+        setEntitlementsReady(false);
+        setBoardLimit(null);
         endServerSession();
         setSettings(null);
         setView('landing');
@@ -377,12 +474,43 @@ const App = () => {
         },
     };
 
+    // Settings as the views should see them: Pro-only views are switched off
+    // when the plan does not include them (the saved settings are kept).
+    const viewSettings = !settings ? settings : {
+        ...settings,
+        enableMapView: can('map') ? settings.enableMapView : false,
+        enableTaskView: can('tasks') ? settings.enableTaskView : false,
+        statistics: { ...(settings.statistics || {}), enabled: can('stats') ? settings.statistics?.enabled : false },
+    };
+    const startSlideshow = can('slideshow') ? handleStartSlideshow : undefined;
+    const toggleScreenLock = can('keepScreenOn') ? () => setKeepScreenOn(!keepScreenOn) : null;
+    const backToDashboard = () => {
+        const next = settings?.boardId ? 'dashboard' : 'settings';
+        setView(next);
+        window.history.pushState({}, '', `/${next}`);
+    };
+
+    const entitlementsValue = {
+        entitlements,
+        can,
+        refresh: refreshEntitlements,
+        boards: memberBoards,
+        boardPlanBoards,
+        requestBoardLimit: setBoardLimit,
+    };
+
     const renderView = () => {
+        const lockedFeature = { map: 'map', stats: 'stats', tasks: 'tasks' }[view];
+        if (user && lockedFeature && !can(lockedFeature)) {
+            return <ProLockScreen feature={lockedFeature} onBack={backToDashboard} />;
+        }
+
         if (view === 'map') {
             return (
                 <MapView
                     user={user}
-                    settings={settings}
+                    settings={viewSettings}
+                    minRefreshSeconds={entitlements.minRefreshSeconds}
                     onClose={() => {
                         setView('dashboard');
                         window.history.pushState({}, '', '/dashboard');
@@ -404,10 +532,10 @@ const App = () => {
                         window.history.pushState({}, '', '/dashboard');
                     }}
                     slideshowContent={slideshowActive ? slideshowView : null}
-                    onStartSlideshow={handleStartSlideshow}
+                    onStartSlideshow={startSlideshow}
                     onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
                     keepScreenOn={keepScreenOn}
-                    onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
+                    onToggleScreenLock={toggleScreenLock}
                 />
             );
         }
@@ -416,7 +544,7 @@ const App = () => {
             return (
                 <TaskView
                     user={user}
-                    settings={settings}
+                    settings={viewSettings}
                     onClose={() => {
                         setView('dashboard');
                         window.history.pushState({}, '', '/dashboard');
@@ -458,12 +586,12 @@ const App = () => {
             return (
                 <StatisticsView
                     user={user}
-                    settings={settings}
+                    settings={viewSettings}
                     onShowSettings={() => { setPreviousView('stats'); setView('settings'); setSettingsTab('statistics'); window.history.pushState({}, '', '/settings'); }}
                     onGoToDashboard={() => { setView('dashboard'); window.history.pushState({}, '', '/dashboard'); }}
                     onLogout={handleLogout}
                     keepScreenOn={keepScreenOn}
-                    onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
+                    onToggleScreenLock={toggleScreenLock}
                 />
             );
         }
@@ -472,7 +600,8 @@ const App = () => {
             return (
                 <Dashboard
                     user={user}
-                    settings={settings}
+                    settings={viewSettings}
+                    minRefreshSeconds={entitlements.minRefreshSeconds}
                     onShowSettings={() => {
                         setPreviousView('dashboard');
                         setSettingsTab('dashboard');
@@ -491,10 +620,10 @@ const App = () => {
                         window.history.pushState({}, '', '/map');
                     }}
                     slideshowContent={slideshowActive ? slideshowView : null}
-                    onStartSlideshow={handleStartSlideshow}
+                    onStartSlideshow={startSlideshow}
                     onStopSlideshow={slideshowActive ? handleStopSlideshow : null}
                     keepScreenOn={keepScreenOn}
-                    onToggleScreenLock={() => setKeepScreenOn(!keepScreenOn)}
+                    onToggleScreenLock={toggleScreenLock}
                 />
             );
         }
@@ -570,9 +699,32 @@ const App = () => {
     };
 
     return (
-        <Suspense fallback={<div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
-            {renderView()}
-        </Suspense>
+        <EntitlementsProvider value={entitlementsValue}>
+            <Suspense fallback={<div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
+                {renderView()}
+            </Suspense>
+            <PlanBanner notice={planNotice} onDismiss={() => setPlanNotice(null)} />
+            {boardLimit && user && (boardLimit.boardId || !['settings', 'tasks-settings', 'admin'].includes(view)) && (
+                <BoardLimitModal
+                    limit={boardLimit}
+                    token={user.token}
+                    onResolved={() => {
+                        const pending = boardLimit.boardId;
+                        setBoardLimit(null);
+                        if (pending) registerBoardWithLimit(pending, user.token).then((r) => (r.ok ? refreshEntitlements() : setBoardLimit(r.limit)));
+                        else refreshEntitlements();
+                    }}
+                    onClose={boardLimit.boardId ? () => setBoardLimit(null) : null}
+                    onChooseBoard={boardLimit.boardId ? null : () => {
+                        setBoardLimit(null);
+                        setPreviousView('dashboard');
+                        setSettingsTab('dashboard');
+                        setView('settings');
+                        window.history.pushState({}, '', '/settings');
+                    }}
+                />
+            )}
+        </EntitlementsProvider>
     );
 };
 

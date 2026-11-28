@@ -1,13 +1,16 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { ProLock } from './PlanGate';
 
-const MoreOptionsModal = ({ onClose, onExport, onImport, onReset, boardName, selectedBoardId }) => {
+const MoreOptionsModal = ({ onClose, onExport, onImport, onReset, boardName, selectedBoardId, exportLocked = false }) => {
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <button type="button" className="modal-close icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
                 <h3>More Options</h3>
+                {exportLocked && <ProLock feature="export" />}
                 <div className="modal-actions">
+                    {!exportLocked && <>
                     <button
                         className="settings-button"
                         onClick={onExport}
@@ -26,6 +29,7 @@ const MoreOptionsModal = ({ onClose, onExport, onImport, onReset, boardName, sel
                             style={{ display: 'none' }}
                         />
                     </label>
+                    </>}
                     <button
                         className="button-danger"
                         onClick={onReset}

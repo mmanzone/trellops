@@ -1,0 +1,121 @@
+/* Plan locks, upgrade prompts and the board limit dialog (subscription phase 3). */
+
+.pro-tag {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+    letter-spacing: 0.02em;
+    color: var(--accent-text);
+    background: var(--accent-light);
+    border: 1px solid var(--accent-border);
+    vertical-align: middle;
+}
+
+.pro-lock {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-radius: var(--radius-md);
+    background: var(--accent-light);
+    border: 1px solid var(--accent-border);
+    color: var(--accent-text);
+    font-size: 14px;
+    line-height: 1.45;
+}
+.pro-lock svg { flex: none; margin-top: 2px; }
+.pro-lock strong { display: block; font-weight: 600; }
+.pro-lock-compact { padding: 6px 10px; font-size: 13px; align-items: center; }
+.pro-lock-compact svg { margin-top: 0; }
+.pro-lock-sub { display: block; color: var(--text-secondary); font-size: 13px; }
+
+.pro-lock-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    background: var(--bg-primary);
+}
+.pro-lock-card {
+    max-width: 520px;
+    width: 100%;
+    padding: 32px 28px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    color: var(--text-primary);
+}
+.pro-lock-card > svg { color: var(--accent-color); }
+.pro-lock-card h2 { font-family: var(--font-display); font-size: 24px; margin: 12px 0 10px; }
+.pro-lock-card p { color: var(--text-secondary); line-height: 1.55; margin: 0 0 12px; }
+.pro-lock-card .button-primary { margin-top: 8px; }
+
+.plan-status {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: -6px 0 14px;
+}
+
+.board-limit-modal { max-width: 540px; }
+.board-limit-modal p { color: var(--text-secondary); line-height: 1.5; }
+.board-limit-list { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+.board-limit-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+}
+.board-limit-list li > span { display: flex; flex-direction: column; min-width: 0; }
+.board-limit-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-limit-list code { font-size: 12px; color: var(--text-muted); }
+.board-limit-list .button-secondary { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+
+.plan-banner {
+    position: fixed;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    width: min(620px, calc(100% - 32px));
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-border);
+    box-shadow: var(--shadow-lg);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.45;
+}
+.plan-banner > svg { flex: none; margin-top: 2px; color: var(--accent-color); }
+.plan-banner > div { flex: 1; }
+.plan-banner strong { display: block; }
+.plan-banner span { color: var(--text-secondary); }
+.plan-banner-warning { border-color: #e9c46a; }
+.plan-banner-warning > svg { color: #b7791f; }
+.plan-banner-close {
+    flex: none;
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+.plan-banner-close:hover { color: var(--text-primary); }
+
+.locked-control { opacity: 0.55; pointer-events: none; }

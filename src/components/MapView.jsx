@@ -419,7 +419,7 @@ const CardPopup = ({ card, listName, blockName, blocks, lists, onMove, enableStr
 };
 
 
-const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
+const MapView = ({ user, settings, minRefreshSeconds = 15, onClose, onShowSettings, onLogout, onShowTasks, onShowDashboard, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
     const [cards, setCards] = useState([]);
     const [lists, setLists] = useState([]);
     const [boardLabels, setBoardLabels] = useState([]);
@@ -481,7 +481,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
     const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_INTERVAL + boardId);
     const defaultRefreshSetting = { value: 1, unit: 'minutes' };
     const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
-    const refreshIntervalSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
+    const refreshIntervalSeconds = Math.max(convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit), minRefreshSeconds);
     const showClock = localStorage.getItem(STORAGE_KEYS.CLOCK_SETTING + boardId) !== 'false';
 
     // Initialize shared InfoWindow
@@ -1332,7 +1332,7 @@ const MapView = ({ user, settings, onClose, onShowSettings, onLogout, onShowTask
             <div style={{ display: 'flex', flexGrow: 1, position: 'relative' }}>
                 {slideshowContent === 'dashboard' ? (
                     <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-                        <Dashboard isEmbedded={true} user={user} settings={settings} />
+                        <Dashboard isEmbedded={true} user={user} settings={settings} minRefreshSeconds={minRefreshSeconds} />
                     </div>
                 ) : (
                     <>

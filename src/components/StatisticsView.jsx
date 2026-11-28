@@ -21,7 +21,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
     const LabelsTerm = terms.labels ? terms.labels.charAt(0).toUpperCase() + terms.labels.slice(1) : 'Labels';
     
     // AI Summary State
-    const { summaryText, isGenerating: isGeneratingSummary, source: summarySource, generate: generateSummary } = useAISummary();
+    const { summaryText, isGenerating: isGeneratingSummary, source: summarySource, generate: generateSummary } = useAISummary(settings?.boardId);
     const summaryHtml = useMemo(() => renderMarkdown(summaryText), [summaryText]);
 
     // Filters

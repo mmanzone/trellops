@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, RefreshCw, Search, Users, Inbox, Gift, LayoutGrid, ChartColumn } from 'lucide-react';
+import { ArrowLeft, Download, RefreshCw, Search, Users, Inbox, Gift, LayoutGrid, ChartColumn, SlidersHorizontal } from 'lucide-react';
 import { ThemeToggleButton, PageTitle } from './common/HeaderControls';
 import { serverSessionReady, fetchMe } from '../api/session';
 import '../styles/admin.css';
@@ -7,7 +7,7 @@ import '../styles/admin.css';
 // Admin dashboard: adoption, users, comped plans and charity requests.
 // Only members listed in ADMIN_TRELLO_IDS get data from /api/admin.
 
-const REASONS = ['Charity', 'NGO', 'Beta tester', 'Support', 'Partner', 'Other'];
+const REASONS = ['Charity', 'NGO', 'Beta tester', 'Support', 'Partner', 'Trial', 'Other'];
 
 const api = async (path, options = {}) => {
     await serverSessionReady();
@@ -33,7 +33,7 @@ const planOf = (user) => {
     const o = user.override;
     if (!o) return { label: 'Free', source: '', limit: 1 };
     const packs = o.pack_quantity || 0;
-    return { label: 'Pro', source: o.reason, limit: 5 + 5 * packs, packs };
+    return { label: o.reason === 'Trial' ? 'Pro trial' : 'Pro', source: o.reason, limit: 5 + 5 * packs, packs };
 };
 
 const csvCell = (v) => {
@@ -401,12 +401,145 @@ const RequestsTab = ({ requests, onReview }) => {
     );
 };
 
+const FEATURE_NAMES = {
+    map: 'Map', stats: 'Statistics', tasks: 'Tasks', ai: 'AI', share: 'Share links', export: 'Export',
+    slideshow: 'Slideshow', keepScreenOn: 'Keep screen on', sync: 'Account sync',
+};
+
+const fmtSeconds = (n) => (n >= 3600 && n % 3600 === 0 ? `${n / 3600} h` : n >= 60 && n % 60 === 0 ? `${n / 60} min` : `${n} s`);
+
+const PlanRow = ({ plan, onSaved, onError }) => {
+    const [form, setForm] = useState({ boardLimit: plan.boardLimit, boardsPerPack: plan.boardsPerPack, minRefreshSeconds: plan.minRefreshSeconds });
+    const [busy, setBusy] = useState(false);
+    const dirty = form.boardLimit !== plan.boardLimit || form.boardsPerPack !== plan.boardsPerPack || form.minRefreshSeconds !== plan.minRefreshSeconds;
+    const num = (key) => (e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) }));
+    const save = async () => {
+        setBusy(true);
+        try {
+            await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'updatePlan', code: plan.code, ...form }) });
+            onSaved();
+        } catch (e) { onError(e.message); }
+        setBusy(false);
+    };
+    return (
+        <tr>
+            <td><strong>{plan.name}</strong><div className="admin-sub"><code>{plan.code}</code></div></td>
+            <td><input type="number" min="0" className="admin-num-input" value={form.boardLimit} onChange={num('boardLimit')} aria-label={`${plan.name} board limit`} /></td>
+            <td><input type="number" min="0" className="admin-num-input" value={form.boardsPerPack} onChange={num('boardsPerPack')} aria-label={`${plan.name} boards per pack`} /></td>
+            <td>
+                <input type="number" min="30" className="admin-num-input" value={form.minRefreshSeconds} onChange={num('minRefreshSeconds')} aria-label={`${plan.name} minimum refresh in seconds`} />
+                <div className="admin-sub">{fmtSeconds(form.minRefreshSeconds)}</div>
+            </td>
+            <td className="admin-features">{plan.features.length ? plan.features.map((f) => FEATURE_NAMES[f] || f).join(', ') : <span className="admin-muted">None</span>}</td>
+            <td>{dirty && <button type="button" className="button-primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>}</td>
+        </tr>
+    );
+};
+
+const PlansTab = () => {
+    const [data, setData] = useState(null);
+    const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
+    const [mode, setMode] = useState('off');
+    const [testIds, setTestIds] = useState('');
+    const [busy, setBusy] = useState(false);
+
+    const load = useCallback(async () => {
+        try {
+            const d = await api('/api/admin?view=settings');
+            setData(d);
+            setMode(d.enforcement.mode);
+            setTestIds(d.enforcement.testMemberIds.join('\n'));
+        } catch (e) { setError(e.message); }
+    }, []);
+    useEffect(() => { load(); }, [load]);
+
+    const saveEnforcement = async (e) => {
+        e.preventDefault();
+        if (mode === 'all' && !window.confirm('Turn plan limits on for every user? Free users will lose Pro features straight away.')) return;
+        setBusy(true);
+        setError('');
+        try {
+            const ids = testIds.split(/[\s,]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+            await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'setEnforcement', mode, testMemberIds: ids }) });
+            setNotice('Saved. Users see the change the next time the app checks their plan (on load, or when the window regains focus).');
+            load();
+        } catch (err) { setError(err.message); }
+        setBusy(false);
+    };
+
+    const startTrials = async () => {
+        if (!window.confirm(`Give a ${data.trialDays}-day Pro trial to ${data.trialEligible} user${data.trialEligible === 1 ? '' : 's'}? Each user can only get one trial.`)) return;
+        setBusy(true);
+        try {
+            const r = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'startTrials' }) });
+            setNotice(`Started ${r.started} trial${r.started === 1 ? '' : 's'}.`);
+            load();
+        } catch (e) { setError(e.message); }
+        setBusy(false);
+    };
+
+    if (!data) return error ? <div className="notice notice-danger">{error}</div> : <p className="admin-muted">Loading…</p>;
+    return (
+        <>
+            {error && <div className="notice notice-danger">{error}</div>}
+            {notice && <div className="notice notice-success">{notice}</div>}
+            <section className="admin-panel">
+                <h3>Plan limits</h3>
+                <p className="admin-muted">
+                    While limits are off, everyone keeps every feature, as today. Turn them on for a few test accounts first,
+                    then flip a test account between Free and Pro from the Users tab to check the app. Turn them on for everyone at launch.
+                </p>
+                <form onSubmit={saveEnforcement} className="admin-enforcement">
+                    <label className="admin-radio"><input type="radio" name="enf" value="off" checked={mode === 'off'} onChange={() => setMode('off')} /> Off: everyone gets every feature</label>
+                    <label className="admin-radio"><input type="radio" name="enf" value="test" checked={mode === 'test'} onChange={() => setMode('test')} /> Test accounts only</label>
+                    {mode === 'test' && (
+                        <label className="admin-field">
+                            <span>Trello member IDs of the test accounts, one per line</span>
+                            <textarea rows={3} value={testIds} onChange={(e) => setTestIds(e.target.value)} placeholder="5338a7793d2062e9654bafb6" />
+                        </label>
+                    )}
+                    <label className="admin-radio"><input type="radio" name="enf" value="all" checked={mode === 'all'} onChange={() => setMode('all')} /> Everyone (launch)</label>
+                    <div><button type="submit" className="button-primary" disabled={busy}>Save</button></div>
+                </form>
+            </section>
+
+            <section className="admin-panel">
+                <h3>Plan rules</h3>
+                <p className="admin-muted">Board limits and the refresh floor apply as soon as they are saved. The minimum refresh cannot go below 30 seconds, because Trello limits the whole app to 300 requests every 10 seconds.</p>
+                <div className="admin-table-wrap">
+                    <table className="admin-table admin-plans-table">
+                        <thead>
+                            <tr><th>Plan</th><th>Boards</th><th>Boards per pack</th><th>Minimum refresh (s)</th><th>Features</th><th /></tr>
+                        </thead>
+                        <tbody>
+                            {data.plans.map((p) => <PlanRow key={`${p.code}-${p.boardLimit}-${p.boardsPerPack}-${p.minRefreshSeconds}`} plan={p} onSaved={load} onError={setError} />)}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section className="admin-panel">
+                <h3>Trial for existing users</h3>
+                <p className="admin-muted">
+                    Gives every user who has no plan and never had a trial a {data.trialDays}-day Pro trial, no card needed.
+                    Run it at launch. {data.trials.active} trial{data.trials.active === 1 ? '' : 's'} active, {data.trials.total} given in total.
+                </p>
+                <button type="button" className="button-primary" onClick={startTrials} disabled={busy || !data.trialEligible}>
+                    Start trials for {data.trialEligible} user{data.trialEligible === 1 ? '' : 's'}
+                </button>
+            </section>
+        </>
+    );
+};
+
 const TABS = [
     { id: 'overview', label: 'Overview', icon: ChartColumn },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'boards', label: 'Board plans', icon: LayoutGrid },
     { id: 'plans', label: 'Given plans', icon: Gift },
     { id: 'requests', label: 'Charity requests', icon: Inbox },
+    { id: 'rules', label: 'Plans and limits', icon: SlidersHorizontal },
 ];
 
 const AdminView = ({ onClose }) => {
@@ -535,6 +668,7 @@ const AdminView = ({ onClose }) => {
                             </>
                         )}
                         {tab === 'requests' && <RequestsTab requests={requests} onReview={review} />}
+                        {tab === 'rules' && <PlansTab />}
                     </>
                 )}
             </main>

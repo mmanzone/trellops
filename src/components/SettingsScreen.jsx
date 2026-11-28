@@ -11,14 +11,29 @@ import { setPersistentColors, getPersistentColors, setPersistentLayout } from '.
 import { Copy, Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, TriangleAlert, ChevronDown, ChevronRight, LayoutGrid, Map as MapIcon, ChartColumn, SlidersHorizontal, Check, Info } from 'lucide-react';
 import { encodeBase64Utf8 } from '../utils/helpers';
 import CharityRequestModal from './common/CharityRequestModal';
+import { ProLock, ProTag, PlanStatus } from './common/PlanGate';
+import { useEntitlements } from '../context/EntitlementsContext';
+import { createShareLink, registerBoardWithLimit, saveServerConfig, loadServerConfig } from '../api/entitlements';
 import '../styles/settings.css';
 
-const ShareConfigModal = ({ config, onClose, boardName }) => {
+const ShareConfigModal = ({ config, onClose, boardName, enforced }) => {
     const [copied, setCopied] = useState(false);
-    // Encode config to Base64 to be URL safe (UTF-8 safe)
-    const configString = JSON.stringify(config);
-    const encoded = encodeBase64Utf8(configString);
-    const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?config=${encodeURIComponent(encoded)}`;
+    // Legacy link: the whole config Base64-encoded in the URL (UTF-8 safe).
+    const legacyUrl = () => `${window.location.protocol}//${window.location.host}${window.location.pathname}?config=${encodeURIComponent(encodeBase64Utf8(JSON.stringify(config)))}`;
+    // Short link stored on the server (/?share=<id>), which checks the plan of whoever opens it.
+    const [shareUrl, setShareUrl] = useState('');
+    const [shareError, setShareError] = useState('');
+    useEffect(() => {
+        let alive = true;
+        createShareLink(config.boardId, config).then((res) => {
+            if (!alive) return;
+            if (res.url) setShareUrl(res.url);
+            else if (enforced) setShareError(res.error);
+            else setShareUrl(legacyUrl()); // Server not set up yet: keep the old link working.
+        });
+        return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(shareUrl).then(() => {
@@ -36,16 +51,16 @@ const ShareConfigModal = ({ config, onClose, boardName }) => {
                     <input
                         type="text"
                         readOnly
-                        value={shareUrl}
+                        value={shareError || shareUrl || 'Creating link...'}
                         style={{ flex: 1 }}
                         onClick={(e) => e.target.select()}
                     />
-                    <button onClick={handleCopy} className="button-primary">
+                    <button onClick={handleCopy} className="button-primary" disabled={!shareUrl}>
                         {copied ? 'Copied!' : 'Copy'}
                     </button>
                 </div>
                 <div className="notice notice-warning">
-                    <strong>Note:</strong> The recipient of this link must have a Trello account and access to the board <strong>{boardName || 'specified'}</strong> to be able to display it. Features requiring extended write permissions will have to be granted by the recipients of this link.
+                    <strong>Note:</strong> The recipient of this link needs Trellops Pro, a Trello account and access to the board <strong>{boardName || 'specified'}</strong> to be able to display it. Features requiring extended write permissions will have to be granted by the recipients of this link.
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
                     <button className="button-secondary" onClick={onClose}>Close</button>
@@ -81,6 +96,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     // --- State ---
     const [boards, setBoards] = useState([]);
+    const { entitlements, can, refresh: refreshEntitlements, requestBoardLimit } = useEntitlements();
+    const minRefreshSeconds = entitlements?.minRefreshSeconds || 15;
+    const refreshFixed = entitlements?.enforced && minRefreshSeconds >= 3600; // Free: fixed 60 minutes
+    const syncToAccount = entitlements?.plan === 'pro' && can('sync');
     const [selectedBoardId, setSelectedBoardId] = useState('');
     const [allLists, setAllLists] = useState([]); // All fetched lists
     const [boardLabels, setBoardLabels] = useState([]);
@@ -401,7 +420,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 const legacyKey = `TRELLO_DASHBOARD_LAYOUT_${boardId}`;
                 const legacyLayout = localStorage.getItem(legacyKey);
                 if (legacyLayout) setBlocks(JSON.parse(legacyLayout));
-                else setBlocks([]); // Clear if nothing found
+                else {
+                    setBlocks([]); // Clear if nothing found
+                    // Pro on a new device: offer the copy saved on the account.
+                    if (syncToAccount) {
+                        loadServerConfig(boardId).then((cfg) => {
+                            if (cfg) setPendingImport({ ...cfg, fromAccount: true });
+                        });
+                    }
+                }
             }
 
             // 3. Load Colors
@@ -513,6 +540,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                 // 1. Fetch Boards (including Organization data for grouping)
                 const boardsData = await trelloFetch('/members/me/boards?fields=id,name,url,idOrganization&organization=true&organization_fields=displayName,name', user.token);
                 setBoards(boardsData);
+                refreshEntitlements?.({ boardIds: (boardsData || []).map((b) => b.id) });
 
                 const storedData = JSON.parse(localStorage.getItem('trelloUserData') || '{}');
                 const userSettings = storedData[user.id]?.settings;
@@ -679,10 +707,21 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     const settingsReady = initialLoadDone && !loadingLists;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         // Don't save while the saved configuration is still loading: the form
         // still holds empty defaults and would wipe the board's layout.
         if (!settingsReady) return;
+
+        // Board limit: adding a board beyond the plan opens the "remove a board" dialog.
+        if (selectedBoardId && entitlements?.enforced) {
+            const check = await registerBoardWithLimit(selectedBoardId, user.token);
+            if (!check.ok) {
+                requestBoardLimit?.(check.limit);
+                setError('Your plan\'s board limit is reached. Remove a board, then save again.');
+                window.scrollTo(0, 0);
+                return;
+            }
+        }
 
         // VALIDATION: Slideshow Interval
         if (slideshowInterval < 10) {
@@ -691,8 +730,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         }
 
         // VALIDATION: Refresh Interval 
-        if (refreshUnit === 'seconds' && parseInt(refreshValue) < 15) {
-            setError("Refresh interval must be at least 15 seconds.");
+        const refreshSeconds = { seconds: 1, minutes: 60, hours: 3600 }[refreshUnit] * (parseInt(refreshValue) || 0);
+        if (!refreshFixed && refreshSeconds < minRefreshSeconds) {
+            setError(minRefreshSeconds >= 60
+                ? `Refresh interval must be at least ${minRefreshSeconds / 60} minute${minRefreshSeconds === 60 ? '' : 's'} on your plan. Use the Refresh button for live data.`
+                : `Refresh interval must be at least ${minRefreshSeconds} seconds.`);
             window.scrollTo(0, 0);
             return;
         }
@@ -792,6 +834,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             };
             localStorage.setItem('trelloUserData', JSON.stringify(storedData));
 
+            // Pro: keep a copy on the account so the dashboard follows the member to other devices.
+            if (selectedBoardId && syncToAccount) saveServerConfig(selectedBoardId, getConfigObject());
+
             // Call onSave with newSettings to update App.jsx state IMMEDIATELY
             onSave(newSettings);
         } catch (e) {
@@ -887,7 +932,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
         setIsImprovingPrompt(true);
         try {
             await serverSessionReady(); // the route needs the session cookie
-            const res = await fetch('/api/improvePrompt', {
+            const res = await fetch(`/api/improvePrompt${selectedBoardId ? `?board=${selectedBoardId}` : ''}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rawPrompt: statsCustomPrompt })
@@ -1106,6 +1151,8 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         )}
                     </div>
 
+                    <PlanStatus />
+
                     {accountNotice?.show && (
                         <div className="notice notice-info account-scope-notice" role="status">
                             <strong>Reconnect Trello to finish setting up your account.</strong>
@@ -1222,7 +1269,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             {pendingImport && (
                 <div className="info-banner notice notice-info notice-row">
                     <div>
-                        <strong>Configuration Loaded:</strong> Shared settings available for board <strong>{pendingImport.boardName || pendingImport.boardId}</strong>.
+                        {pendingImport.fromAccount
+                            ? <><strong>Saved settings found:</strong> your account has settings for <strong>{pendingImport.boardName || pendingImport.boardId}</strong> from another device.</>
+                            : <><strong>Configuration Loaded:</strong> Shared settings available for board <strong>{pendingImport.boardName || pendingImport.boardId}</strong>.</>}
                         <div style={{ fontSize: '0.9em', marginTop: '4px' }}>Unsaved changes will be lost if you apply this configuration.</div>
                     </div>
                     <div style={{ display: 'flex', gap: '10px' }}>
@@ -1429,9 +1478,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                 <p className="section-hint">
                                     Map settings are saved per-board. Choose whether Map View is enabled and how geocoding should behave for cards on this board.
                                 </p>
-                                <div id="map-enable-toggle" className="settings-row toggle-row toggle-row-main" onClick={() => setEnableMapView(!enableMapView)}>
+                                {!can('map') && <ProLock feature="map" />}
+                                <div id="map-enable-toggle" className={`settings-row toggle-row toggle-row-main${can('map') ? '' : ' locked-control'}`} onClick={() => setEnableMapView(!enableMapView)}>
                                     <ToggleSwitch checked={enableMapView} onChange={e => setEnableMapView(e.target.checked)} />
-                                    <span>Enable Map View</span>
+                                    <span>Enable Map View{!can('map') && <ProTag />}</span>
                                 </div>
 
                                 {enableMapView && (
@@ -1750,9 +1800,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     Configure the historical data analysis view.
                                 </p>
 
-                                <div id="stats-enable-toggle" className="settings-row toggle-row toggle-row-main" onClick={() => setEnableStats(!enableStats)}>
+                                {!can('stats') && <ProLock feature="stats" />}
+                                <div id="stats-enable-toggle" className={`settings-row toggle-row toggle-row-main${can('stats') ? '' : ' locked-control'}`} onClick={() => setEnableStats(!enableStats)}>
                                     <ToggleSwitch checked={enableStats} onChange={e => setEnableStats(e.target.checked)} />
-                                    <span>Enable Statistics View</span>
+                                    <span>Enable Statistics View{!can('stats') && <ProTag />}</span>
                                 </div>
 
                                 {enableStats && (
@@ -1874,20 +1925,21 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                                     <div className="admin-section" id="section-4">
                                         <h3>Other Settings for {selectedBoard.name}</h3>
                                     <p className="section-hint">
-                                        These settings are saved separately for each Trello board. Auto-refresh must be at least 15 seconds; recommended 30 seconds for live displays. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
+                                        These settings are saved separately for each Trello board. Auto-refresh must be at least {minRefreshSeconds >= 60 ? `${minRefreshSeconds / 60} minute${minRefreshSeconds === 60 ? '' : 's'}` : `${minRefreshSeconds} seconds`} on your plan; use the Refresh button for live data. The digital clock appears in the top-left corner of the screen and follows the local computer time format. Template Cards in Trello can be excluded from the count (recommended); completed cards can also be excluded.
                                     </p>
                                     <div className="form-stack">
                                         <div className="field">
                                             <label className="field-label">Refresh Interval</label>
-                                            <div className="input-group">
-                                                <input type="number" min={refreshUnit === 'seconds' ? 15 : 1} value={refreshValue} onChange={e => setRefreshValue(e.target.value)} className="input-number" />
-                                                <select value={refreshUnit} onChange={e => setRefreshUnit(e.target.value)}>
+                                            {refreshFixed && <ProLock feature="refresh" compact />}
+                                            <div className={`input-group${refreshFixed ? ' locked-control' : ''}`}>
+                                                <input type="number" min={refreshUnit === 'seconds' ? Math.max(15, minRefreshSeconds) : 1} value={refreshFixed ? 60 : refreshValue} onChange={e => setRefreshValue(e.target.value)} className="input-number" disabled={refreshFixed} />
+                                                <select value={refreshFixed ? 'minutes' : refreshUnit} onChange={e => setRefreshUnit(e.target.value)} disabled={refreshFixed}>
                                                     <option value="seconds">Seconds</option>
                                                     <option value="minutes">Minutes</option>
                                                     <option value="hours">Hours</option>
                                                 </select>
                                             </div>
-                                            <p className="field-hint">How often the data is retrieved from Trello.</p>
+                                            <p className="field-hint">{refreshFixed ? 'The Free plan refreshes every 60 minutes. Pro can refresh every minute.' : 'How often the data is retrieved from Trello.'}</p>
                                         </div>
                                         <div className="field">
                                             <label className="field-label">Slideshow Interval (Seconds)</label>
@@ -2118,7 +2170,11 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         <div className="actions-container settings-actions">
                             {activeTab !== 'tasks' && (
                                 <div className="settings-actions-secondary">
-                                    <button className="button-secondary" onClick={() => setShowShareModal(true)}>Share Configuration</button>
+                                    {can('share') ? (
+                                        <button className="button-secondary" onClick={() => setShowShareModal(true)} disabled={!selectedBoardId}>Share Configuration</button>
+                                    ) : (
+                                        <button className="button-secondary" disabled title="Share links are part of Trellops Pro">Share Configuration <ProTag /></button>
+                                    )}
                                     <button className="button-secondary" onClick={() => setShowMoreOptions(true)}>More...</button>
                                 </div>
                             )}
@@ -2169,9 +2225,10 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             <p className="section-hint">
                                 This is a separate feature, independent from the dashboard and map views. Enable a "Bird's Eye View" dashboard to see all your assigned tasks (checklists) and cards across ALL your workspaces and boards in one place.
                             </p>
-                            <div className="settings-row toggle-row toggle-row-main" onClick={() => setEnableTaskView(!enableTaskView)}>
+                            {!can('tasks') && <ProLock feature="tasks" />}
+                            <div className={`settings-row toggle-row toggle-row-main${can('tasks') ? '' : ' locked-control'}`} onClick={() => setEnableTaskView(!enableTaskView)}>
                                 <ToggleSwitch checked={enableTaskView} onChange={e => setEnableTaskView(e.target.checked)} />
-                                <span>Enable Tasks View</span>
+                                <span>Enable Tasks View{!can('tasks') && <ProTag />}</span>
                             </div>
 
                             {enableTaskView && (
@@ -2261,6 +2318,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             {
                 showShareModal && (
                     <ShareConfigModal
+                        enforced={!!entitlements?.enforced}
                         config={getConfigObject()}
                         onClose={() => setShowShareModal(false)}
                         boardName={selectedBoard?.name}
@@ -2277,6 +2335,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         onImport={handleImportConfig}
                         selectedBoardId={selectedBoardId}
                         boardName={selectedBoard?.name}
+                        exportLocked={!can('export')}
                     />
                 )
             }
