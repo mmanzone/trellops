@@ -74,6 +74,7 @@ const LandingPage = () => {
                     <a className="site-brand" href="/"><BrandMark />Trellops</a>
                     <nav className="site-nav" aria-label="Main">
                         <a className="site-nav-link" href="#features">Features</a>
+                        <a className="site-nav-link" href="pricing.html">Pricing</a>
                         <a className="site-nav-link" href="help.html">User guide</a>
                         <a className="site-nav-link" href="privacy.html">Privacy</a>
                         {connect(true)}
@@ -235,6 +236,7 @@ const LandingPage = () => {
                 <div className="site-wrap">
                     <a className="site-brand" href="/"><BrandMark size={20} />Trellops</a>
                     <nav aria-label="Footer">
+                        <a href="pricing.html">Pricing</a>
                         <a href="help.html">User guide</a>
                         <a href="privacy.html">Privacy</a>
                         <a href="releases.html">Release notes</a>

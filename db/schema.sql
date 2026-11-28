@@ -154,3 +154,12 @@ CREATE TABLE IF NOT EXISTS shares (
 );
 
 CREATE INDEX IF NOT EXISTS shares_member_idx ON shares (trello_member_id, created_at DESC);
+
+-- Pricing page: prices per plan, edited from the admin page (US dollars).
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS price_monthly NUMERIC(10, 2);
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS price_annual NUMERIC(10, 2);
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS pack_price_monthly NUMERIC(10, 2);
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS pack_price_annual NUMERIC(10, 2);
+UPDATE plans SET price_monthly = 0, price_annual = 0 WHERE code = 'free' AND price_monthly IS NULL;
+UPDATE plans SET price_monthly = 5, price_annual = 50, pack_price_monthly = 5, pack_price_annual = 50 WHERE code = 'pro' AND price_monthly IS NULL;
+UPDATE plans SET price_monthly = 10, price_annual = 100 WHERE code = 'board' AND price_monthly IS NULL;
