@@ -701,18 +701,15 @@ const App = () => {
     };
 
     return (
-        <Suspense fallback={<div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
-            {renderView()}
+        <EntitlementsProvider value={entitlementsValue}>
+            <Suspense fallback={<div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
+                {renderView()}
+            </Suspense>
             {user && (
                 <Suspense fallback={null}>
                     <TourManager view={view} enabled={!slideshowActive} />
                 </Suspense>
             )}
-        </Suspense>
-        <EntitlementsProvider value={entitlementsValue}>
-            <Suspense fallback={<div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
-                {renderView()}
-            </Suspense>
             <PlanBanner notice={planNotice} onDismiss={() => setPlanNotice(null)} />
             {boardLimit && user && (boardLimit.boardId || !['settings', 'tasks-settings', 'admin'].includes(view)) && (
                 <BoardLimitModal
