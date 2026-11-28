@@ -1,0 +1,195 @@
+/*
+ * Board picker (src/components/common/BoardSelect.jsx): a listbox styled like
+ * the app's <select>, so covered boards can be bold with plan pills.
+ */
+
+.board-select-menu {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+}
+
+.board-select-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: var(--control-height);
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    color: var(--text-color);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.board-select-trigger:hover {
+    border-color: var(--text-muted);
+}
+
+.board-select-trigger:focus-visible,
+.board-select-menu.is-open .board-select-trigger {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: var(--focus-ring);
+}
+
+.board-select-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.board-select-placeholder {
+    flex: 1;
+    color: var(--text-muted);
+}
+
+.board-select-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.is-covered > .board-select-name {
+    font-weight: 700;
+}
+
+.board-select-chevron {
+    flex-shrink: 0;
+    margin-left: auto;
+    color: var(--text-secondary);
+    transition: transform 0.15s ease;
+}
+
+.board-select-menu.is-open .board-select-chevron {
+    transform: rotate(180deg);
+}
+
+.board-select-popover {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    min-width: 280px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.board-select-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+.board-select-search input {
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    padding: 0;
+    font: inherit;
+    font-size: 14px;
+    color: var(--text-color);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    outline: none;
+}
+
+.board-select-list {
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 4px;
+    outline: none;
+}
+
+.board-select-group {
+    padding: 10px 10px 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.board-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    font-size: 14.5px;
+    color: var(--text-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.board-select-option.is-active {
+    background: var(--bg-hover);
+}
+
+.board-select-option.is-selected {
+    color: var(--accent-text);
+}
+
+.board-select-check {
+    flex-shrink: 0;
+    margin-left: auto;
+    color: var(--accent-color);
+}
+
+.board-select-empty {
+    padding: 14px 10px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* Plan pills */
+.board-pills {
+    display: inline-flex;
+    flex-shrink: 0;
+    gap: 4px;
+}
+
+.plan-pill {
+    display: inline-block;
+    padding: 0 7px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    letter-spacing: 0.02em;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.plan-pill.is-pro {
+    border-color: var(--accent-border);
+    background: var(--accent-light);
+    color: var(--accent-text);
+}
+
+.plan-pill.is-trial {
+    border-color: #f0d28a;
+    background: #fdf6e3;
+    color: #8a5a00;
+}
+
+[data-theme="dark"] .plan-pill.is-trial {
+    border-color: #5e4a1c;
+    background: #2a2213;
+    color: #f2cf7d;
+}

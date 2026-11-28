@@ -918,3 +918,78 @@
 .settings-page .toggle-row-main + .status-line {
     margin-top: 10px;
 }
+
+/* Title row with the admin shortcut */
+.settings-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.settings-title-row .settings-page-title {
+    margin: 0;
+}
+
+/* Charity / NGO request */
+.charity-link-row {
+    margin: 12px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.charity-modal {
+    max-width: 560px;
+    width: calc(100% - 32px);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+}
+
+.charity-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 14px 0 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.charity-field input,
+.charity-field select,
+.charity-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    font-weight: 400;
+}
+
+.charity-field input[readonly] {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+}
+
+.charity-modal .modal-actions {
+    flex-direction: row;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+.charity-modal .modal-actions button {
+    width: auto;
+}
+
+.charity-sent {
+    text-align: center;
+    padding: 12px 0 0;
+}
+
+.charity-sent svg {
+    color: var(--success-color);
+}
+
+.charity-sent .modal-actions {
+    justify-content: center;
+}

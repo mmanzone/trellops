@@ -62,6 +62,7 @@ const friendlyError = (err) => {
     try {
         detail = JSON.parse(detail).error || detail;
     } catch { /* not JSON */ }
+    if (/Trellops Pro/.test(detail)) return '*AI summaries are part of Trellops Pro. Paid plans are opening soon.*';
     const billing = /credit|billing|quota|insufficient|funds|payment|exhausted/i.test(detail);
     const headline = billing
         ? 'The AI provider account has run out of credit or quota. An admin needs to top it up before summaries can be generated.'
@@ -69,13 +70,13 @@ const friendlyError = (err) => {
     return `*${headline}*\n\n<details><summary>Developer Info</summary>${detail}</details>`;
 };
 
-export const useAISummary = () => {
+export const useAISummary = (boardId) => {
     const [source, setSource] = useState(null); // 'browser' | 'server' | 'live' | null
     const [errorText, setErrorText] = useState('');
     const cacheKeyRef = useRef(null);
 
     const { completion, complete, setCompletion, isLoading, stop } = useCompletion({
-        api: '/api/summarize',
+        api: boardId ? `/api/summarize?board=${encodeURIComponent(boardId)}` : '/api/summarize',
         streamProtocol: 'text',
         experimental_throttle: 50,
         fetch: async (input, init) => {

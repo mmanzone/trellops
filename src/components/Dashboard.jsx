@@ -20,7 +20,7 @@ import { ThemeToggleButton, ScreenLockButton, PageTitle, TourButton } from './co
 import { requestTour } from '../hooks/useTourStatus';
 import '../styles/map.css';
 
-const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
+const Dashboard = ({ user, settings, minRefreshSeconds = 15, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
     // DATA STATE
     const [allCards, setAllCards] = useState([]);
     const [allListsMap, setAllListsMap] = useState(new Map());
@@ -88,11 +88,12 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             const defaultRefreshSetting = { value: 1, unit: 'minutes' };
             const refreshSetting = savedRefresh ? JSON.parse(savedRefresh) : defaultRefreshSetting;
             const calculatedSeconds = convertIntervalToSeconds(refreshSetting.value, refreshSetting.unit);
-            return calculatedSeconds < 15 ? 15 : calculatedSeconds;
+            // The plan sets the floor: 60 minutes on Free, 60 seconds on Pro (15 s before plans are enforced).
+            return Math.max(calculatedSeconds, minRefreshSeconds, 15);
         } catch (e) {
-            return 60;
+            return Math.max(60, minRefreshSeconds);
         }
-    }, [boardId]);
+    }, [boardId, minRefreshSeconds]);
 
     const ignoreTemplateCards = localStorage.getItem(STORAGE_KEYS.IGNORE_TEMPLATE_CARDS + boardId) !== 'false';
     const ignoreCompletedCards = localStorage.getItem(STORAGE_KEYS.IGNORE_COMPLETED_CARDS + boardId) === 'true';
@@ -520,7 +521,7 @@ const Dashboard = ({ user, settings, onShowSettings, onLogout, onShowTasks, onSh
             {/* RENDER BLOCKS OR SLIDESHOW CONTENT */}
             {slideshowContent === 'map' ? (
                 <div style={{ flex: 1, position: 'relative', width: '100%', overflow: 'hidden' }}>
-                    <Suspense fallback={null}><MapView isEmbedded={true} user={user} settings={settings} /></Suspense>
+                    <Suspense fallback={null}><MapView isEmbedded={true} user={user} settings={settings} minRefreshSeconds={minRefreshSeconds} /></Suspense>
                 </div>
             ) : (
                 <DashboardContent

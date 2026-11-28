@@ -47,3 +47,56 @@ export const dismissEmailNotice = () => {
         localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000));
     } catch { /* storage unavailable */ }
 };
+
+// --- Account details and board usage --------------------------------------
+
+/** The signed-in member as the server sees it: { memberId, admin } or null. */
+export const fetchMe = async () => {
+    await serverSessionReady();
+    try {
+        const res = await fetch('/api/me', { credentials: 'same-origin' });
+        return res.ok ? await res.json() : null;
+    } catch {
+        return null;
+    }
+};
+
+const registeredBoards = new Set();
+
+/** Tells the server which board id this member uses (once per page load). */
+export const registerBoard = async (boardId) => {
+    if (!boardId || registeredBoards.has(boardId)) return;
+    registeredBoards.add(boardId);
+    await serverSessionReady();
+    fetch('/api/me', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ boardId }),
+    }).catch(() => registeredBoards.delete(boardId));
+};
+
+/** Sends a charity or NGO request. Resolves to { ok, error? }. */
+export const submitCompRequest = async (form) => {
+    await serverSessionReady();
+    try {
+        const res = await fetch('/api/comp-requests', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form),
+        });
+        const data = await res.json().catch(() => ({}));
+        return res.ok ? { ok: true } : { ok: false, error: data.error || 'The request could not be sent.' };
+    } catch {
+        return { ok: false, error: 'The request could not be sent. Check your connection and try again.' };
+    }
+};
+
+export const CHARITY_TYPES = [
+    'Registered charity',
+    'Non-governmental organisation (NGO)',
+    'Not-for-profit or community group',
+    'Volunteer organisation',
+    'Other',
+];
