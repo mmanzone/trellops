@@ -9,8 +9,9 @@ import '../../styles/board-select.css';
  * close, and typing filters the list.
  *
  * Boards are grouped by workspace, then "Personal Boards", sorted by name.
- * Boards for which isCovered(board) is true are shown in bold with a "Pro"
- * pill, and a "Trial" pill when the member's Pro is a trial.
+ * planFor(board) returns null for a board no plan covers, or { trial } for a
+ * covered one: it is shown in bold with a "Pro" pill, plus a "Trial" pill
+ * when that cover comes from the member's trial.
  */
 
 const PERSONAL = 'Personal Boards';
@@ -35,8 +36,9 @@ const groupBoards = (boards) => {
     return result;
 };
 
-export const PlanPills = ({ covered, trial }) => {
-    if (!covered) return null;
+export const PlanPills = ({ plan }) => {
+    if (!plan) return null;
+    const { trial } = plan;
     return (
         <span className="board-pills">
             <span className="plan-pill is-pro">Pro</span>
@@ -49,8 +51,7 @@ const BoardSelect = ({
     boards = [],
     value = '',
     onChange,
-    isCovered = () => false,
-    trial = false,
+    planFor = () => null,
     placeholder = 'Choose a board',
     id = 'board-select',
 }) => {
@@ -174,9 +175,9 @@ const BoardSelect = ({
                 onKeyDown={onButtonKey}
             >
                 {selected ? (
-                    <span className={`board-select-value${isCovered(selected) ? ' is-covered' : ''}`}>
+                    <span className={`board-select-value${planFor(selected) ? ' is-covered' : ''}`}>
                         <span className="board-select-name">{selected.name}</span>
-                        <PlanPills covered={isCovered(selected)} trial={trial} />
+                        <PlanPills plan={planFor(selected)} />
                     </span>
                 ) : (
                     <span className="board-select-placeholder">{placeholder}</span>
@@ -219,7 +220,7 @@ const BoardSelect = ({
                                 {g.boards.map((b) => {
                                     index += 1;
                                     const i = index;
-                                    const covered = isCovered(b);
+                                    const plan = planFor(b);
                                     const isSel = b.id === value;
                                     return (
                                         <div
@@ -228,13 +229,13 @@ const BoardSelect = ({
                                             role="option"
                                             aria-selected={isSel}
                                             data-index={i}
-                                            className={`board-select-option${i === active ? ' is-active' : ''}${covered ? ' is-covered' : ''}${isSel ? ' is-selected' : ''}`}
+                                            className={`board-select-option${i === active ? ' is-active' : ''}${plan ? ' is-covered' : ''}${isSel ? ' is-selected' : ''}`}
                                             onMouseEnter={() => setActive(i)}
                                             onMouseDown={(e) => e.preventDefault()}
                                             onClick={() => choose(b)}
                                         >
                                             <span className="board-select-name">{b.name}</span>
-                                            <PlanPills covered={covered} trial={trial} />
+                                            <PlanPills plan={plan} />
                                             {isSel && <Check size={15} className="board-select-check" aria-hidden="true" />}
                                         </div>
                                     );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { trelloFetch, trelloAuth } from '../api/trello';
 import { serverSessionReady } from '../api/session';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -13,6 +13,7 @@ import { encodeBase64Utf8 } from '../utils/helpers';
 import CharityRequestModal from './common/CharityRequestModal';
 import { ProLock, ProTag, PlanStatus } from './common/PlanGate';
 import { useEntitlements } from '../context/EntitlementsContext';
+import BoardSelect from './common/BoardSelect';
 import { createShareLink, registerBoardWithLimit, saveServerConfig, loadServerConfig } from '../api/entitlements';
 import '../styles/settings.css';
 
@@ -96,7 +97,22 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
 
     // --- State ---
     const [boards, setBoards] = useState([]);
-    const { entitlements, can, refresh: refreshEntitlements, requestBoardLimit } = useEntitlements();
+    const { entitlements, can, refresh: refreshEntitlements, requestBoardLimit, boards: planBoards, boardPlanBoards } = useEntitlements();
+    // Boards a plan covers, for the bold name and pills in the board picker:
+    // a Board plan on the board itself, or the member's own Pro (paid, granted
+    // or trial) on the boards counted towards their Pro board limit.
+    const boardPlanFor = useMemo(() => {
+        const withBoardPlan = new Set((boardPlanBoards || []).map((id) => String(id).toLowerCase()));
+        const memberPro = entitlements?.plan === 'pro' && !entitlements?.offline;
+        const proBoards = new Set(memberPro ? (planBoards || []).map((id) => String(id).toLowerCase()) : []);
+        const trial = entitlements?.planSource === 'trial';
+        return (board) => {
+            const id = String(board?.id || '').toLowerCase();
+            if (withBoardPlan.has(id)) return { trial: false };
+            if (proBoards.has(id)) return { trial };
+            return null;
+        };
+    }, [boardPlanBoards, planBoards, entitlements?.plan, entitlements?.planSource, entitlements?.offline]);
     const minRefreshSeconds = entitlements?.minRefreshSeconds || 15;
     const refreshFixed = entitlements?.enforced && minRefreshSeconds >= 3600; // Free: fixed 60 minutes
     const syncToAccount = entitlements?.plan === 'pro' && can('sync');
@@ -1171,45 +1187,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             Boards are pulled directly from your Trello account, across all workspaces.
                         </p>
                         <div id="board-selection-container" className="board-select-row">
-                        <select value={selectedBoardId} onChange={handleBoardChange} className="board-select">
-                            <option value="">-- Choose a Board --</option>
-                            {(() => {
-                                // Group boards by Organization
-                                const grouped = {};
-                                const noOrg = [];
-                                boards.forEach(b => {
-                                    if (b.organization) {
-                                        const orgName = b.organization.displayName || b.organization.name;
-                                        if (!grouped[orgName]) grouped[orgName] = [];
-                                        grouped[orgName].push(b);
-                                    } else {
-                                        noOrg.push(b);
-                                    }
-                                });
-
-                                // Sort keys
-                                const sortedOrgNames = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
-
-                                return (
-                                    <>
-                                        {sortedOrgNames.map(orgName => (
-                                            <optgroup key={orgName} label={orgName}>
-                                                {grouped[orgName].sort((a, b) => a.name.localeCompare(b.name)).map(b => (
-                                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                                ))}
-                                            </optgroup>
-                                        ))}
-                                        {noOrg.length > 0 && (
-                                            <optgroup label="Personal Boards">
-                                                {noOrg.sort((a, b) => a.name.localeCompare(b.name)).map(b => (
-                                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                                ))}
-                                            </optgroup>
-                                        )}
-                                    </>
-                                );
-                            })()}
-                        </select>
+                        <BoardSelect
+                            boards={boards}
+                            value={selectedBoardId}
+                            onChange={(boardId) => handleBoardChange({ target: { value: boardId } })}
+                            planFor={boardPlanFor}
+                        />
                         {selectedBoardId && <BoardIdCopy boardId={selectedBoardId} />}
                         </div>
                         {selectedBoardId && (
