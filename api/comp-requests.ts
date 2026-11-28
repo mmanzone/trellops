@@ -8,6 +8,7 @@ import { json, methodNotAllowed } from './_lib/http.js';
 import { getSession, sessionsConfigured } from './_lib/session.js';
 import { getDb, ensureSchema } from './_lib/db.js';
 import { isTrelloId, cleanText, cleanLongText } from './_lib/validate.js';
+import { notifyAdmins, notificationsConfigured, compRequestEmail, appUrl } from './_lib/notify.js';
 
 export const config = { maxDuration: 10 };
 
@@ -74,6 +75,19 @@ async function handlePost(request: Request): Promise<Response> {
     session.memberId,
     JSON.stringify({ requestId: rows[0]?.id, boardId: boardId.toLowerCase() }),
   ]);
+  if (notificationsConfigured() && rows[0]?.id) {
+    const who = (await sql.query(`SELECT username, email FROM users WHERE trello_member_id = $1`, [session.memberId])) as Array<{
+      username: string | null;
+      email: string | null;
+    }>;
+    notifyAdmins(
+      compRequestEmail(
+        { id: rows[0].id, boardId: boardId.toLowerCase(), charityName: charityName as string, charityType: charityType as string, country: country as string, intendedUse: intendedUse as string, justification: justification as string },
+        { memberId: session.memberId, username: who[0]?.username, email: who[0]?.email },
+        appUrl(request),
+      ),
+    );
+  }
   return json(201, { id: rows[0]?.id, status: 'pending' });
 }
 
