@@ -497,3 +497,6 @@
 .admin-num-input { width: 90px; padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-primary); }
 .admin-plans-table { min-width: 760px; }
 .admin-features { max-width: 280px; font-size: 13px; color: var(--text-secondary); }
+.admin-price { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; white-space: nowrap; }
+.admin-price .admin-sub { margin: 0 0 0 4px; }
+.admin-plans-table { min-width: 980px; }

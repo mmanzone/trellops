@@ -22,11 +22,20 @@ export interface PlanRule {
   boardsPerPack: number;
   minRefreshSeconds: number;
   features: string[];
+  /** US dollars; null when not sold (shown as "Free"). */
+  priceMonthly: number | null;
+  priceAnnual: number | null;
+  /** Pro only: price of each extra pack of boards. */
+  packPriceMonthly: number | null;
+  packPriceAnnual: number | null;
 }
 
 /** Same values as the seed in db/schema.sql; used when the database is not reachable. */
 export const DEFAULT_PLANS: Record<string, PlanRule> = {
-  free: { code: 'free', name: 'Free', boardLimit: 1, boardsPerPack: 0, minRefreshSeconds: 3600, features: [] },
+  free: {
+    code: 'free', name: 'Free', boardLimit: 1, boardsPerPack: 0, minRefreshSeconds: 3600, features: [],
+    priceMonthly: 0, priceAnnual: 0, packPriceMonthly: null, packPriceAnnual: null,
+  },
   pro: {
     code: 'pro',
     name: 'Pro',
@@ -34,6 +43,10 @@ export const DEFAULT_PLANS: Record<string, PlanRule> = {
     boardsPerPack: 5,
     minRefreshSeconds: 60,
     features: ['map', 'stats', 'tasks', 'ai', 'share', 'export', 'slideshow', 'keepScreenOn', 'sync'],
+    priceMonthly: 5,
+    priceAnnual: 50,
+    packPriceMonthly: 5,
+    packPriceAnnual: 50,
   },
   board: {
     code: 'board',
@@ -42,6 +55,10 @@ export const DEFAULT_PLANS: Record<string, PlanRule> = {
     boardsPerPack: 0,
     minRefreshSeconds: 60,
     features: ['map', 'stats', 'tasks', 'ai', 'slideshow', 'keepScreenOn'],
+    priceMonthly: 10,
+    priceAnnual: 100,
+    packPriceMonthly: null,
+    packPriceAnnual: null,
   },
 };
 
@@ -181,9 +198,13 @@ const ACTIVE_OVERRIDE = `revoked_at IS NULL AND (expires_at IS NULL OR expires_a
 // A cancelled or unpaid plan keeps working until the end of the paid period.
 const ACTIVE_SUBSCRIPTION = `(status IN ('active', 'trialing', 'past_due') OR (current_period_end IS NOT NULL AND current_period_end > NOW()))`;
 
+const money = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : Number(v));
+
 export async function loadPlans(sql: Sql): Promise<Record<string, PlanRule>> {
   const rows = (await sql.query(
-    `SELECT code, name, board_limit, boards_per_pack, min_refresh_seconds, features FROM plans WHERE active`,
+    `SELECT code, name, board_limit, boards_per_pack, min_refresh_seconds, features,
+            price_monthly, price_annual, pack_price_monthly, pack_price_annual
+     FROM plans WHERE active`,
   )) as any[];
   const plans: Record<string, PlanRule> = { ...DEFAULT_PLANS };
   for (const r of rows) {
@@ -194,6 +215,10 @@ export async function loadPlans(sql: Sql): Promise<Record<string, PlanRule>> {
       boardsPerPack: Number(r.boards_per_pack),
       minRefreshSeconds: Number(r.min_refresh_seconds),
       features: Array.isArray(r.features) ? r.features : [],
+      priceMonthly: money(r.price_monthly),
+      priceAnnual: money(r.price_annual),
+      packPriceMonthly: money(r.pack_price_monthly),
+      packPriceAnnual: money(r.pack_price_annual),
     };
   }
   return plans;

@@ -408,22 +408,51 @@ const FEATURE_NAMES = {
 
 const fmtSeconds = (n) => (n >= 3600 && n % 3600 === 0 ? `${n / 3600} h` : n >= 60 && n % 60 === 0 ? `${n / 60} min` : `${n} s`);
 
+const PRICE_KEYS = ['priceMonthly', 'priceAnnual', 'packPriceMonthly', 'packPriceAnnual'];
+const priceText = (v) => (v === null || v === undefined ? '' : String(v));
+
 const PlanRow = ({ plan, onSaved, onError }) => {
-    const [form, setForm] = useState({ boardLimit: plan.boardLimit, boardsPerPack: plan.boardsPerPack, minRefreshSeconds: plan.minRefreshSeconds });
+    const initial = {
+        boardLimit: plan.boardLimit,
+        boardsPerPack: plan.boardsPerPack,
+        minRefreshSeconds: plan.minRefreshSeconds,
+        ...Object.fromEntries(PRICE_KEYS.map((k) => [k, priceText(plan[k])])),
+    };
+    const [form, setForm] = useState(initial);
     const [busy, setBusy] = useState(false);
-    const dirty = form.boardLimit !== plan.boardLimit || form.boardsPerPack !== plan.boardsPerPack || form.minRefreshSeconds !== plan.minRefreshSeconds;
+    const dirty = Object.keys(initial).some((k) => form[k] !== initial[k]);
     const num = (key) => (e) => setForm((f) => ({ ...f, [key]: Number(e.target.value) }));
+    const price = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
     const save = async () => {
         setBusy(true);
         try {
-            await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'updatePlan', code: plan.code, ...form }) });
+            const body = { action: 'updatePlan', code: plan.code, boardLimit: form.boardLimit, boardsPerPack: form.boardsPerPack, minRefreshSeconds: form.minRefreshSeconds };
+            PRICE_KEYS.forEach((k) => { body[k] = form[k] === '' ? null : Number(form[k]); });
+            await api('/api/admin', { method: 'POST', body: JSON.stringify(body) });
             onSaved();
         } catch (e) { onError(e.message); }
         setBusy(false);
     };
+    const priceInput = (key, label) => (
+        <label className="admin-price">
+            <span>$</span>
+            <input type="number" min="0" step="0.01" className="admin-num-input" value={form[key]} onChange={price(key)} aria-label={`${plan.name} ${label}`} />
+            <span className="admin-sub">{label}</span>
+        </label>
+    );
     return (
         <tr>
             <td><strong>{plan.name}</strong><div className="admin-sub"><code>{plan.code}</code></div></td>
+            <td>
+                {plan.code === 'free' ? <span className="admin-muted">Free</span> : <>
+                    {priceInput('priceMonthly', plan.code === 'board' ? 'per board / month' : 'per user / month')}
+                    {priceInput('priceAnnual', plan.code === 'board' ? 'per board / year' : 'per user / year')}
+                    {plan.code === 'pro' && <>
+                        {priceInput('packPriceMonthly', 'per pack / month')}
+                        {priceInput('packPriceAnnual', 'per pack / year')}
+                    </>}
+                </>}
+            </td>
             <td><input type="number" min="0" className="admin-num-input" value={form.boardLimit} onChange={num('boardLimit')} aria-label={`${plan.name} board limit`} /></td>
             <td><input type="number" min="0" className="admin-num-input" value={form.boardsPerPack} onChange={num('boardsPerPack')} aria-label={`${plan.name} boards per pack`} /></td>
             <td>
@@ -506,14 +535,14 @@ const PlansTab = () => {
 
             <section className="admin-panel">
                 <h3>Plan rules</h3>
-                <p className="admin-muted">Board limits and the refresh floor apply as soon as they are saved. The minimum refresh cannot go below 30 seconds, because Trello limits the whole app to 300 requests every 10 seconds.</p>
+                <p className="admin-muted">Prices (US dollars) show on the <a href="/pricing.html" target="_blank" rel="noreferrer">pricing page</a> within a minute of saving. Board limits and the refresh floor apply straight away. The minimum refresh cannot go below 30 seconds, because Trello limits the whole app to 300 requests every 10 seconds.</p>
                 <div className="admin-table-wrap">
                     <table className="admin-table admin-plans-table">
                         <thead>
-                            <tr><th>Plan</th><th>Boards</th><th>Boards per pack</th><th>Minimum refresh (s)</th><th>Features</th><th /></tr>
+                            <tr><th>Plan</th><th>Price (USD)</th><th>Boards</th><th>Boards per pack</th><th>Minimum refresh (s)</th><th>Features</th><th /></tr>
                         </thead>
                         <tbody>
-                            {data.plans.map((p) => <PlanRow key={`${p.code}-${p.boardLimit}-${p.boardsPerPack}-${p.minRefreshSeconds}`} plan={p} onSaved={load} onError={setError} />)}
+                            {data.plans.map((p) => <PlanRow key={JSON.stringify(p)} plan={p} onSaved={load} onError={setError} />)}
                         </tbody>
                     </table>
                 </div>

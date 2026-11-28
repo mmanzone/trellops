@@ -169,7 +169,18 @@ export function parsePlanUpdate(body: any): { ok: true; value: any } | { ok: fal
   if (!Number.isInteger(minRefreshSeconds) || minRefreshSeconds < 30 || minRefreshSeconds > 86400) {
     return { ok: false, error: 'Minimum refresh must be 30 seconds to 24 hours.' };
   }
-  return { ok: true, value: { code: body.code, boardLimit, boardsPerPack, minRefreshSeconds } };
+  const prices: Record<string, number | null> = {};
+  for (const key of ['priceMonthly', 'priceAnnual', 'packPriceMonthly', 'packPriceAnnual']) {
+    const raw = body[key];
+    if (raw === undefined) continue; // unchanged
+    if (raw === null || raw === '') { prices[key] = null; continue; }
+    const v = Number(raw);
+    if (!Number.isFinite(v) || v < 0 || v > 10000 || Math.round(v * 100) !== v * 100) {
+      return { ok: false, error: 'Prices must be amounts from 0 to 10,000 with at most 2 decimals.' };
+    }
+    prices[key] = v;
+  }
+  return { ok: true, value: { code: body.code, boardLimit, boardsPerPack, minRefreshSeconds, prices } };
 }
 
 async function handlePost(request: Request, sql: Sql, adminId: string): Promise<Response> {
@@ -246,6 +257,12 @@ async function handlePost(request: Request, sql: Sql, adminId: string): Promise<
         `UPDATE plans SET board_limit = $2, boards_per_pack = $3, min_refresh_seconds = $4, updated_at = NOW() WHERE code = $1`,
         [v.code, v.boardLimit, v.boardsPerPack, v.minRefreshSeconds],
       );
+      const columns: Record<string, string> = {
+        priceMonthly: 'price_monthly', priceAnnual: 'price_annual', packPriceMonthly: 'pack_price_monthly', packPriceAnnual: 'pack_price_annual',
+      };
+      for (const [key, value] of Object.entries(v.prices as Record<string, number | null>)) {
+        await sql.query(`UPDATE plans SET ${columns[key]} = $2 WHERE code = $1`, [v.code, value]);
+      }
       await logChange(sql, adminId, { action: 'updatePlan', ...v });
       return json(200, { ok: true });
     }

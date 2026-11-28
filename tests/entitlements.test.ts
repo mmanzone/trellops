@@ -213,3 +213,20 @@ describe('entitlement routes', () => {
     expect((await call(shares, `/api/shares?id=${id}`, USER)).status).toBe(404);
   });
 });
+
+describe('pricing', () => {
+  it('serves admin-set prices publicly', async () => {
+    const pricing = (await import('../api/pricing')).default;
+    let r = await (await pricing.fetch(new Request('https://trellops.test/api/pricing'))).json();
+    expect(r.source).toBe('database');
+    expect(r.plans.map((p: any) => [p.code, p.priceMonthly, p.priceAnnual])).toEqual([['free', 0, 0], ['pro', 5, 50], ['board', 10, 100]]);
+    expect(r.plans[1].packPriceMonthly).toBe(5);
+
+    const bad = await send(admin, 'POST', '/api/admin', ADMIN, { action: 'updatePlan', code: 'pro', boardLimit: 5, boardsPerPack: 5, minRefreshSeconds: 60, priceMonthly: 4.999 });
+    expect(bad.status).toBe(400);
+    const ok = await send(admin, 'POST', '/api/admin', ADMIN, { action: 'updatePlan', code: 'pro', boardLimit: 6, boardsPerPack: 5, minRefreshSeconds: 60, priceMonthly: 6, priceAnnual: 60, packPriceMonthly: 4 });
+    expect(ok.status).toBe(200);
+    r = await (await pricing.fetch(new Request('https://trellops.test/api/pricing'))).json();
+    expect(r.plans[1]).toMatchObject({ boardLimit: 6, priceMonthly: 6, priceAnnual: 60, packPriceMonthly: 4, packPriceAnnual: 50 });
+  });
+});
