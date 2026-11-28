@@ -16,3 +16,6 @@ export function cleanLongText(v: unknown, max: number): string | null {
   if (!s || s.length > max) return null;
   return s;
 }
+
+/** Largest dashboard config accepted for saving or sharing. */
+export const MAX_CONFIG_BYTES = 200_000;

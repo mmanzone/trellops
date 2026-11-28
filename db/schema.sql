@@ -80,3 +80,77 @@ CREATE TABLE IF NOT EXISTS comp_requests (
 );
 
 CREATE INDEX IF NOT EXISTS comp_requests_status_idx ON comp_requests (status, created_at DESC);
+
+-- Phase 3: entitlements and gating ------------------------------------------
+
+-- Plan rules. Limits, refresh and features are edited here, not in code.
+-- Seeded once; later edits in the database are kept (ON CONFLICT DO NOTHING).
+CREATE TABLE IF NOT EXISTS plans (
+    code                 TEXT PRIMARY KEY,
+    name                 TEXT        NOT NULL,
+    board_limit          INTEGER     NOT NULL DEFAULT 0,
+    boards_per_pack      INTEGER     NOT NULL DEFAULT 0,
+    min_refresh_seconds  INTEGER     NOT NULL DEFAULT 3600,
+    features             JSONB       NOT NULL DEFAULT '[]'::jsonb,
+    paddle_price_ids     TEXT[]      NOT NULL DEFAULT '{}',
+    active               BOOLEAN     NOT NULL DEFAULT TRUE,
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO plans (code, name, board_limit, boards_per_pack, min_refresh_seconds, features) VALUES
+    ('free',  'Free',       1, 0, 3600, '[]'::jsonb),
+    ('pro',   'Pro',        5, 5,   60, '["map","stats","tasks","ai","share","export","slideshow","keepScreenOn","sync"]'::jsonb),
+    ('board', 'Board plan', 0, 0,   60, '["map","stats","tasks","ai","slideshow","keepScreenOn"]'::jsonb)
+ON CONFLICT (code) DO NOTHING;
+
+-- Paid plans, written by the Paddle webhook in phase 4.
+CREATE TABLE IF NOT EXISTS subscriptions (
+    paddle_subscription_id  TEXT PRIMARY KEY,
+    trello_member_id        TEXT        NOT NULL,
+    kind                    TEXT        NOT NULL CHECK (kind IN ('user', 'board')),
+    board_id                TEXT,
+    status                  TEXT        NOT NULL,
+    plan_code               TEXT        NOT NULL,
+    pack_quantity           INTEGER     NOT NULL DEFAULT 0,
+    current_period_end      TIMESTAMPTZ,
+    canceled_at             TIMESTAMPTZ,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS subscriptions_member_idx ON subscriptions (trello_member_id);
+CREATE INDEX IF NOT EXISTS subscriptions_board_idx ON subscriptions (board_id);
+
+-- App-wide switches set from the admin dashboard (for example plan enforcement).
+CREATE TABLE IF NOT EXISTS app_settings (
+    key         TEXT PRIMARY KEY,
+    value       JSONB       NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_by  TEXT
+);
+
+-- A board a member removed to stay within their plan's board limit.
+ALTER TABLE user_boards ADD COLUMN IF NOT EXISTS removed_at TIMESTAMPTZ;
+-- Last time Trello confirmed this member belongs to the board (Board plan access).
+ALTER TABLE user_boards ADD COLUMN IF NOT EXISTS member_checked_at TIMESTAMPTZ;
+
+-- Pro configs saved on the server, so they follow the member to any device.
+CREATE TABLE IF NOT EXISTS board_configs (
+    trello_member_id  TEXT        NOT NULL,
+    board_id          TEXT        NOT NULL,
+    config            JSONB       NOT NULL,
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (trello_member_id, board_id)
+);
+
+-- Share links (/?share=<id>) created by Pro members.
+CREATE TABLE IF NOT EXISTS shares (
+    id                TEXT PRIMARY KEY,
+    trello_member_id  TEXT        NOT NULL,
+    board_id          TEXT        NOT NULL,
+    config            JSONB       NOT NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at        TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS shares_member_idx ON shares (trello_member_id, created_at DESC);

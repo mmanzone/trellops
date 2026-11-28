@@ -7,6 +7,7 @@
 import { generateText, gateway, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { requireSession } from './_lib/session.js';
+import { requireFeature } from './_lib/entitlements.js';
 
 export const config = { maxDuration: 30 };
 
@@ -80,6 +81,9 @@ export default {
     // Signed-in Trellops users only (open until SESSION_SECRET is set).
     const gate = await requireSession(request);
     if ('response' in gate) return gate.response;
+    // AI is a Pro (or Board plan) feature once plans are enforced.
+    const denied = await requireFeature(gate.session?.memberId ?? null, 'ai', new URL(request.url).searchParams.get('board'));
+    if (denied) return denied;
     return handlePost(request);
   },
 };

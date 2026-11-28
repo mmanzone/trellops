@@ -9,18 +9,25 @@
  * POST { action: 'grant', targetType, targetId, planCode, packQuantity?, reason, orgName?, note?, expiresAt? }
  * POST { action: 'revoke', id }
  * POST { action: 'review', id, decision: 'approve' | 'decline' }
+ * GET ?view=settings   Plan enforcement switch, plan rules, trial eligibility
+ * POST { action: 'setEnforcement', mode: 'off' | 'test' | 'all', testMemberIds? }
+ * POST { action: 'updatePlan', code, boardLimit, boardsPerPack, minRefreshSeconds }
+ * POST { action: 'startTrials' }   14-day Pro trial for every user who has
+ *                                  no plan and never had a trial
  *
  * Every change is written to the events table as `admin_change`.
  */
 import { json, methodNotAllowed } from './_lib/http.js';
 import { requireAdmin } from './_lib/admin.js';
 import { isTrelloId, cleanText, cleanLongText } from './_lib/validate.js';
+import { loadEnforcement, loadPlans, parseEnforcement } from './_lib/entitlements.js';
 
 export const config = { maxDuration: 15 };
 
 type Sql = Extract<Awaited<ReturnType<typeof requireAdmin>>, { sql: unknown }>['sql'];
 
-export const OVERRIDE_REASONS = ['Charity', 'NGO', 'Beta tester', 'Support', 'Partner', 'Other'];
+export const OVERRIDE_REASONS = ['Charity', 'NGO', 'Beta tester', 'Support', 'Partner', 'Trial', 'Other'];
+export const TRIAL_DAYS = 14;
 export const PLAN_FOR_TARGET: Record<string, string> = { user: 'pro', board: 'board' };
 
 const ACTIVE_OVERRIDE = `o.revoked_at IS NULL AND (o.expires_at IS NULL OR o.expires_at > NOW())`;
@@ -44,7 +51,7 @@ async function summary(sql: Sql) {
     SELECT count(*) FILTER (WHERE o.target_type = 'user')::int  AS pro_users,
            count(*) FILTER (WHERE o.target_type = 'board')::int AS board_plans
     FROM overrides o WHERE ${ACTIVE_OVERRIDE}`)) as any[];
-  const [boards] = (await sql.query(`SELECT count(DISTINCT board_id)::int AS boards FROM user_boards`)) as any[];
+  const [boards] = (await sql.query(`SELECT count(DISTINCT board_id)::int AS boards FROM user_boards WHERE removed_at IS NULL`)) as any[];
   const [requests] = (await sql.query(`SELECT count(*)::int AS pending FROM comp_requests WHERE status = 'pending'`)) as any[];
   return {
     users,
@@ -60,7 +67,7 @@ async function users(sql: Sql, q: string) {
     `SELECT u.trello_member_id, u.email, u.username, u.full_name, u.has_email_scope,
             u.first_seen_at, u.last_seen_at, u.last_login_at, u.login_count,
             COALESCE((SELECT array_agg(b.board_id ORDER BY b.last_seen_at DESC)
-                      FROM user_boards b WHERE b.trello_member_id = u.trello_member_id), '{}') AS board_ids,
+                      FROM user_boards b WHERE b.trello_member_id = u.trello_member_id AND b.removed_at IS NULL), '{}') AS board_ids,
             (SELECT row_to_json(x) FROM (
                 SELECT o.id, o.plan_code, o.pack_quantity, o.reason, o.expires_at
                 FROM overrides o
@@ -81,7 +88,7 @@ async function overrides(sql: Sql) {
     SELECT o.*, (${ACTIVE_OVERRIDE}) AS active,
            tu.email AS target_email, tu.username AS target_username,
            CASE WHEN o.target_type = 'board'
-                THEN (SELECT count(*)::int FROM user_boards b WHERE b.board_id = o.target_id) END AS members_seen,
+                THEN (SELECT count(*)::int FROM user_boards b WHERE b.board_id = o.target_id AND b.removed_at IS NULL) END AS members_seen,
            r.trello_member_id AS requester_id, ru.email AS requester_email
     FROM overrides o
     LEFT JOIN users tu ON o.target_type = 'user' AND tu.trello_member_id = o.target_id
@@ -94,7 +101,7 @@ async function overrides(sql: Sql) {
 async function requests(sql: Sql) {
   return sql.query(`
     SELECT r.*, u.email AS requester_email, u.username AS requester_username,
-           (SELECT count(*)::int FROM user_boards b WHERE b.board_id = r.board_id) AS members_seen
+           (SELECT count(*)::int FROM user_boards b WHERE b.board_id = r.board_id AND b.removed_at IS NULL) AS members_seen
     FROM comp_requests r
     LEFT JOIN users u ON u.trello_member_id = r.trello_member_id
     ORDER BY (r.status = 'pending') DESC, r.created_at DESC
@@ -133,6 +140,36 @@ export function parseGrant(body: any): { ok: true; value: any } | { ok: false; e
     ok: true,
     value: { targetType, targetId: body.targetId.toLowerCase(), planCode, packQuantity, reason: body.reason, orgName, note, expiresAt },
   };
+}
+
+// Users with no paid plan, no active Pro grant, and no trial before.
+const TRIAL_ELIGIBLE = `
+  FROM users u
+  WHERE NOT EXISTS (SELECT 1 FROM overrides o WHERE o.target_type = 'user' AND o.target_id = u.trello_member_id
+                    AND (o.reason = 'Trial' OR (${ACTIVE_OVERRIDE})))
+    AND NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.kind = 'user' AND s.trello_member_id = u.trello_member_id)`;
+
+async function settings(sql: Sql) {
+  const [enforcement, plans] = await Promise.all([loadEnforcement(sql), loadPlans(sql)]);
+  const [eligible] = (await sql.query(`SELECT count(*)::int AS n ${TRIAL_ELIGIBLE}`)) as any[];
+  const [trials] = (await sql.query(
+    `SELECT count(*) FILTER (WHERE ${ACTIVE_OVERRIDE})::int AS active, count(*)::int AS total
+     FROM overrides o WHERE o.target_type = 'user' AND o.reason = 'Trial'`,
+  )) as any[];
+  return { enforcement, plans: Object.values(plans), trialDays: TRIAL_DAYS, trialEligible: eligible.n, trials };
+}
+
+export function parsePlanUpdate(body: any): { ok: true; value: any } | { ok: false; error: string } {
+  if (!['free', 'pro', 'board'].includes(body?.code)) return { ok: false, error: 'Unknown plan.' };
+  const n = (v: unknown) => Number(v);
+  const boardLimit = n(body.boardLimit), boardsPerPack = n(body.boardsPerPack), minRefreshSeconds = n(body.minRefreshSeconds);
+  if (!Number.isInteger(boardLimit) || boardLimit < 0 || boardLimit > 500) return { ok: false, error: 'Board limit must be 0 to 500.' };
+  if (!Number.isInteger(boardsPerPack) || boardsPerPack < 0 || boardsPerPack > 100) return { ok: false, error: 'Boards per pack must be 0 to 100.' };
+  // Trello limits the whole app to 300 requests per 10 seconds, so never below 30 s.
+  if (!Number.isInteger(minRefreshSeconds) || minRefreshSeconds < 30 || minRefreshSeconds > 86400) {
+    return { ok: false, error: 'Minimum refresh must be 30 seconds to 24 hours.' };
+  }
+  return { ok: true, value: { code: body.code, boardLimit, boardsPerPack, minRefreshSeconds } };
 }
 
 async function handlePost(request: Request, sql: Sql, adminId: string): Promise<Response> {
@@ -187,6 +224,42 @@ async function handlePost(request: Request, sql: Sql, adminId: string): Promise<
       await logChange(sql, adminId, { action: 'review', requestId: id, decision, overrideId, boardId: req.board_id });
       return json(200, { ok: true, overrideId });
     }
+    case 'setEnforcement': {
+      if (!['off', 'test', 'all'].includes(body?.mode)) return json(400, { error: 'Choose off, test accounts or everyone.' });
+      const ids = Array.isArray(body?.testMemberIds) ? body.testMemberIds : [];
+      const bad = ids.filter((id: unknown) => !isTrelloId(id));
+      if (bad.length) return json(400, { error: `Not a Trello member ID: ${String(bad[0]).slice(0, 40)}` });
+      const value = parseEnforcement({ mode: body.mode, testMemberIds: ids });
+      await sql.query(
+        `INSERT INTO app_settings (key, value, updated_by) VALUES ('enforcement', $1::jsonb, $2)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by`,
+        [JSON.stringify(value), adminId],
+      );
+      await logChange(sql, adminId, { action: 'setEnforcement', ...value });
+      return json(200, { enforcement: value });
+    }
+    case 'updatePlan': {
+      const parsed = parsePlanUpdate(body);
+      if (!parsed.ok) return json(400, { error: (parsed as { error: string }).error });
+      const v = (parsed as { value: any }).value;
+      await sql.query(
+        `UPDATE plans SET board_limit = $2, boards_per_pack = $3, min_refresh_seconds = $4, updated_at = NOW() WHERE code = $1`,
+        [v.code, v.boardLimit, v.boardsPerPack, v.minRefreshSeconds],
+      );
+      await logChange(sql, adminId, { action: 'updatePlan', ...v });
+      return json(200, { ok: true });
+    }
+    case 'startTrials': {
+      const rows = (await sql.query(
+        `INSERT INTO overrides (target_type, target_id, plan_code, reason, note, granted_by, expires_at)
+         SELECT 'user', u.trello_member_id, 'pro', 'Trial', 'Existing user trial', $1, NOW() + make_interval(days => $2::int)
+         ${TRIAL_ELIGIBLE}
+         RETURNING id`,
+        [adminId, TRIAL_DAYS],
+      )) as any[];
+      await logChange(sql, adminId, { action: 'startTrials', count: rows.length, days: TRIAL_DAYS });
+      return json(200, { started: rows.length });
+    }
     default:
       return json(400, { error: 'Unknown action.' });
   }
@@ -206,6 +279,7 @@ export default {
         if (view === 'users') return json(200, { users: await users(sql, q) });
         if (view === 'overrides') return json(200, { overrides: await overrides(sql) });
         if (view === 'requests') return json(200, { requests: await requests(sql) });
+        if (view === 'settings') return json(200, await settings(sql));
         return json(400, { error: 'Unknown view.' });
       }
       if (request.method === 'POST') return handlePost(request, sql, session.memberId);

@@ -24,6 +24,7 @@ import { streamText, gateway, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { getCache, waitUntil } from '@vercel/functions';
 import { requireSession } from './_lib/session.js';
+import { requireFeature } from './_lib/entitlements.js';
 
 // Vercel function settings. No `runtime` is set, so this runs on Node.js (Fluid compute).
 export const config = { maxDuration: 60 };
@@ -373,6 +374,9 @@ export default {
     // Signed-in Trellops users only (open until SESSION_SECRET is set).
     const gate = await requireSession(request);
     if ('response' in gate) return gate.response;
+    // AI is a Pro (or Board plan) feature once plans are enforced.
+    const denied = await requireFeature(gate.session?.memberId ?? null, 'ai', new URL(request.url).searchParams.get('board'));
+    if (denied) return denied;
     return handlePost(request);
   },
 };
