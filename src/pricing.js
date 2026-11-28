@@ -265,14 +265,17 @@ function setupBuyButtons(billing, salesOpen) {
 
 // --- Load the admin-set plans -------------------------------------------------------
 render();
-fetch('/api/pricing')
+const pricingLoaded = fetch('/api/pricing')
     .then((res) => (res.ok ? res.json() : null))
-    .then(async (data) => {
-        if (!data?.plans?.length) return;
+    .then((data) => {
+        if (!data?.plans?.length) return null;
         const merged = DEFAULT_PLANS.map((d) => ({ ...d, ...(data.plans.find((p) => p.code === d.code) || {}) }));
         state.plans = merged;
         render();
-        const { fetchBilling } = await import('./api/billing.js');
-        setupBuyButtons(await fetchBilling(), data.salesOpen);
+        return data;
     })
-    .catch(() => { /* keep the defaults */ });
+    .catch(() => null); // keep the defaults
+
+Promise.all([pricingLoaded, import('./api/billing.js').then((m) => m.fetchBilling())])
+    .then(([data, billing]) => setupBuyButtons(billing, Boolean(data?.salesOpen)))
+    .catch(() => { /* buttons stay "Opening soon" */ });
