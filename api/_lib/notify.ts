@@ -186,3 +186,32 @@ export function compRequestEmail(
     text: textBody(title, rows, long, href),
   };
 }
+
+export function subscriptionEmail(
+  sub: { plan: string; status: string; boardId: string | null; memberId: string; username: string | null; email: string | null },
+  base: string,
+): Email {
+  const href = `${base}/admin?tab=users&q=${encodeURIComponent(sub.memberId)}`;
+  const who = sub.username || sub.email || sub.memberId;
+  const rows: Row[] = [
+    ['Plan', sub.plan],
+    ['Status', sub.status],
+    ['Board ID', sub.boardId],
+    ['Trello username', sub.username],
+    ['Email', sub.email],
+    ['Member ID', sub.memberId],
+  ];
+  const title = `${who} subscribed to ${sub.plan}`;
+  return {
+    subject: `New subscription: ${sub.plan} for ${who}`,
+    html: layout({
+      eyebrow: 'New subscription',
+      title,
+      intro: 'A new paid subscription was set up through Paddle. Paddle sends the receipt to the customer.',
+      rows,
+      cta: { label: 'Open in admin', href },
+      footer: FOOTER,
+    }),
+    text: textBody(title, rows, [], href),
+  };
+}

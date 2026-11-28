@@ -163,3 +163,14 @@ ALTER TABLE plans ADD COLUMN IF NOT EXISTS pack_price_annual NUMERIC(10, 2);
 UPDATE plans SET price_monthly = 0, price_annual = 0 WHERE code = 'free' AND price_monthly IS NULL;
 UPDATE plans SET price_monthly = 5, price_annual = 50, pack_price_monthly = 5, pack_price_annual = 50 WHERE code = 'pro' AND price_monthly IS NULL;
 UPDATE plans SET price_monthly = 10, price_annual = 100 WHERE code = 'board' AND price_monthly IS NULL;
+
+-- Paddle billing (phase 4). Price ids are pasted into the admin page per plan.
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS paddle_price_monthly TEXT;
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS paddle_price_annual TEXT;
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS paddle_pack_price_monthly TEXT;
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS paddle_pack_price_annual TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS paddle_customer_id TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS billing_period TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS paddle_updated_at TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS environment TEXT;

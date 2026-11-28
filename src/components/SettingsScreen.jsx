@@ -13,6 +13,7 @@ import { Copy, Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, Trian
 import { encodeBase64Utf8 } from '../utils/helpers';
 import CharityRequestModal from './common/CharityRequestModal';
 import { ProLock, ProTag, PlanStatus } from './common/PlanGate';
+import BillingPanel from './common/BillingPanel';
 import { useEntitlements } from '../context/EntitlementsContext';
 import BoardSelect from './common/BoardSelect';
 import { createShareLink, registerBoardWithLimit, saveServerConfig, loadServerConfig } from '../api/entitlements';
@@ -1169,6 +1170,7 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                     </div>
 
                     <PlanStatus />
+                    <BillingPanel boardId={selectedBoardId} boardName={boards.find((b) => b.id === selectedBoardId)?.name} />
 
                     {accountNotice?.show && (
                         <div className="notice notice-info account-scope-notice" role="status">

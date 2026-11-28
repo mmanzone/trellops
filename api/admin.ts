@@ -5,13 +5,14 @@
  * GET ?view=users&q=   Users with email, Trello id, plan, board ids
  * GET ?view=overrides  Plans granted without payment (users and boards)
  * GET ?view=requests   Charity and NGO requests
+ * GET ?view=subscriptions  Paddle subscriptions (paid plans)
  *
  * POST { action: 'grant', targetType, targetId, planCode, packQuantity?, reason, orgName?, note?, expiresAt? }
  * POST { action: 'revoke', id }
  * POST { action: 'review', id, decision: 'approve' | 'decline' }
  * GET ?view=settings   Plan enforcement switch, plan rules, trial eligibility
  * POST { action: 'setEnforcement', mode: 'off' | 'test' | 'all', testMemberIds? }
- * POST { action: 'updatePlan', code, boardLimit, boardsPerPack, minRefreshSeconds }
+ * POST { action: 'updatePlan', code, boardLimit, boardsPerPack, minRefreshSeconds, prices, Paddle price ids }
  * POST { action: 'startTrials' }   14-day Pro trial for every user who has
  *                                  no plan and never had a trial
  *
@@ -21,6 +22,7 @@ import { json, methodNotAllowed } from './_lib/http.js';
 import { requireAdmin } from './_lib/admin.js';
 import { isTrelloId, cleanText, cleanLongText } from './_lib/validate.js';
 import { loadEnforcement, loadPlans, parseEnforcement } from './_lib/entitlements.js';
+import { loadPriceIds, paddleConfigured, paddleEnv } from './_lib/paddle.js';
 
 export const config = { maxDuration: 15 };
 
@@ -72,7 +74,12 @@ async function users(sql: Sql, q: string) {
                 SELECT o.id, o.plan_code, o.pack_quantity, o.reason, o.expires_at
                 FROM overrides o
                 WHERE o.target_type = 'user' AND o.target_id = u.trello_member_id AND ${ACTIVE_OVERRIDE}
-                ORDER BY o.created_at DESC LIMIT 1) x) AS override
+                ORDER BY o.created_at DESC LIMIT 1) x) AS override,
+            (SELECT row_to_json(y) FROM (
+                SELECT s.paddle_subscription_id AS id, s.plan_code, s.pack_quantity, s.status, s.billing_period, s.current_period_end, s.cancel_at
+                FROM subscriptions s
+                WHERE s.kind = 'user' AND s.trello_member_id = u.trello_member_id
+                ORDER BY s.created_at DESC LIMIT 1) y) AS subscription
      FROM users u
      WHERE $1 = '' OR u.email ILIKE '%' || $1 || '%' OR u.username ILIKE '%' || $1 || '%'
         OR u.trello_member_id = lower($1)
@@ -149,6 +156,15 @@ const TRIAL_ELIGIBLE = `
                     AND (o.reason = 'Trial' OR (${ACTIVE_OVERRIDE})))
     AND NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.kind = 'user' AND s.trello_member_id = u.trello_member_id)`;
 
+async function subscriptions(sql: Sql) {
+  return sql.query(`
+    SELECT s.paddle_subscription_id AS id, s.kind, s.board_id, s.status, s.plan_code, s.pack_quantity, s.billing_period,
+           s.current_period_end, s.cancel_at, s.canceled_at, s.created_at, s.environment,
+           s.trello_member_id, u.username, u.email
+    FROM subscriptions s LEFT JOIN users u ON u.trello_member_id = s.trello_member_id
+    ORDER BY s.created_at DESC LIMIT 500`);
+}
+
 async function settings(sql: Sql) {
   const [enforcement, plans] = await Promise.all([loadEnforcement(sql), loadPlans(sql)]);
   const [eligible] = (await sql.query(`SELECT count(*)::int AS n ${TRIAL_ELIGIBLE}`)) as any[];
@@ -156,7 +172,8 @@ async function settings(sql: Sql) {
     `SELECT count(*) FILTER (WHERE ${ACTIVE_OVERRIDE})::int AS active, count(*)::int AS total
      FROM overrides o WHERE o.target_type = 'user' AND o.reason = 'Trial'`,
   )) as any[];
-  return { enforcement, plans: Object.values(plans), trialDays: TRIAL_DAYS, trialEligible: eligible.n, trials };
+  const paddle = { configured: paddleConfigured(), environment: paddleEnv(), webhook: Boolean(process.env.PADDLE_WEBHOOK_SECRET), priceIds: await loadPriceIds(sql) };
+  return { enforcement, plans: Object.values(plans), trialDays: TRIAL_DAYS, trialEligible: eligible.n, trials, paddle };
 }
 
 export function parsePlanUpdate(body: any): { ok: true; value: any } | { ok: false; error: string } {
@@ -180,7 +197,16 @@ export function parsePlanUpdate(body: any): { ok: true; value: any } | { ok: fal
     }
     prices[key] = v;
   }
-  return { ok: true, value: { code: body.code, boardLimit, boardsPerPack, minRefreshSeconds, prices } };
+  const priceIds: Record<string, string | null> = {};
+  for (const key of ['paddlePriceMonthly', 'paddlePriceAnnual', 'paddlePackPriceMonthly', 'paddlePackPriceAnnual']) {
+    const raw = body[key];
+    if (raw === undefined) continue; // unchanged
+    const v = typeof raw === 'string' ? raw.trim() : raw;
+    if (v === null || v === '') { priceIds[key] = null; continue; }
+    if (typeof v !== 'string' || !/^pri_[a-z0-9]{10,60}$/i.test(v)) return { ok: false, error: 'Paddle price IDs start with pri_ (copy them from Paddle > Catalog).' };
+    priceIds[key] = v;
+  }
+  return { ok: true, value: { code: body.code, boardLimit, boardsPerPack, minRefreshSeconds, prices, priceIds } };
 }
 
 async function handlePost(request: Request, sql: Sql, adminId: string): Promise<Response> {
@@ -263,6 +289,13 @@ async function handlePost(request: Request, sql: Sql, adminId: string): Promise<
       for (const [key, value] of Object.entries(v.prices as Record<string, number | null>)) {
         await sql.query(`UPDATE plans SET ${columns[key]} = $2 WHERE code = $1`, [v.code, value]);
       }
+      const priceColumns: Record<string, string> = {
+        paddlePriceMonthly: 'paddle_price_monthly', paddlePriceAnnual: 'paddle_price_annual',
+        paddlePackPriceMonthly: 'paddle_pack_price_monthly', paddlePackPriceAnnual: 'paddle_pack_price_annual',
+      };
+      for (const [key, value] of Object.entries(v.priceIds as Record<string, string | null>)) {
+        await sql.query(`UPDATE plans SET ${priceColumns[key]} = $2 WHERE code = $1`, [v.code, value]);
+      }
       await logChange(sql, adminId, { action: 'updatePlan', ...v });
       return json(200, { ok: true });
     }
@@ -297,6 +330,7 @@ export default {
         if (view === 'overrides') return json(200, { overrides: await overrides(sql) });
         if (view === 'requests') return json(200, { requests: await requests(sql) });
         if (view === 'settings') return json(200, await settings(sql));
+        if (view === 'subscriptions') return json(200, { subscriptions: await subscriptions(sql) });
         return json(400, { error: 'Unknown view.' });
       }
       if (request.method === 'POST') return handlePost(request, sql, session.memberId);
