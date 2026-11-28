@@ -169,3 +169,27 @@
 .billing-manage { align-self: flex-start; }
 .billing-fine { margin: 12px 0 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
 .billing-panel .notice-success { border-color: var(--success-border); background: var(--success-bg); color: var(--success-color); }
+
+/* Current plan pill next to the Settings title */
+.settings-title-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+.settings-title-left .plan-pill {
+    line-height: 1.4;
+    min-height: 0;
+    height: auto;
+    box-shadow: none;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.settings-title-left .plan-pill:hover { border-color: var(--border-strong); }
+.settings-title-left .plan-pill-pro { background: var(--accent-light); color: var(--accent-text); border-color: var(--accent-border); }
+.settings-title-left .plan-pill-board { background: #e9f5f0; color: #1f6b56; border-color: #bfe0d3; }
+[data-theme="dark"] .settings-title-left .plan-pill-board { background: #15302a; color: #8fd6bf; border-color: #2a5a4c; }
+.billing-current { margin: 0 0 10px; font-size: 14px; }

@@ -17,8 +17,21 @@ export default {
   async fetch(request: Request): Promise<Response> {
     if (request.method !== 'POST') return methodNotAllowed('POST');
     const raw = await request.text();
-    if (!verifyPaddleSignature(raw, request.headers.get('paddle-signature'), process.env.PADDLE_WEBHOOK_SECRET)) {
-      console.error('[paddle] rejected a notification with a missing or wrong signature');
+    const header = request.headers.get('paddle-signature');
+    const secret = (process.env.PADDLE_WEBHOOK_SECRET || '').trim();
+    if (!verifyPaddleSignature(raw, header, secret)) {
+      // Say why, without logging the secret or the signature.
+      const ts = Number(/ts=(\d+)/.exec(header || '')?.[1]);
+      const why = !secret
+        ? 'PADDLE_WEBHOOK_SECRET is not set'
+        : !header
+          ? 'no Paddle-Signature header'
+          : !Number.isFinite(ts)
+            ? 'no timestamp in the signature header'
+            : Math.abs(Date.now() / 1000 - ts) > 300
+              ? `timestamp is ${Math.round(Date.now() / 1000 - ts)} s old`
+              : `signature does not match (the secret ${secret.startsWith('pdl_ntfset_') ? 'has' : 'does not have'} the pdl_ntfset_ prefix of a notification secret)`;
+      console.error(`[paddle] rejected a notification: ${why}`);
       return json(401, { error: 'Invalid signature' });
     }
     let event: any;

@@ -59,6 +59,31 @@ export const PlanStatus = () => {
     return <div className="plan-status">{text}</div>;
 };
 
+/** Plan label for the pill and the billing tab, e.g. "Pro plan" or "Pro trial, 9 days left". */
+export const planLabel = (e) => {
+    if (!e || e.offline) return null;
+    if (e.planSource === 'trial') {
+        const left = daysLeft(e.trialEndsAt);
+        return `Pro trial, ${left} day${left === 1 ? '' : 's'} left`;
+    }
+    if (e.plan === 'pro') return 'Pro plan';
+    if (e.board?.coveredByBoardPlan) return 'Board plan';
+    return 'Free plan';
+};
+
+/** Small pill next to the Settings title; opens the Plan and billing tab. */
+export const PlanPill = ({ onClick }) => {
+    const { entitlements: e } = useEntitlements();
+    const label = planLabel(e);
+    if (!label) return null;
+    const kind = label.startsWith('Free') ? 'free' : label.startsWith('Board') ? 'board' : 'pro';
+    return (
+        <button type="button" className={`plan-pill plan-pill-${kind}`} onClick={onClick} title="Plan and billing">
+            {label}
+        </button>
+    );
+};
+
 /**
  * Shown when the member is at their board limit. Lists their boards (names
  * come from Trello in the browser; the server only knows ids) with a Remove
