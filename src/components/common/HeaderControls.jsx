@@ -1,6 +1,7 @@
 import React from 'react';
-import { Sun, Moon, Monitor, MonitorOff } from 'lucide-react';
+import { Sun, Moon, Monitor, MonitorOff, CircleHelp } from 'lucide-react';
 import { useDarkMode } from '../../context/DarkModeContext';
+import { requestTour } from '../../hooks/useTourStatus';
 
 // Shared header controls, so every page (dashboard, map, stats, tasks) shows
 // the same icon buttons with the same shape and icons.
@@ -46,4 +47,19 @@ export const PageTitle = ({ clock, children }) => (
         {clock}
         <h1 className="page-title">{children}</h1>
     </div>
+);
+
+// Replays the guided tour for the page on screen.
+export const TourButton = ({ style }) => (
+    <button
+        type="button"
+        className="theme-toggle-button"
+        onClick={requestTour}
+        title="Show me around"
+        aria-label="Show me around"
+        data-tour="tour-button"
+        style={style}
+    >
+        <CircleHelp size={18} />
+    </button>
 );

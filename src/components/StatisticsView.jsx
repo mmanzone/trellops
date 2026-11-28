@@ -5,7 +5,8 @@ import LabelFilter from './common/LabelFilter';
 import { Sparkles, Loader2 } from 'lucide-react';
 import DigitalClock from './common/DigitalClock';
 import HamburgerMenu from './common/HamburgerMenu';
-import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
+import { ThemeToggleButton, ScreenLockButton, PageTitle, TourButton } from './common/HeaderControls';
+import { requestTour } from '../hooks/useTourStatus';
 import { renderMarkdown } from '../utils/markdown';
 import { getTerminology } from '../utils/terminology';
 import { useAISummary } from '../hooks/useAISummary';
@@ -555,6 +556,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                             </div>
                         )}
 
+                        <TourButton />
                         <ScreenLockButton keepScreenOn={keepScreenOn} onToggle={onToggleScreenLock} />
                         <ThemeToggleButton />
                     </div>
@@ -611,6 +613,9 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                                 <button className="menu-link" onClick={onShowSettings}>
                                     Settings
                                 </button>
+                                <button className="menu-link" onClick={requestTour}>
+                                    Show me around
+                                </button>
                                 <button className="menu-link" onClick={onLogout}>
                                     Log Out
                                 </button>
@@ -634,7 +639,7 @@ const StatisticsView = ({ user, settings, onShowSettings, onGoToDashboard, onLog
                     <div id="stats-export-area" className="dashboard-grid" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '30px', padding: '0 20px' }}>
 
                         {/* AI Summary Section */}
-                        <div className="form-card" style={{ width: '100%', display: 'flex', flexDirection: 'column', border: '1px solid var(--accent-light)', background: 'var(--bg-secondary)' }}>
+                        <div className="form-card" data-tour="ai-summary" style={{ width: '100%', display: 'flex', flexDirection: 'column', border: '1px solid var(--accent-light)', background: 'var(--bg-secondary)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: summaryText ? '15px' : '0' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)' }}>
                                     <Sparkles size={20} />

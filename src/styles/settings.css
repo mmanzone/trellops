@@ -765,13 +765,29 @@
     gap: 20px;
 }
 
-.settings-footer-links a {
+.settings-footer-links a,
+.settings-footer-links .settings-footer-link {
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
 }
 
-.settings-footer-links a:hover {
+/* "Show me around" is a button styled as one of the links. */
+.settings-footer-links .settings-footer-link {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    height: auto;
+    min-height: 0;
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: none;
+}
+
+.settings-footer-links a:hover,
+.settings-footer-links .settings-footer-link:hover {
     color: var(--accent-color);
     text-decoration: underline;
     text-underline-offset: 3px;
