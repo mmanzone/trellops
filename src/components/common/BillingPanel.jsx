@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { useEntitlements } from '../../context/EntitlementsContext';
+import { planLabel } from './PlanGate';
 import { fetchBilling, openCheckout, openPortal, setPacks, waitForPlan } from '../../api/billing';
 import '../../styles/plans.css';
 
@@ -24,7 +25,7 @@ const describe = (s) => {
  * Buy, change and manage paid plans (Settings). Shows only when checkout is
  * open for this member or they already have a subscription.
  */
-const BillingPanel = ({ boardId, boardName }) => {
+const BillingPanel = ({ boardId, boardName, standalone = false }) => {
     const { entitlements, refresh } = useEntitlements();
     const [billing, setBilling] = useState(null);
     const [prices, setPrices] = useState(null);
@@ -51,7 +52,19 @@ const BillingPanel = ({ boardId, boardName }) => {
 
     useEffect(() => { if (proSub) setPackCount(proSub.pack_quantity || 0); }, [proSub?.id, proSub?.pack_quantity]);
 
-    if (!billing || (!billing.checkoutOpen && !subs.length)) return null;
+    if (!billing || (!billing.checkoutOpen && !subs.length)) {
+        if (!standalone) return null;
+        const label = planLabel(entitlements);
+        return (
+            <section className="billing-panel" aria-labelledby="billing-title">
+                <div className="billing-head">
+                    <h3 id="billing-title"><CreditCard size={18} aria-hidden="true" /> Plan and billing</h3>
+                </div>
+                {label && <p className="billing-current">You are on the <strong>{label}</strong>.</p>}
+                <p className="billing-fine">Paid plans are opening soon. See the <a href="/pricing.html">pricing page</a> for what each plan includes.</p>
+            </section>
+        );
+    }
 
     const run = async (key, fn) => {
         setBusy(key);
@@ -102,6 +115,8 @@ const BillingPanel = ({ boardId, boardName }) => {
                 <h3 id="billing-title"><CreditCard size={18} aria-hidden="true" /> Plan and billing</h3>
                 {billing.environment !== 'production' && <span className="billing-test">Test mode</span>}
             </div>
+
+            {planLabel(entitlements) && <p className="billing-current">You are on the <strong>{planLabel(entitlements)}</strong>.</p>}
 
             {(proSub || boardSub || otherBoardSubs.length > 0) && (
                 <ul className="billing-subs">

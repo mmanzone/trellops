@@ -126,6 +126,11 @@ describe('POST /api/paddle-webhook', () => {
     expect((await sql.query(`SELECT count(*)::int AS n FROM subscriptions`))[0].n).toBe(0);
   });
 
+  it('accepts a secret pasted with a trailing newline or spaces', async () => {
+    process.env.PADDLE_WEBHOOK_SECRET = `  ${HOOK_SECRET}\n`;
+    expect((await deliver(subEvent())).status).toBe(200);
+  });
+
   it('turns on Pro from a new subscription and keeps packs and cancellation in step', async () => {
     await enforceFor([USER]);
     expect((await deliver(subEvent())).body.outcome).toBe('stored');

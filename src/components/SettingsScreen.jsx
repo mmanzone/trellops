@@ -9,10 +9,10 @@ import ColorPicker from './common/ColorPicker';
 import { getPersistentLayout } from '../utils/persistence';
 import { STORAGE_KEYS, DEFAULT_LAYOUT } from '../utils/constants';
 import { setPersistentColors, getPersistentColors, setPersistentLayout } from '../utils/persistence';
-import { Copy, Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, TriangleAlert, ChevronDown, ChevronRight, LayoutGrid, Map as MapIcon, ChartColumn, SlidersHorizontal, Check, Info } from 'lucide-react';
+import { Copy, Sparkles, Loader2, GripVertical, Trash2, Plus, CircleCheck, TriangleAlert, ChevronDown, ChevronRight, LayoutGrid, Map as MapIcon, ChartColumn, SlidersHorizontal, Check, Info, CreditCard } from 'lucide-react';
 import { encodeBase64Utf8 } from '../utils/helpers';
 import CharityRequestModal from './common/CharityRequestModal';
-import { ProLock, ProTag, PlanStatus } from './common/PlanGate';
+import { ProLock, ProTag, PlanPill } from './common/PlanGate';
 import BillingPanel from './common/BillingPanel';
 import { useEntitlements } from '../context/EntitlementsContext';
 import BoardSelect from './common/BoardSelect';
@@ -1163,14 +1163,15 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             {viewMode === 'default' && (
                 <>
                     <div className="settings-title-row">
-                        <h2 className="settings-page-title">Dashboard Settings</h2>
+                        <div className="settings-title-left">
+                            <h2 className="settings-page-title">Dashboard Settings</h2>
+                            <PlanPill onClick={() => setActiveTab('billing')} />
+                        </div>
                         {isAdmin && onOpenAdmin && (
                             <button type="button" className="button-secondary" onClick={onOpenAdmin}>Admin dashboard</button>
                         )}
                     </div>
 
-                    <PlanStatus />
-                    <BillingPanel boardId={selectedBoardId} boardName={boards.find((b) => b.id === selectedBoardId)?.name} />
 
                     {accountNotice?.show && (
                         <div className="notice notice-info account-scope-notice" role="status">
@@ -1245,6 +1246,13 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                             onClick={() => setActiveTab('other')}
                         >
                             <SlidersHorizontal size={16} aria-hidden="true" /> Other Board settings
+                        </button>
+                        <button
+                            id="settings-tab-billing"
+                            className={`tab-button ${activeTab === 'billing' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('billing')}
+                        >
+                            <CreditCard size={16} aria-hidden="true" /> Plan and billing
                         </button>
                     </div>
                 </>
@@ -2150,6 +2158,12 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
                         </div>
                     )}
 
+
+                {viewMode === 'default' && activeTab === 'billing' && (
+                    <div className="tab-content">
+                        <BillingPanel boardId={selectedBoardId} boardName={boards.find((b) => b.id === selectedBoardId)?.name} standalone />
+                    </div>
+                )}
 
                 {
                     viewMode === 'default' && (
