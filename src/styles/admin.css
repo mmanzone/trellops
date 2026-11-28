@@ -507,3 +507,12 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #0079bf) 18%, transparent);
     scroll-margin-top: 16px;
 }
+
+/* Paddle price ids */
+.admin-price-ids {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+.admin-price-ids input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

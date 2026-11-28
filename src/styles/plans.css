@@ -119,3 +119,53 @@
 .plan-banner-close:hover { color: var(--text-primary); }
 
 .locked-control { opacity: 0.55; pointer-events: none; }
+
+/* Plan and billing (Settings) */
+.billing-panel {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 10px);
+    padding: 16px 18px;
+    margin: 0 0 18px;
+    background: var(--bg-secondary);
+}
+.billing-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.billing-head h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; }
+.billing-test {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #fdf7e6;
+    color: #6b5412;
+    border: 1px solid #ecd9a3;
+}
+[data-theme="dark"] .billing-test { background: #2a2414; color: #f0d68a; border-color: #5c4a1c; }
+.billing-subs { margin: 4px 0 12px; padding-left: 18px; color: var(--text-secondary); font-size: 14px; line-height: 1.5; }
+.billing-period { display: inline-flex; border: 1px solid var(--border-color); border-radius: 999px; padding: 2px; margin: 4px 0 12px; }
+.billing-period button {
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+.billing-period button.is-on { background: var(--accent-color); color: var(--accent-contrast, #fff); }
+.billing-actions { display: flex; flex-direction: column; gap: 10px; }
+.billing-offer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    font-size: 14px;
+}
+.billing-offer > div:first-child { flex: 1 1 240px; }
+.billing-price { color: var(--text-secondary); }
+.billing-packs { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.billing-packs select { font: inherit; padding: 4px 8px; }
+.billing-manage { align-self: flex-start; }
+.billing-fine { margin: 12px 0 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.billing-panel .notice-success { border-color: var(--success-border); background: var(--success-bg); color: var(--success-color); }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, RefreshCw, Search, Users, Inbox, Gift, LayoutGrid, ChartColumn, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Download, RefreshCw, Search, Users, Inbox, Gift, LayoutGrid, ChartColumn, SlidersHorizontal, CreditCard } from 'lucide-react';
 import { ThemeToggleButton, PageTitle } from './common/HeaderControls';
 import { serverSessionReady, fetchMe } from '../api/session';
 import '../styles/admin.css';
@@ -29,7 +29,14 @@ const api = async (path, options = {}) => {
 const fmtDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const fmtDateTime = (v) => (v ? new Date(v).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
+const PAID_LIVE = ['active', 'trialing', 'past_due'];
+
 const planOf = (user) => {
+    const sub = user.subscription;
+    if (sub && (PAID_LIVE.includes(sub.status) || (sub.current_period_end && new Date(sub.current_period_end) > new Date()))) {
+        const packs = sub.pack_quantity || 0;
+        return { label: 'Pro', source: `Paid${sub.billing_period ? `, ${sub.billing_period}` : ''}${sub.cancel_at ? ', cancels' : ''}`, limit: 5 + 5 * packs, packs };
+    }
     const o = user.override;
     if (!o) return { label: 'Free', source: '', limit: 1 };
     const packs = o.pack_quantity || 0;
@@ -469,6 +476,92 @@ const PlanRow = ({ plan, onSaved, onError }) => {
     );
 };
 
+const PRICE_ID_FIELDS = [
+    { code: 'pro', key: 'paddlePriceMonthly', path: ['pro', 'monthly'], label: 'Pro, monthly' },
+    { code: 'pro', key: 'paddlePriceAnnual', path: ['pro', 'annual'], label: 'Pro, yearly' },
+    { code: 'pro', key: 'paddlePackPriceMonthly', path: ['pack', 'monthly'], label: 'Board pack, monthly' },
+    { code: 'pro', key: 'paddlePackPriceAnnual', path: ['pack', 'annual'], label: 'Board pack, yearly' },
+    { code: 'board', key: 'paddlePriceMonthly', path: ['board', 'monthly'], label: 'Board plan, monthly' },
+    { code: 'board', key: 'paddlePriceAnnual', path: ['board', 'annual'], label: 'Board plan, yearly' },
+];
+
+const PaddlePanel = ({ paddle, plans, onSaved, onError }) => {
+    const initial = Object.fromEntries(PRICE_ID_FIELDS.map((f) => [`${f.code}.${f.key}`, paddle.priceIds[f.path[0]][f.path[1]] || '']));
+    const [form, setForm] = useState(initial);
+    const [busy, setBusy] = useState(false);
+    const dirty = Object.keys(initial).some((k) => form[k] !== initial[k]);
+    const save = async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+            for (const code of ['pro', 'board']) {
+                const plan = plans.find((p) => p.code === code);
+                const body = { action: 'updatePlan', code, boardLimit: plan.boardLimit, boardsPerPack: plan.boardsPerPack, minRefreshSeconds: plan.minRefreshSeconds };
+                PRICE_ID_FIELDS.filter((f) => f.code === code).forEach((f) => { body[f.key] = form[`${code}.${f.key}`].trim() || null; });
+                await api('/api/admin', { method: 'POST', body: JSON.stringify(body) });
+            }
+            onSaved();
+        } catch (err) { onError(err.message); }
+        setBusy(false);
+    };
+    const missing = [!paddle.configured && 'PADDLE_API_KEY and PADDLE_CLIENT_TOKEN', !paddle.webhook && 'PADDLE_WEBHOOK_SECRET'].filter(Boolean);
+    return (
+        <section className="admin-panel">
+            <h3>Paddle billing <span className="admin-pill">{paddle.environment === 'production' ? 'Live' : 'Sandbox'}</span></h3>
+            <p className="admin-muted">
+                Paste the price IDs from Paddle &gt; Catalog. Checkout opens for the accounts plan limits apply to: the test accounts above first, everyone at launch.
+                The amounts charged come from Paddle, so keep them the same as the prices in the plan rules.
+            </p>
+            {missing.length > 0 && <div className="notice notice-warning">Not set in Vercel yet: {missing.join(' and ')}.</div>}
+            <form onSubmit={save} className="admin-price-ids">
+                {PRICE_ID_FIELDS.map((f) => (
+                    <label className="admin-field" key={`${f.code}.${f.key}`}>
+                        <span>{f.label}</span>
+                        <input type="text" value={form[`${f.code}.${f.key}`]} placeholder="pri_…" spellCheck={false}
+                            onChange={(e) => setForm((v) => ({ ...v, [`${f.code}.${f.key}`]: e.target.value }))} />
+                    </label>
+                ))}
+                <div><button type="submit" className="button-primary" disabled={busy || !dirty}>{busy ? 'Saving…' : 'Save price IDs'}</button></div>
+            </form>
+        </section>
+    );
+};
+
+const SubscriptionsTab = () => {
+    const [rows, setRows] = useState(null);
+    const [error, setError] = useState('');
+    useEffect(() => {
+        api('/api/admin?view=subscriptions').then((d) => setRows(d.subscriptions)).catch((e) => setError(e.message));
+    }, []);
+    if (error) return <div className="notice notice-danger">{error}</div>;
+    if (!rows) return <p className="admin-muted">Loading…</p>;
+    return (
+        <section className="admin-panel">
+            <h3>Paid plans</h3>
+            {rows.length === 0 ? <p className="admin-muted">No Paddle subscriptions yet.</p> : (
+                <div className="admin-table-wrap">
+                    <table className="admin-table">
+                        <thead><tr><th>Plan</th><th>Customer</th><th>Board ID</th><th>Status</th><th>Billing</th><th>Renews or ends</th><th>Started</th></tr></thead>
+                        <tbody>
+                            {rows.map((r) => (
+                                <tr key={r.id}>
+                                    <td>{r.plan_code === 'board' ? 'Board plan' : 'Pro'}{r.pack_quantity > 0 && <div className="admin-sub">+{r.pack_quantity} pack{r.pack_quantity === 1 ? '' : 's'}</div>}{r.environment === 'sandbox' && <div className="admin-sub">Sandbox</div>}</td>
+                                    <td>{r.email || r.username || <code>{r.trello_member_id}</code>}{r.email && r.username && <div className="admin-sub">{r.username}</div>}</td>
+                                    <td>{r.board_id ? <code>{r.board_id}</code> : ''}</td>
+                                    <td>{r.status}{r.cancel_at && <div className="admin-sub">Cancels {fmtDate(r.cancel_at)}</div>}</td>
+                                    <td>{r.billing_period || ''}</td>
+                                    <td>{fmtDate(r.cancel_at || r.current_period_end)}</td>
+                                    <td>{fmtDate(r.created_at)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </section>
+    );
+};
+
 const PlansTab = () => {
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
@@ -552,6 +645,8 @@ const PlansTab = () => {
                 </div>
             </section>
 
+            {data.paddle && <PaddlePanel key={JSON.stringify(data.paddle.priceIds)} paddle={data.paddle} plans={data.plans} onSaved={load} onError={setError} />}
+
             <section className="admin-panel">
                 <h3>Trial for existing users</h3>
                 <p className="admin-muted">
@@ -570,6 +665,7 @@ const TABS = [
     { id: 'overview', label: 'Overview', icon: ChartColumn },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'boards', label: 'Board plans', icon: LayoutGrid },
+    { id: 'paid', label: 'Paid plans', icon: CreditCard },
     { id: 'plans', label: 'Given plans', icon: Gift },
     { id: 'requests', label: 'Charity requests', icon: Inbox },
     { id: 'rules', label: 'Plans and limits', icon: SlidersHorizontal },
@@ -713,6 +809,7 @@ const AdminView = ({ onClose }) => {
                                 </section>
                             </>
                         )}
+                        {tab === 'paid' && <SubscriptionsTab />}
                         {tab === 'requests' && <RequestsTab requests={requests} onReview={review} focusId={link.request} />}
                         {tab === 'rules' && <PlansTab />}
                     </>

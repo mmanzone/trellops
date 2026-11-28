@@ -7,7 +7,8 @@
  */
 import { json, methodNotAllowed } from './_lib/http.js';
 import { getDb, ensureSchema } from './_lib/db.js';
-import { loadPlans, DEFAULT_PLANS, type PlanRule } from './_lib/entitlements.js';
+import { loadPlans, loadEnforcement, DEFAULT_PLANS, type PlanRule } from './_lib/entitlements.js';
+import { paddleConfigured } from './_lib/paddle.js';
 
 export const config = { maxDuration: 10 };
 
@@ -29,12 +30,15 @@ export default {
     if (request.method !== 'GET') return methodNotAllowed('GET');
     let plans: Record<string, PlanRule> = DEFAULT_PLANS;
     let source = 'defaults';
+    let salesOpen = false;
     const sql = getDb();
     if (sql) {
       try {
         await ensureSchema(sql);
         plans = await loadPlans(sql);
         source = 'database';
+        // Paid plans are on sale to everyone once plan limits apply to everyone.
+        salesOpen = paddleConfigured() && (await loadEnforcement(sql)).mode === 'all';
       } catch (e) {
         console.error('[pricing] falling back to default plans', e);
       }
@@ -42,7 +46,7 @@ export default {
     const order = ['free', 'pro', 'board'];
     return json(
       200,
-      { currency: 'USD', source, plans: order.filter((c) => plans[c]).map((c) => publicPlan(plans[c])) },
+      { currency: 'USD', source, salesOpen, plans: order.filter((c) => plans[c]).map((c) => publicPlan(plans[c])) },
       // Short cache so admin edits show within a minute.
       { 'Cache-Control': 'public, max-age=60, s-maxage=60' },
     );

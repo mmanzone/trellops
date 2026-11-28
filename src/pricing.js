@@ -220,14 +220,59 @@ function renderQuiz() {
         <a class="s-btn s-btn-primary s-btn-sm" href="/">${r.plan === 'free' || r.free ? 'Start free' : 'Start free, upgrade when plans open'}</a>`;
 }
 
+// --- Buy buttons -------------------------------------------------------------------
+// "Opening soon" until paid plans open. Then a signed-in member can start the
+// Pro checkout here; a Board plan is bought in Settings, where the board is chosen.
+const LIVE = ['active', 'trialing', 'past_due', 'paused'];
+
+function swapCta(card, el) {
+    const old = $('.pricing-cta', card);
+    el.className = `${old.className.replace('is-soon', '').trim()}`;
+    old.replaceWith(el);
+}
+
+const link = (text, href) => Object.assign(document.createElement('a'), { textContent: text, href });
+
+function setupBuyButtons(billing, salesOpen) {
+    const proCard = $('[data-plan="pro"]');
+    const boardCard = $('[data-plan="board"]');
+    if (billing?.checkoutOpen) {
+        const hasPro = (billing.subscriptions || []).some((s) => s.kind === 'user' && LIVE.includes(s.status) && !s.cancel_at);
+        if (hasPro) {
+            swapCta(proCard, link('You have Pro: manage in Settings', '/settings'));
+        } else if (billing.available?.pro) {
+            const btn = Object.assign(document.createElement('button'), { type: 'button', textContent: 'Upgrade to Pro' });
+            btn.addEventListener('click', async () => {
+                btn.disabled = true;
+                try {
+                    const { openCheckout } = await import('./api/billing.js');
+                    await openCheckout(billing, { plan: 'pro', period: state.period }, () => {
+                        swapCta(proCard, link('Payment received. Open Trellops', '/settings'));
+                    });
+                } catch (e) {
+                    btn.textContent = e.message;
+                }
+                btn.disabled = false;
+            });
+            swapCta(proCard, btn);
+        }
+        if (billing.available?.board) swapCta(boardCard, link('Choose the board in Settings', '/settings'));
+    } else if (salesOpen && !billing) {
+        swapCta(proCard, link('Sign in to upgrade', '/'));
+        swapCta(boardCard, link('Sign in to buy', '/'));
+    }
+}
+
 // --- Load the admin-set plans -------------------------------------------------------
 render();
 fetch('/api/pricing')
     .then((res) => (res.ok ? res.json() : null))
-    .then((data) => {
+    .then(async (data) => {
         if (!data?.plans?.length) return;
         const merged = DEFAULT_PLANS.map((d) => ({ ...d, ...(data.plans.find((p) => p.code === d.code) || {}) }));
         state.plans = merged;
         render();
+        const { fetchBilling } = await import('./api/billing.js');
+        setupBuyButtons(await fetchBilling(), data.salesOpen);
     })
     .catch(() => { /* keep the defaults */ });
