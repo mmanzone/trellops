@@ -144,8 +144,8 @@ const BoardIds = ({ ids }) => {
     );
 };
 
-const UsersTab = ({ onGrant }) => {
-    const [q, setQ] = useState('');
+const UsersTab = ({ onGrant, initialQuery = '' }) => {
+    const [q, setQ] = useState(initialQuery);
     const [users, setUsers] = useState(null);
     const [error, setError] = useState('');
 
@@ -349,7 +349,11 @@ const OverridesTable = ({ rows, kind, onRevoke }) => {
     );
 };
 
-const RequestsTab = ({ requests, onReview }) => {
+const RequestsTab = ({ requests, onReview, focusId }) => {
+    useEffect(() => {
+        if (!requests || !focusId) return;
+        document.getElementById(`request-${focusId}`)?.scrollIntoView({ block: 'start' });
+    }, [requests, focusId]);
     if (!requests) return <p className="admin-muted">Loading…</p>;
     const pending = requests.filter((r) => r.status === 'pending');
     const reviewed = requests.filter((r) => r.status !== 'pending');
@@ -357,7 +361,7 @@ const RequestsTab = ({ requests, onReview }) => {
         <>
             {pending.length === 0 && <section className="admin-panel"><p className="admin-muted">No requests are waiting for review.</p></section>}
             {pending.map((r) => (
-                <section className="admin-panel admin-request" key={r.id}>
+                <section className={`admin-panel admin-request${r.id === focusId ? ' is-focused' : ''}`} key={r.id} id={`request-${r.id}`}>
                     <div className="admin-panel-head">
                         <h3>{r.charity_name}</h3>
                         <span className="admin-muted">{fmtDateTime(r.created_at)}</span>
@@ -571,8 +575,21 @@ const TABS = [
     { id: 'rules', label: 'Plans and limits', icon: SlidersHorizontal },
 ];
 
+// Links in admin emails open a tab directly: /admin?tab=users&q=<member id>
+// or /admin?tab=requests&request=<request id>.
+const readLink = () => {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const tab = TABS.some((t) => t.id === p.get('tab')) ? p.get('tab') : 'overview';
+        return { tab, q: (p.get('q') || '').slice(0, 120), request: p.get('request') || '' };
+    } catch {
+        return { tab: 'overview', q: '', request: '' };
+    }
+};
+
 const AdminView = ({ onClose }) => {
-    const [tab, setTab] = useState('overview');
+    const [link] = useState(readLink);
+    const [tab, setTab] = useState(link.tab);
     const [access, setAccess] = useState({ state: 'checking' });
     const [summary, setSummary] = useState(null);
     const [overrides, setOverrides] = useState(null);
@@ -677,7 +694,7 @@ const AdminView = ({ onClose }) => {
                         {error && <div className="notice notice-danger">{error}</div>}
 
                         {tab === 'overview' && <Overview summary={summary} />}
-                        {tab === 'users' && <UsersTab onGrant={openGrant} />}
+                        {tab === 'users' && <UsersTab onGrant={openGrant} initialQuery={link.q} />}
                         {tab === 'boards' && (
                             <section className="admin-panel">
                                 <div className="admin-panel-head">
@@ -696,7 +713,7 @@ const AdminView = ({ onClose }) => {
                                 </section>
                             </>
                         )}
-                        {tab === 'requests' && <RequestsTab requests={requests} onReview={review} />}
+                        {tab === 'requests' && <RequestsTab requests={requests} onReview={review} focusId={link.request} />}
                         {tab === 'rules' && <PlansTab />}
                     </>
                 )}

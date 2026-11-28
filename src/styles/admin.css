@@ -500,3 +500,10 @@
 .admin-price { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; white-space: nowrap; }
 .admin-price .admin-sub { margin: 0 0 0 4px; }
 .admin-plans-table { min-width: 980px; }
+
+/* A request opened from an admin email link */
+.admin-request.is-focused {
+    border-color: var(--accent-color, #0079bf);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #0079bf) 18%, transparent);
+    scroll-margin-top: 16px;
+}

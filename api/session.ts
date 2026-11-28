@@ -17,6 +17,7 @@ import {
   sessionsConfigured,
 } from './_lib/session.js';
 import { recordLogin } from './_lib/db.js';
+import { notifyAdmins, signupEmail, appUrl } from './_lib/notify.js';
 
 export const config = { maxDuration: 15 };
 
@@ -39,7 +40,9 @@ async function handlePost(request: Request): Promise<Response> {
 
   let tracked = false;
   try {
-    tracked = (await recordLogin(member, isNewSession)).recorded;
+    const login = await recordLogin(member, isNewSession);
+    tracked = login.recorded;
+    if (login.newUser) notifyAdmins(signupEmail(member, appUrl(request)));
   } catch (e) {
     // Never block sign-in on the database.
     console.error('[session] failed to record sign-in', e);
