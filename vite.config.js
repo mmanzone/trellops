@@ -16,7 +16,6 @@ export default defineConfig({
         help: resolve(import.meta.dirname, 'help.html'),
         privacy: resolve(import.meta.dirname, 'privacy.html'),
         pricing: resolve(import.meta.dirname, 'pricing.html'),
-        tour: resolve(import.meta.dirname, 'tour.html'),
         releases: resolve(import.meta.dirname, 'releases.html'),
       }
     }
