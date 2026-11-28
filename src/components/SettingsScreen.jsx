@@ -3,6 +3,7 @@ import { trelloFetch, trelloAuth } from '../api/trello';
 import { serverSessionReady } from '../api/session';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import MoreOptionsModal from './common/MoreOptionsModal';
+import { requestTour } from '../hooks/useTourStatus';
 import IconPicker from './common/IconPicker';
 import ColorPicker from './common/ColorPicker';
 import { getPersistentLayout } from '../utils/persistence';
@@ -2292,6 +2293,9 @@ const SettingsScreen = ({ user, initialTab = 'dashboard', onClose, onSave, onLog
             <div className="settings-footer">
                 <div className="settings-version">v4.6.{__BUILD_ID__ || 1000} - November 2026</div>
                 <nav className="settings-footer-links">
+                    {viewMode === 'default' && (
+                        <button type="button" className="settings-footer-link" onClick={requestTour}>Show me around</button>
+                    )}
                     <a href="/help.html" target="_blank">User Guide</a>
                     <a href="/privacy.html" target="_blank">Privacy Policy</a>
                     <a href="/releases.html" target="_blank">Release Notes</a>

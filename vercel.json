@@ -1,4 +1,11 @@
 {
+    "redirects": [
+        {
+            "source": "/tour.html",
+            "destination": "/help.html",
+            "permanent": true
+        }
+    ],
     "rewrites": [
         {
             "source": "/(.*)",

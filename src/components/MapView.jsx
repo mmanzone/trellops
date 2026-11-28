@@ -13,7 +13,8 @@ import { renderMarkdown } from '../utils/markdown';
 import { getTerminology } from '/src/utils/terminology';
 import Dashboard from './Dashboard'; // For Slideshow
 import HamburgerMenu from './common/HamburgerMenu';
-import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
+import { ThemeToggleButton, ScreenLockButton, PageTitle, TourButton } from './common/HeaderControls';
+import { requestTour } from '../hooks/useTourStatus';
 import '/src/styles/map.css';
 
 // --- CUSTOM MAP STYLES ---
@@ -1237,7 +1238,7 @@ const MapView = ({ user, settings, minRefreshSeconds = 15, onClose, onShowSettin
 
                     {/* DESKTOP HEADER ACTIONS */}
                     <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '5px' }}>
+                        <span data-tour="map-count" style={{ fontSize: '0.9em', color: 'var(--text-secondary)', marginRight: '5px' }}>
                             Mapped: {visibleMarkersCount} / {totalFilteredCards}
                         </span>
 
@@ -1259,6 +1260,8 @@ const MapView = ({ user, settings, minRefreshSeconds = 15, onClose, onShowSettin
                                 </select>
                             </>
                         )}
+
+                        <TourButton />
 
                         <ScreenLockButton keepScreenOn={keepScreenOn} onToggle={onToggleScreenLock} />
 
@@ -1306,6 +1309,9 @@ const MapView = ({ user, settings, minRefreshSeconds = 15, onClose, onShowSettin
                                         </button>
                                         <button className="menu-link" onClick={() => onShowSettings('board')}>
                                             Settings
+                                        </button>
+                                        <button className="menu-link" onClick={requestTour}>
+                                            Show me around
                                         </button>
                                         <button className="menu-link" onClick={onLogout}>
                                             Log Out

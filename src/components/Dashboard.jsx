@@ -16,7 +16,8 @@ import LabelFilter from './common/LabelFilter';
 const MapView = lazy(() => import('./MapView'));
 // import { formatCountdown } from '../utils/timeUtils'; // Removed as unused/replaced
 import HamburgerMenu from './common/HamburgerMenu';
-import { ThemeToggleButton, ScreenLockButton, PageTitle } from './common/HeaderControls';
+import { ThemeToggleButton, ScreenLockButton, PageTitle, TourButton } from './common/HeaderControls';
+import { requestTour } from '../hooks/useTourStatus';
 import '../styles/map.css';
 
 const Dashboard = ({ user, settings, minRefreshSeconds = 15, onShowSettings, onLogout, onShowTasks, onShowMap, onGoToStats, isEmbedded, slideshowContent, onStopSlideshow, onStartSlideshow, keepScreenOn, onToggleScreenLock }) => {
@@ -433,6 +434,8 @@ const Dashboard = ({ user, settings, minRefreshSeconds = 15, onShowSettings, onL
                             </>
                         )}
 
+                        <TourButton style={{ marginLeft: '10px' }} />
+
                         <ScreenLockButton keepScreenOn={keepScreenOn} onToggle={onToggleScreenLock} style={{ marginLeft: '10px' }} />
 
                         <ThemeToggleButton style={{ marginLeft: '10px' }} />
@@ -495,6 +498,10 @@ const Dashboard = ({ user, settings, minRefreshSeconds = 15, onShowSettings, onL
 
                                 <button className="menu-link" onClick={onShowSettings}>
                                     Settings
+                                </button>
+
+                                <button className="menu-link" onClick={requestTour}>
+                                    Show me around
                                 </button>
 
                                 <button className="menu-link" onClick={onLogout}>
