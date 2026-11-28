@@ -53,8 +53,10 @@ const App = () => {
     const can = useCallback((feature) => entitlements.features.includes(feature), [entitlements]);
 
     const refreshEntitlements = useCallback(async (opts = {}) => {
-        if (!user || !serverSession?.sessions) return;
+        // Keep the board list even when the session isn't ready yet, so the
+        // refresh that runs once it is still asks about every board.
         if (opts.boardIds) askedBoardIds.current = opts.boardIds;
+        if (!user || !serverSession?.sessions) return;
         lastFetch.current = Date.now();
         const { me, entitlements: ent } = await fetchEntitlements({
             boardId: settings?.boardId,
