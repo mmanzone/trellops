@@ -1,119 +1,34 @@
-import React from 'react';
-import { setTourStatus } from '../../hooks/useTourStatus';
+import React, { useEffect, useRef } from 'react';
+import { BrandMark } from '../landing/Illustrations';
 
 /**
- * TourWelcomeModal
- * 
- * Shown once to first-time users immediately after login.
- * Asks if they want to take the guided tour.
- * 
- * Props:
- *   onStartTour  → user clicked "Start Tour"
- *   onSkip       → user clicked "Skip for now"
+ * Offers the guided tour once, the first time someone signs in.
+ * The tour is suggested, never started without the user's say-so.
  */
 const TourWelcomeModal = ({ onStartTour, onSkip }) => {
-    const handleSkip = () => {
-        setTourStatus('skipped');
-        onSkip();
-    };
+    const startRef = useRef(null);
 
-    const handleStart = () => {
-        setTourStatus('pending');
-        onStartTour();
-    };
+    useEffect(() => {
+        startRef.current?.focus();
+        const onKey = (e) => { if (e.key === 'Escape') onSkip(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [onSkip]);
 
     return (
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            background: 'rgba(0,0,0,0.65)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-        }}>
-            <div style={{
-                background: '#1e1e1e',
-                borderRadius: '16px',
-                padding: '40px',
-                maxWidth: '460px',
-                width: '90%',
-                boxShadow: '0 16px 60px rgba(0,0,0,0.7)',
-                border: '1px solid #2a2a2a',
-                textAlign: 'center',
-                animation: 'tourModalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            }}>
-                <style>{`
-                    @keyframes tourModalIn {
-                        from { opacity: 0; transform: scale(0.85) translateY(20px); }
-                        to   { opacity: 1; transform: scale(1) translateY(0); }
-                    }
-                `}</style>
-
-                {/* Icon */}
-                <div style={{ fontSize: '2.8em', marginBottom: '16px' }}>✨</div>
-
-                {/* Title */}
-                <h2 style={{
-                    margin: '0 0 12px',
-                    color: '#ffffff',
-                    fontSize: '1.4em',
-                    fontWeight: 700,
-                }}>
-                    Welcome to Trellops!
-                </h2>
-
-                {/* Body */}
-                <p style={{
-                    color: '#aaaaaa',
-                    fontSize: '0.95em',
-                    lineHeight: 1.7,
-                    marginBottom: '28px',
-                }}>
-                    Looks like it's your first time here. Would you like a quick guided tour through the key features — dashboards, statistics, AI summaries, and the map view?
+        <div className="tour-welcome-overlay">
+            <div className="tour-welcome" role="dialog" aria-modal="true" aria-labelledby="tour-welcome-title">
+                <BrandMark size={36} />
+                <h2 id="tour-welcome-title">Welcome to Trellops</h2>
+                <p>
+                    Would you like a quick look around? As you open each page for the first time, we will point out
+                    what each part does: setting up blocks and tiles, the dashboard, the map and statistics.
                 </p>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                    <button
-                        onClick={handleSkip}
-                        style={{
-                            background: 'transparent',
-                            border: '1px solid #444',
-                            color: '#999',
-                            padding: '10px 22px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '0.9em',
-                            fontWeight: 600,
-                        }}
-                    >
-                        Skip for now
-                    </button>
-                    <button
-                        onClick={handleStart}
-                        style={{
-                            background: '#0052cc',
-                            border: 'none',
-                            color: 'white',
-                            padding: '10px 26px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '0.9em',
-                            fontWeight: 700,
-                            boxShadow: '0 4px 14px rgba(0,82,204,0.45)',
-                        }}
-                    >
-                        Start Tour →
-                    </button>
+                <div className="tour-welcome-actions">
+                    <button type="button" className="button-secondary" onClick={onSkip}>Not now</button>
+                    <button type="button" className="button-primary" ref={startRef} onClick={onStartTour}>Show me around</button>
                 </div>
-
-                {/* Fine print */}
-                <p style={{ marginTop: '18px', fontSize: '0.78em', color: '#666' }}>
-                    You can always open the tour from the footer of the Settings page.
-                </p>
+                <p className="tour-welcome-note">You can replay it any time with the help button at the top of the dashboard, map and statistics pages.</p>
             </div>
         </div>
     );

@@ -1324,12 +1324,258 @@ body.site {
     font-size: 15px;
 }
 
-.docs-video {
+/* Interactive dashboard on the user guide (DashboardExplorer.jsx) */
+.docs-explorer {
     margin-top: var(--s-5);
-    border-radius: var(--s-radius-lg);
-    overflow: hidden;
+    min-height: 420px;
+}
+
+.dx-screen {
     border: 1px solid var(--s-line);
-    background: var(--s-ink);
+    border-radius: var(--s-radius-lg);
+    background: #f6f5f1;
+    box-shadow: 0 1px 2px rgba(21, 23, 28, 0.04), 0 10px 30px rgba(21, 23, 28, 0.07);
+    overflow: hidden;
+    font-size: 13px;
+    user-select: none;
+}
+
+.dx-header,
+.dx-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-4);
+    background: var(--s-card);
+}
+
+.dx-header {
+    justify-content: space-between;
+    border-bottom: 1px solid var(--s-line);
+}
+
+.dx-footer {
+    justify-content: flex-end;
+    border-top: 1px solid var(--s-line);
+}
+
+.dx-title {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-3);
+    min-width: 0;
+}
+
+.dx-clock {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--s-ink);
+}
+
+.dx-board {
+    font-family: var(--s-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--s-ink);
+    white-space: nowrap;
+}
+
+.dx-board span {
+    font-weight: 500;
+    color: var(--s-ink-3);
+    margin-left: 4px;
+}
+
+.dx-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.dx-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--s-line-strong);
+    border-radius: 6px;
+    background: var(--s-card);
+    color: var(--s-ink);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dx-select {
+    min-width: 92px;
+    justify-content: space-between;
+}
+
+.dx-icon {
+    width: 28px;
+    padding: 0;
+    justify-content: center;
+}
+
+.dx-body {
+    padding: var(--s-4);
+    display: grid;
+    gap: var(--s-4);
+}
+
+.dx-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--s-2);
+    padding: 2px 4px;
+    font-family: var(--s-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--s-ink);
+}
+
+.dx-block-head svg {
+    color: var(--s-ink-3);
+}
+
+.dx-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--s-2);
+}
+
+.dx-tile-fill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 76px;
+    padding: var(--s-2);
+    border-radius: 8px;
+    color: #fff;
+    text-align: center;
+}
+
+.dx-count {
+    font-family: var(--s-display);
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.dx-name {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+/* Hotspots: the part of the model that can be explained, and its marker */
+.dx-zone {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: box-shadow 0.15s ease;
+}
+
+.dx-zone.is-active {
+    box-shadow: 0 0 0 2px var(--s-card), 0 0 0 4px var(--s-accent);
+}
+
+.dx-hotspot {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: 2px solid var(--s-card);
+    border-radius: 50%;
+    background: var(--s-accent);
+    cursor: pointer;
+    box-shadow: 0 0 0 0 rgba(0, 121, 191, 0.45);
+    animation: dx-pulse 2.2s ease-out infinite;
+}
+
+.dx-hotspot.is-active {
+    animation: none;
+    background: var(--s-accent-ink);
+}
+
+.dx-hotspot:focus-visible {
+    outline: 2px solid var(--s-accent);
+    outline-offset: 2px;
+}
+
+@keyframes dx-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0, 121, 191, 0.45); }
+    70% { box-shadow: 0 0 0 8px rgba(0, 121, 191, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 121, 191, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dx-hotspot { animation: none; }
+}
+
+.dx-explain {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--s-4);
+    margin-top: var(--s-4);
+    padding: var(--s-4) var(--s-5);
+    border-left: 3px solid var(--s-accent);
+    background: var(--s-card);
+    border-radius: 0 var(--s-radius) var(--s-radius) 0;
+    min-height: 112px;
+}
+
+.docs-body .dx-explain h3 {
+    margin: 0 0 4px;
+}
+
+.docs-body .dx-explain p {
+    margin: 0;
+}
+
+.docs-body .dx-explain .dx-explain-count {
+    font-size: 12px;
+    color: var(--s-ink-3);
+    margin-bottom: 2px;
+}
+
+.dx-explain-nav {
+    display: flex;
+    gap: var(--s-2);
+    flex-shrink: 0;
+}
+
+.site .dx-explain-nav .s-btn {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+}
+
+@media (max-width: 560px) {
+    .dx-tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .dx-explain {
+        flex-direction: column;
+        padding: var(--s-4);
+    }
+
+    .dx-footer {
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 860px) {

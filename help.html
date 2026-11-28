@@ -44,11 +44,11 @@
                 <p>On this page</p>
                 <ol>
                     <li><a href="#getting-started">Getting started</a></li>
+                    <li><a href="#dashboard-tour">The dashboard at a glance</a></li>
                     <li><a href="#dashboard-setup">Dashboard setup</a></li>
                     <li><a href="#map-view">Map view</a></li>
                     <li><a href="#advanced">Advanced settings</a></li>
                     <li><a href="#sharing">Sharing</a></li>
-                    <li><a href="#video-walkthrough">Video walkthrough</a></li>
                 </ol>
             </nav>
 
@@ -65,6 +65,12 @@
                         <li><strong>Read and write access:</strong> By default Trellops only needs read access to show your dashboard. If you want to move cards between lists from the <strong>Map view</strong>, you will be asked to sign in again and allow write access.</li>
                         <li><strong>Shared links:</strong> If you share your configuration as a link, we store the skeleton of your layout (board IDs and block names) so the link works. No card content is stored.</li>
                     </ul>
+                </section>
+
+                <section id="dashboard-tour">
+                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span>The dashboard at a glance</h2>
+                    <p>Select any highlighted part of this example dashboard to see what it does. Inside Trellops, the same guide opens the first time you visit each page, and you can replay it with the help button at the top of the screen.</p>
+                    <div id="dashboard-explorer" class="docs-explorer"></div>
                 </section>
 
                 <section id="dashboard-setup">
@@ -149,18 +155,6 @@
                     <p>To keep everything local, choose “Export configuration to a file”. Your colleague can load it with “Import”.</p>
                 </section>
 
-                <section id="video-walkthrough">
-                    <h2><span class="docs-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m10 8 6 4-6 4Z"/></svg></span>Video walkthrough</h2>
-                    <p>A short tour of the main features.</p>
-                    <div class="docs-video">
-                        <div class="sp-embed-player" data-id="cTXq3anqlqS" data-aspect-ratio="1.825352"
-                            data-padding-top="54.783951%" style="position:relative;width:100%;aspect-ratio:1.825352;">
-                            <script src="https://go.screenpal.com/consumption/player_appearance/cTXq3anqlqS/1.825352"></script>
-                            <iframe title="Trellops video walkthrough" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" scrolling="no"
-                                src="https://go.screenpal.com/player/cTXq3anqlqS?ff=1&title=0" allowfullscreen="true"></iframe>
-                        </div>
-                    </div>
-                </section>
             </article>
         </div>
     </main>
@@ -177,6 +171,7 @@
         </div>
     </footer>
 
+    <script type="module" src="/src/help.jsx"></script>
     <script>
         // Preview deployments get a banner so they are never mistaken for production.
         if (window.location.hostname !== 'trellops.xyz') {

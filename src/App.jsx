@@ -13,6 +13,7 @@ const SettingsScreen = lazy(() => import('./components/SettingsScreen'));
 const MapView = lazy(() => import('./components/MapView'));
 const TaskView = lazy(() => import('./components/TaskView'));
 const StatisticsView = lazy(() => import('./components/StatisticsView'));
+const TourManager = lazy(() => import('./tour/TourManager'));
 import useWakeLock from './hooks/useWakeLock';
 import { decodeBase64Utf8 } from './utils/helpers';
 
@@ -502,7 +503,6 @@ const App = () => {
                         setView('stats');
                         window.history.pushState({}, '', '/stats');
                     }}
-                    onOpenTour={undefined}
                 />
             );
         }
@@ -537,6 +537,11 @@ const App = () => {
     return (
         <Suspense fallback={<div className="container" style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
             {renderView()}
+            {user && (
+                <Suspense fallback={null}>
+                    <TourManager view={view} enabled={!slideshowActive} />
+                </Suspense>
+            )}
         </Suspense>
     );
 };
